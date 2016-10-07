@@ -214,19 +214,22 @@ extract_string(unsigned char *x, int *valid_termination, int len)
     memset(ret, 0, sizeof(ret));
 
     for (i = 0; i < len; i++) {
-	if (isgraph(x[i])) {
-	    ret[i] = x[i];
-	} else if (!seen_newline) {
-	    if (x[i] == 0x0a) {
-		seen_newline = 1;
-	    } else {
-		*valid_termination = 0;
-		return ret;
-	    }
-	} else {
+	if (seen_newline) {
 	    if (x[i] != 0x20) {
 		*valid_termination = 0;
 		return ret;
+	    }
+	}
+	else {
+	    if (x[i] == 0x0a) {
+		seen_newline = 1;
+	    } else {
+		if (((x[i] & 0x80) == 0) && isprint(x[i])) {
+		    ret[i] = x[i];
+		} else {
+		    *valid_termination = 0;
+		    return ret;
+		}
 	    }
 	}
     }
