@@ -2818,7 +2818,6 @@ static void dump_breakdown(const unsigned char *edid)
 	print_subsection("checksum", edid, 127, 127);
 	printf("\n");
 }
-
 static unsigned char crc_calc(const unsigned char *b)
 {
 	unsigned char sum = 0;
@@ -2897,6 +2896,14 @@ static void write_edid(FILE *f, const unsigned char *edid, unsigned size,
 	}
 }
 
+#ifdef O_BINARY
+#define OPEN_READ_FLAGS (O_RDONLY | O_BINARY)
+#define OPEN_WRITE_FLAGS (O_WRONLY | O_BINARY)
+#else
+#define OPEN_READ_FLAGS (O_RDONLY)
+#define OPEN_WRITE_FLAGS (O_WRONLY)
+#endif
+
 static int edid_from_file(const char *from_file, const char *to_file,
 			  enum output_format out_fmt)
 {
@@ -2911,7 +2918,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	if (!from_file || !strcmp(from_file, "-")) {
 		fd = 0;
-	} else if ((fd = open(from_file, O_RDONLY)) == -1) {
+	} else if ((fd = open(from_file, OPEN_READ_FLAGS)) == -1) {
 		perror(from_file);
 		return -1;
 	}
