@@ -1776,18 +1776,18 @@ int main(int argc, char **argv)
 	    ofd = -1;
 	    break;
 	case 2:
-	    if ((fd = open(argv[1], O_RDONLY)) == -1) {
+	    if ((fd = open(argv[1], O_RDONLY|O_BINARY)) == -1) {
 		perror(argv[1]);
 		return 1;
 	    }
 	    ofd = -1;
 	    break;
 	case 3:
-	    if ((fd = open(argv[1], O_RDONLY)) == -1) {
+	    if ((fd = open(argv[1], O_RDONLY|O_BINARY)) == -1) {
 		perror(argv[1]);
 		return 1;
 	    }
-	    if ((ofd = open(argv[2], O_WRONLY)) == -1) {
+	    if ((ofd = open(argv[2], O_WRONLY|O_BINARY)) == -1) {
 		perror(argv[2]);
 		return 1;
             }
