@@ -23,7 +23,13 @@ at the last time I updated this repo.
 My own changes:
 
 - Open EDID files in binary mode, for those of use using the tool on Windows.
-  It does build just fine with MSYS2/MinGW-w64
+  It does build just fine with MSYS2/MinGW-w64.
+- Add some scripts for building and for using on Windows.
+
+
+  - That includes this readme file and some utilities for formatting it,
+    including a bundled copy of `markdeep.min.js` from <https://casual-effects.com/markdeep/>,
+    which is subject to its own license, found in the `misc/` folder in the source or bundled with a binary.
 
 Patch sources besides myself:
 
