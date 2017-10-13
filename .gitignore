@@ -1,1 +1,7 @@
 edid-decode
+edid-decode-built/
+*.jx
+bintray.json
+vs/x64/
+*.vcxproj.user
+.vs/
