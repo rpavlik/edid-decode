@@ -22,3 +22,11 @@ script:
 branches:
   except:
     - master
+
+deploy:
+  key:
+    secure: FFCJFbVKylap7qso4s5MJBnc5SO4xHudoVu2ScOjtd6Oie4K6f5wyxJZO94cYZcpavh/p/gsGtwt+47Fvy4HX4IbFkXtGL5tXDdAhWMpDgSO3XZ2/etoXgKM2zH8rTT7ZtqcnwyoIJpIKcFYj22vXLbj2BJJ/HOdoG4+bjFnwkIkysDhb/UPUiCrDySTNPrhplggT1S8AM2N71MVgnvAzwI0iF3z6COwoe5g6hh6ZIFw0guo1fVedDi+cicSP4pA4v9N7frjeDD4xkAVz8Xq+De2n+SAIE/LMD9eay2zioGFk9G5rnXcytMI+rUEwURMslkB2pP2F4Gmc2dRNbLyyNXEeciHUyl4LB/M6terYAfuyxc1ixaQcsIXfyU1odRngSoYXvzi0Tm/HmZa+DFDLMorUfoJCibzE7VNUYkSsIlesOYGuvHdWVPjQm3XUOGuwU5Xt5rzYO/rcyrgIV4wOI5G4DenGQtg/Mg8AQ+dj2HOKGYqNd0dfbt0Grzl/ADsSlYHmskKNdPJVuEFWPooars+ttToepr4+L1HP+SV0RW2IBMgZRBI3/SRZyzl60K+aILchfnzeAn49i0ohfuNqJmwTqqdLCgc/DSb6C/T3UHW5hDjogGsoT0ZcGVK2SgRhKVkVcekEtMfQDkYj12XdqLTlZaE7TjxMXDb+4EBldI=
+  provider: bintray
+  file: "bintray.json"
+  user: "rpavlik"
+  dry-run: true

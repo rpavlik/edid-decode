@@ -40,7 +40,47 @@ fi
 
 echo "Update the version text file"
 echo
-git describe --all | todos > $OUTDIR/version.txt
+
+VER=$(git describe --long --match "fork-point*")
+echo "$VER" > $OUTDIR/version.txt
+
+FORK_POINT_NUM=$(echo "$VER" | sed -E 's/^fork-point-([0-9]+)-.*/\1/')
+COMMITS_SINCE=$(echo "$VER" | sed -E 's/^fork-point-[0-9]+-([0-9]+).*/\1/')
+COMMIT_HASH=$(echo "$VER" | sed -E 's/^fork-point-[0-9]+-[0-9]+-g([0-9a-f]+)/\1/')
+
+
+echo "Generate bintray descriptor"
+echo
+cat > bintray.json <<EOS
+{
+    /* Bintray package information.
+       In case the package already exists on Bintray, only the name, repo and subject
+       fields are mandatory. */
+
+    "package": {
+        "name": "edid-decode",
+        "repo": "edid-decode-windows",
+        "subject": "rpavlik"
+    },
+
+    /* Package version information.
+       In case the version already exists on Bintray, only the name fields is mandatory. */
+
+    "version": {
+        "name": "${VER}",
+        "desc": "Automated build/version: Commit with hash ${COMMIT_HASH}, which is ${COMMITS_SINCE} since fork point number ${FORK_POINT_NUM}",
+        //"released": "2015-01-04",
+        "vcs_tag": "${COMMIT_HASH}",
+        "gpgSign": false
+    },
+
+    "files":
+        [
+        {"includePattern": "edid-decode-built/(.*)", "uploadPattern": "/$1"}
+        ],
+    "publish": true
+}
+EOS
 
 echo "Contents of output directory:"
 ls -la $OUTDIR
