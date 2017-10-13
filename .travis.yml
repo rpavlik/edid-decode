@@ -1,0 +1,24 @@
+language:
+  - cpp
+
+# Container-based infrastructure (Linux)
+sudo:
+  - false
+
+dist:
+  - trusty
+
+addons:
+  apt:
+    packages:
+      - mingw-w64
+      - groff
+      - tofrodos
+
+script:
+  - which x86_64-w64-mingw32-gcc
+  - misc/build-windows-ci.sh CC=x86_64-w64-mingw32-gcc
+
+branches:
+  except:
+    - master
