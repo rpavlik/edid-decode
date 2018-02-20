@@ -2658,6 +2658,13 @@ static void dump_breakdown(unsigned char *edid)
     print_subsection("checksum", edid, 127, 127);
     printf("\n");
 }
+#ifdef O_BINARY
+#define OPEN_READ_FLAGS  (O_RDONLY|O_BINARY)
+#define OPEN_WRITE_FLAGS  (O_WRONLY|O_BINARY)
+#else
+#define OPEN_READ_FLAGS  (O_RDONLY)
+#define OPEN_WRITE_FLAGS  (O_WRONLY)
+#endif
 
 int main(int argc, char **argv)
 {
@@ -2675,18 +2682,18 @@ int main(int argc, char **argv)
 	    ofd = -1;
 	    break;
 	case 2:
-	    if ((fd = open(argv[1], O_RDONLY|O_BINARY)) == -1) {
+	    if ((fd = open(argv[1], OPEN_READ_FLAGS)) == -1) {
 		perror(argv[1]);
 		return 1;
 	    }
 	    ofd = -1;
 	    break;
 	case 3:
-	    if ((fd = open(argv[1], O_RDONLY|O_BINARY)) == -1) {
+	    if ((fd = open(argv[1], OPEN_READ_FLAGS)) == -1) {
 		perror(argv[1]);
 		return 1;
 	    }
-	    if ((ofd = open(argv[2], O_WRONLY|O_BINARY)) == -1) {
+	    if ((ofd = open(argv[2], OPEN_WRITE_FLAGS)) == -1) {
 		perror(argv[2]);
 		return 1;
             }
