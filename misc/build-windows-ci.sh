@@ -1,5 +1,10 @@
 #!/bin/bash -e
 
+if [ "x$1" == "x" ]; then
+    echo "Please pass something like CC=x86_64-w64-mingw32-gcc as the argument to tell me what compiler to use!"
+    exit 1
+fi
+
 # Intended to be used to build a Windows-native version on some Linux CI
 (
 cd $(dirname $0)/..
@@ -19,7 +24,14 @@ export FULL_OUTDIR="$(cd ${OUTDIR} && pwd)"
 echo "  - full path: ${FULL_OUTDIR}"
 echo
 cp edid-decode.c $OUTDIR
-cp edid-decode $OUTDIR/edid-decode.exe
+if [ -f edid-decode ]; then
+    cp edid-decode $OUTDIR/edid-decode.exe
+elif [ -f edid-decode.exe ]; then
+    cp edid-decode.exe $OUTDIR/edid-decode.exe
+else
+    echo "Can't find the result!"
+    exit 1
+fi
 
 cat misc/edid-txt.cmd | todos > $OUTDIR/edid-decode.html
 
@@ -51,36 +63,24 @@ COMMIT_HASH=$(echo "$VER" | sed -E 's/^fork-point-[0-9]+-[0-9]+-g([0-9a-f]+)/\1/
 
 echo "Generate bintray descriptor"
 echo
+
+# Bintray package information in "package" object:
+#     In case the package already exists on Bintray, only the name, repo and subject
+#     fields are mandatory.
+
+# Package version information in "version" object:
+#     In case the version already exists on Bintray, only the name fields is mandatory.
+
 cat > bintray.json <<EOS
 {
-    /* Bintray package information.
-       In case the package already exists on Bintray, only the name, repo and subject
-       fields are mandatory. */
-
-    "package": {
-        "name": "edid-decode",
-        "repo": "edid-decode-windows",
-        "subject": "rpavlik"
-    },
-
-    /* Package version information.
-       In case the version already exists on Bintray, only the name fields is mandatory. */
-
     "version": {
         "name": "${VER}",
         "desc": "Automated build/version: Commit with hash ${COMMIT_HASH}, which is ${COMMITS_SINCE} since fork point number ${FORK_POINT_NUM}",
-        //"released": "2015-01-04",
         "vcs_tag": "${COMMIT_HASH}",
         "gpgSign": false
     },
-
-    "files":
-        [
-        {"includePattern": "edid-decode-built/(.*)", "uploadPattern": "/$1"}
-        ],
-    "publish": true
-}
 EOS
+cat misc/bintray-static.json >> bintray.json
 
 echo "Contents of output directory:"
 ls -la $OUTDIR

@@ -1,0 +1,14 @@
+
+    "package": {
+        "name": "edid-decode",
+        "repo": "edid-decode-windows",
+        "subject": "rpavlik"
+    },
+    "files": [
+        {
+            "includePattern": "edid-decode-built/(.*)",
+            "uploadPattern": "/$1"
+        }
+    ],
+    "publish": true
+}

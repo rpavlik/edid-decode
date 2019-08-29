@@ -1,3 +1,5 @@
 edid-decode
+edid-decode.exe
 edid-decode-built/
 *.jx
+bintray.json
