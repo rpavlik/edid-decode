@@ -207,7 +207,7 @@ static struct field var = {					\
 
 static void decode_value(struct field *field, int val, const char *prefix)
 {
-	struct value *v;
+	struct value *v = NULL;
 	int i;
 
 	for (i = 0; i < field->n_values; i++) {
@@ -412,6 +412,7 @@ static int detailed_cvt_descriptor(const unsigned char *x, int first)
 
 	switch (x[1] & 0x0c) {
 	case 0x00:
+	default: /* avoids 'width/ratio may be used uninitialized' warnings */
 		width = 8 * (((height * 4) / 3) / 8);
 		ratio = "4:3";
 		break;
@@ -2779,12 +2780,11 @@ static int parse_extension(const unsigned char *x)
 
 	printf("\n");
 
-	switch(x[0]) {
-	case 0x02:
-		printf("CTA Extension Block\n");
-		extension_version(x);
-		conformant_extension = parse_cta(x);
-		break;
+	switch (x[0]) {
+	case 0x02: printf("CTA Extension Block\n");
+		   extension_version(x);
+		   conformant_extension = parse_cta(x);
+		   break;
 	case 0x10: printf("VTB Extension Block\n"); break;
 	case 0x40: printf("DI Extension Block\n"); break;
 	case 0x50: printf("LS Extension Block\n"); break;
@@ -2793,10 +2793,8 @@ static int parse_extension(const unsigned char *x)
 		   conformant_extension = parse_displayid(x);
 		   break;
 	case 0xF0: printf("Block map\n"); break;
-	case 0xFF: printf("Manufacturer-specific Extension Block\n");
-	default:
-		   printf("Unknown Extension Block\n");
-		   break;
+	case 0xFF: printf("Manufacturer-specific Extension Block\n"); break;
+	default:   printf("Unknown Extension Block\n"); break;
 	}
 
 	return conformant_extension;
