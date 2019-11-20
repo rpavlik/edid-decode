@@ -3620,7 +3620,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	free(edid);
 	if (s_warn)
 		printf("%s", s_warn);
-	printf("EDID comformity: %s\n", conformant ? "PASS" : "FAIL");
+	printf("EDID conformity: %s\n", conformant ? "PASS" : "FAIL");
 	return conformant ? 0 : -2;
 }
 
