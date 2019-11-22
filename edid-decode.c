@@ -102,6 +102,8 @@ static unsigned mon_max_hor_freq_hz = 0;
 static unsigned mon_min_vert_freq_hz = 0;
 static unsigned mon_max_vert_freq_hz = 0;
 static unsigned mon_max_pixclk_khz = 0;
+static unsigned max_display_width_mm = 0;
+static unsigned max_display_height_mm = 0;
 
 static unsigned supported_hdmi_vic_codes = 0;
 static unsigned supported_hdmi_vic_vsb_codes = 0;
@@ -1086,6 +1088,23 @@ static int detailed_block(const unsigned char *x, int in_extension)
 	       phsync, pvsync, syncmethod, x[17] & 0x80 ? " interlaced" : "",
 	       stereo, refresh, (pixclk_khz * 1000) / (ha + hbl)
 	      );
+	if ((!max_display_width_mm && hor_mm) ||
+	    (!max_display_height_mm && vert_mm)) {
+		warn("mismatch of image size vs display size: image size is set, but not display size\n");
+	} else if ((max_display_width_mm && !hor_mm) ||
+		   (max_display_height_mm && !vert_mm)) {
+		warn("mismatch of image size vs display size: image size is not set, but display size is\n");
+	} else if (!hor_mm && !vert_mm) {
+		/* this is valid */
+	} else if (hor_mm > max_display_width_mm + 9 ||
+		   vert_mm > max_display_height_mm + 9) {
+		warn("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
+		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
+	} else if (hor_mm < max_display_width_mm - 9 &&
+		   vert_mm < max_display_height_mm - 9) {
+		warn("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
+		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
+	}
 	min_vert_freq_hz = min(min_vert_freq_hz, refresh);
 	max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
@@ -3318,8 +3337,16 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		       sync & 0x01 ? "Serration " : "");
 	}
 
-	if (edid[0x15] && edid[0x16])
+	if (edid[0x15] && edid[0x16]) {
 		printf("Maximum image size: %u cm x %u cm\n", edid[0x15], edid[0x16]);
+		max_display_width_mm = edid[0x15] * 10;
+		max_display_height_mm = edid[0x16] * 10;
+		if ((max_display_height_mm && !max_display_width_mm) ||
+		    (max_display_width_mm && !max_display_height_mm))
+			warn("invalid maximum image size\n");
+		else if (max_display_width_mm < 100 || max_display_height_mm < 100)
+			warn("dubious maximum image size (smaller than 10x10 cm)\n");
+	}
 	else if (claims_one_point_four && (edid[0x15] || edid[0x16])) {
 		if (edid[0x15])
 			printf("Aspect ratio is %f (landscape)\n", 100.0/(edid[0x16] + 99));
