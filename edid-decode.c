@@ -150,7 +150,7 @@ static void usage(void)
 	       "  [out]                 Output the read EDID to this file. Write to standard output\n"
 	       "                        if the output filename is '-'.\n"
 	       "\nOptions:\n"
-	       "  -o, --output-format=<fmt>\n"
+	       "  -o, --output-format <fmt>\n"
 	       "                        if [out] is specified, then write the EDID in this format\n"
 	       "                        <fmt> is one of:\n"
 	       "                        hex:    hex numbers in ascii text (default for stdout)\n"
