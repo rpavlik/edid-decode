@@ -110,6 +110,7 @@ static unsigned supported_hdmi_vic_vsb_codes = 0;
 
 static int conformant = 1;
 static unsigned warnings;
+static unsigned fails;
 
 enum output_format {
 	OUT_FMT_DEFAULT,
@@ -175,6 +176,8 @@ struct field {
 static const char *cur_block;
 static char *s_warn;
 static unsigned s_warn_len = 1;
+static char *s_fail;
+static unsigned s_fail_len = 1;
 
 static void warn(const char *fmt, ...)
 {
@@ -194,6 +197,27 @@ static void warn(const char *fmt, ...)
 	s_warn_len += 2;
 	strcpy(s_warn + s_warn_len - 1, buf);
 	s_warn_len += length;
+}
+
+static void fail(const char *fmt, ...)
+{
+	unsigned length;
+	char buf[256];
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsprintf(buf, fmt, ap);
+	va_end(ap);
+	fails++;
+	conformant = 0;
+	length = strlen(buf);
+	s_fail = realloc(s_fail, s_fail_len + length + strlen(cur_block) + 2);
+	strcpy(s_fail + s_fail_len - 1, cur_block);
+	s_fail_len += strlen(cur_block);
+	strcpy(s_fail + s_fail_len - 1, ": ");
+	s_fail_len += 2;
+	strcpy(s_fail + s_fail_len - 1, buf);
+	s_fail_len += length;
 }
 
 #define DEFINE_FIELD(n, var, s, e, ...)				\
@@ -512,10 +536,10 @@ static char *extract_string(const char *name, const unsigned char *x,
 				seen_newline = 1;
 				if (!i) {
 					empty_string = 1;
-					warn("%s: empty string\n", name);
+					fail("%s: empty string\n", name);
 					*valid = 0;
 				} else if (ret[i - 1] == 0x20) {
-					warn("%s: one or more trailing spaces\n", name);
+					fail("%s: one or more trailing spaces\n", name);
 					trailing_space = 1;
 					*valid = 0;
 				}
@@ -523,13 +547,13 @@ static char *extract_string(const char *name, const unsigned char *x,
 				ret[i] = x[i];
 			} else {
 				has_valid_string_termination = 0;
-				warn("%s: non-printable character\n", name);
+				fail("%s: non-printable character\n", name);
 				*valid = 0;
 				return ret;
 			}
 		} else if (x[i] != 0x20) {
 			has_valid_string_termination = 0;
-			warn("%s: non-space after newline\n", name);
+			fail("%s: non-space after newline\n", name);
 			*valid = 0;
 			return ret;
 		}
@@ -537,7 +561,7 @@ static char *extract_string(const char *name, const unsigned char *x,
 	/* Does the string end with a space? */
 	if (!seen_newline && ret[len - 1] == 0x20) {
 		trailing_space = 1;
-		warn("%s: one or more trailing spaces\n", name);
+		fail("%s: one or more trailing spaces\n", name);
 		*valid = 0;
 	}
 
@@ -1090,19 +1114,19 @@ static int detailed_block(const unsigned char *x, int in_extension)
 	      );
 	if ((!max_display_width_mm && hor_mm) ||
 	    (!max_display_height_mm && vert_mm)) {
-		warn("mismatch of image size vs display size: image size is set, but not display size\n");
+		fail("mismatch of image size vs display size: image size is set, but not display size\n");
 	} else if ((max_display_width_mm && !hor_mm) ||
 		   (max_display_height_mm && !vert_mm)) {
-		warn("mismatch of image size vs display size: image size is not set, but display size is\n");
+		fail("mismatch of image size vs display size: image size is not set, but display size is\n");
 	} else if (!hor_mm && !vert_mm) {
 		/* this is valid */
 	} else if (hor_mm > max_display_width_mm + 9 ||
 		   vert_mm > max_display_height_mm + 9) {
-		warn("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
+		fail("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
 		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
 	} else if (hor_mm < max_display_width_mm - 9 &&
 		   vert_mm < max_display_height_mm - 9) {
-		warn("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
+		fail("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
 		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
 	}
 	min_vert_freq_hz = min(min_vert_freq_hz, refresh);
@@ -2770,11 +2794,11 @@ static int parse_displayid(const unsigned char *x)
 					printf("  Left bevel size: %u pixels\n",
 					       pix_mult * x[offset + 15] / 10);
 				} else {
-					warn("No bevel information, but the pixel multiplier is non-zero\n");
+					fail("No bevel information, but the pixel multiplier is non-zero\n");
 				}
 				printf("  Tile resolution: %ux%u\n", tile_width + 1, tile_height + 1);
 			} else if (pix_mult) {
-				warn("No bevel information, but the pixel multiplier is non-zero\n");
+				fail("No bevel information, but the pixel multiplier is non-zero\n");
 			}
 			break;
 		}
@@ -3270,7 +3294,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		}
 	}
 	if (!has_valid_year)
-		warn("Invalid year\n");
+		fail("Invalid year\n");
 
 	/* display section */
 
@@ -3343,7 +3367,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		max_display_height_mm = edid[0x16] * 10;
 		if ((max_display_height_mm && !max_display_width_mm) ||
 		    (max_display_width_mm && !max_display_height_mm))
-			warn("invalid maximum image size\n");
+			fail("invalid maximum image size\n");
 		else if (max_display_width_mm < 100 || max_display_height_mm < 100)
 			warn("dubious maximum image size (smaller than 10x10 cm)\n");
 	}
@@ -3653,9 +3677,11 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		printf("Warning: HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB\n");
 
 	free(edid);
+	if (s_fail)
+		printf("\nFailures:\n\n%s", s_fail);
 	if (s_warn)
-		printf("%s", s_warn);
-	printf("EDID conformity: %s\n", conformant ? "PASS" : "FAIL");
+		printf("\nWarnings:\n\n%s", s_warn);
+	printf("\nEDID conformity: %s\n", conformant ? "PASS" : "FAIL");
 	return conformant ? 0 : -2;
 }
 
