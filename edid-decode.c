@@ -44,7 +44,7 @@ enum {
 	EDID_PAGE_SIZE = 128u
 };
 
-static int edid_minor = 0;
+static unsigned edid_minor = 0;
 static int claims_one_point_oh = 0;
 static int claims_one_point_two = 0;
 static int claims_one_point_three = 0;
@@ -92,16 +92,17 @@ static int nonconformant_hdmi_vsdb_tmds_rate = 0;
 static int nonconformant_hf_vsdb_tmds_rate = 0;
 static int nonconformant_hf_eeodb = 0;
 
-static int min_hor_freq_hz = 0xfffffff;
-static int max_hor_freq_hz = 0;
-static int min_vert_freq_hz = 0xfffffff;
-static int max_vert_freq_hz = 0;
-static int max_pixclk_khz = 0;
-static int mon_min_hor_freq_hz = 0;
-static int mon_max_hor_freq_hz = 0;
-static int mon_min_vert_freq_hz = 0;
-static int mon_max_vert_freq_hz = 0;
-static int mon_max_pixclk_khz = 0;
+static unsigned min_hor_freq_hz = 0xfffffff;
+static unsigned max_hor_freq_hz = 0;
+static unsigned min_vert_freq_hz = 0xfffffff;
+static unsigned max_vert_freq_hz = 0;
+static unsigned max_pixclk_khz = 0;
+static unsigned mon_min_hor_freq_hz = 0;
+static unsigned mon_max_hor_freq_hz = 0;
+static unsigned mon_min_vert_freq_hz = 0;
+static unsigned mon_max_vert_freq_hz = 0;
+static unsigned mon_max_pixclk_khz = 0;
+
 static unsigned supported_hdmi_vic_codes = 0;
 static unsigned supported_hdmi_vic_vsb_codes = 0;
 
@@ -158,15 +159,15 @@ static void usage(void)
 }
 
 struct value {
-	int value;
+	unsigned value;
 	const char *description;
 };
 
 struct field {
 	const char *name;
-	int start, end;
-	struct value *values;
-	int n_values;
+	unsigned start, end;
+	const struct value *values;
+	unsigned n_values;
 };
 
 static const char *cur_block;
@@ -194,10 +195,10 @@ static void warn(const char *fmt, ...)
 }
 
 #define DEFINE_FIELD(n, var, s, e, ...)				\
-static struct value var##_values[] =  {				\
+static const struct value var##_values[] =  {			\
 	__VA_ARGS__						\
 };								\
-static struct field var = {					\
+static const struct field var = {				\
 	.name = n,						\
 	.start = s,		        			\
 	.end = e,						\
@@ -205,10 +206,11 @@ static struct field var = {					\
 	.n_values = ARRAY_SIZE(var##_values),			\
 }
 
-static void decode_value(struct field *field, int val, const char *prefix)
+static void decode_value(const struct field *field, unsigned val,
+			 const char *prefix)
 {
-	struct value *v = NULL;
-	int i;
+	const struct value *v = NULL;
+	unsigned i;
 
 	for (i = 0; i < field->n_values; i++) {
 		v = &field->values[i];
@@ -218,21 +220,22 @@ static void decode_value(struct field *field, int val, const char *prefix)
 	}
 
 	if (i == field->n_values) {
-		printf("%s%s: %d\n", prefix, field->name, val);
+		printf("%s%s: %u\n", prefix, field->name, val);
 		return;
 	}
 
-	printf("%s%s: %s (%d)\n", prefix, field->name, v->description, val);
+	printf("%s%s: %s (%u)\n", prefix, field->name, v->description, val);
 }
 
-static void _decode(struct field **fields, int n_fields, int data, const char *prefix)
+static void _decode(const struct field **fields, unsigned n_fields,
+		    unsigned data, const char *prefix)
 {
-	int i;
+	unsigned i;
 
 	for (i = 0; i < n_fields; i++) {
-		struct field *f = fields[i];
-		int field_length = f->end - f->start + 1;
-		int val;
+		const struct field *f = fields[i];
+		unsigned field_length = f->end - f->start + 1;
+		unsigned val;
 
 		if (field_length == 32)
 			val = data;
@@ -397,10 +400,10 @@ static int detailed_cvt_descriptor(const unsigned char *x, int first)
 	const unsigned char empty[3] = { 0, 0, 0 };
 	const char *ratio;
 	char *names[] = { "50", "60", "75", "85" };
-	int width, height;
+	unsigned width, height;
 	int valid = 1;
 	int fifty = 0, sixty = 0, seventyfive = 0, eightyfive = 0, reduced = 0;
-	int min_refresh = 0xfffffff, max_refresh = 0;
+	unsigned min_refresh = 0xfffffff, max_refresh = 0;
 
 	if (!first && !memcmp(x, empty, 3))
 		return valid;
@@ -472,7 +475,7 @@ static int detailed_cvt_descriptor(const unsigned char *x, int first)
 			edid_cvt_mode(width, height, 60, 1,
 				      &min_hfreq, &max_hfreq, &max_clock);
 
-		printf("    %dx%d @ ( %s%s%s%s%s) Hz %s (%s%s preferred) HorFreq: %d-%d Hz MaxClock: %.3f MHz\n",
+		printf("    %ux%u @ ( %s%s%s%s%s) Hz %s (%s%s preferred) HorFreq: %u-%u Hz MaxClock: %.3f MHz\n",
 		       width, height,
 		       fifty ? "50 " : "",
 		       sixty ? "60 " : "",
@@ -489,10 +492,12 @@ static int detailed_cvt_descriptor(const unsigned char *x, int first)
 }
 
 /* extract a string from a detailed subblock, checking for termination */
-static char *extract_string(const char *name, const unsigned char *x, int *valid, int len)
+static char *extract_string(const char *name, const unsigned char *x,
+			    int *valid, unsigned len)
 {
 	static char ret[EDID_PAGE_SIZE];
-	int i, seen_newline = 0;
+	int seen_newline = 0;
+	unsigned i;
 
 	memset(ret, 0, sizeof(ret));
 	*valid = 1;
@@ -538,8 +543,8 @@ static char *extract_string(const char *name, const unsigned char *x, int *valid
 }
 
 static const struct {
-	int x, y, refresh, ratio_w, ratio_h;
-	int hor_freq_hz, pixclk_khz, interlaced;
+	unsigned x, y, refresh, ratio_w, ratio_h;
+	unsigned hor_freq_hz, pixclk_khz, interlaced;
 } established_timings[] = {
 	/* 0x23 bit 7 - 0 */
 	{720, 400, 70, 9, 5, 31469, 28320},
@@ -564,8 +569,8 @@ static const struct {
 };
 
 static const struct {
-	int x, y, refresh, ratio_w, ratio_h;
-	int hor_freq_hz, pixclk_khz, rb;
+	unsigned x, y, refresh, ratio_w, ratio_h;
+	unsigned hor_freq_hz, pixclk_khz, rb;
 } established_timings3[] = {
 	/* 0x06 bit 7 - 0 */
 	{640, 350, 85, 64, 35, 37900, 31500},
@@ -621,10 +626,10 @@ static const struct {
 
 static void print_standard_timing(uint8_t b1, uint8_t b2)
 {
-	int ratio_w, ratio_h;
+	unsigned ratio_w, ratio_h;
 	unsigned x, y, refresh;
-	int pixclk_khz = 0, hor_freq_hz = 0;
-	int i;
+	unsigned pixclk_khz = 0, hor_freq_hz = 0;
+	unsigned i;
 
 	if (b1 == 0x01 && b2 == 0x01)
 		return;
@@ -695,11 +700,11 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 		min_hor_freq_hz = min(min_hor_freq_hz, hor_freq_hz);
 		max_hor_freq_hz = max(max_hor_freq_hz, hor_freq_hz);
 		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
-		printf("  %dx%d@%dHz %d:%d HorFreq: %d Hz Clock: %.3f MHz\n",
+		printf("  %ux%u@%uHz %u:%u HorFreq: %u Hz Clock: %.3f MHz\n",
 		       x, y, refresh, ratio_w, ratio_h,
 		       hor_freq_hz, pixclk_khz / 1000.0);
 	} else {
-		printf("  %dx%d@%dHz %d:%d\n",
+		printf("  %ux%u@%uHz %u:%u\n",
 		       x, y, refresh, ratio_w, ratio_h);
 	}
 }
@@ -707,9 +712,10 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 /* 1 means valid data */
 static int detailed_block(const unsigned char *x, int in_extension)
 {
-	int ha, hbl, hso, hspw, hborder, va, vbl, vso, vspw, vborder;
-	int refresh, pixclk_khz;
-	int i;
+	unsigned ha, hbl, hso, hspw, hborder, va, vbl, vso, vspw, vborder;
+	unsigned hor_mm, vert_mm;
+	unsigned refresh, pixclk_khz;
+	unsigned i;
 	char phsync, pvsync, *syncmethod, *stereo;
 
 #if 0
@@ -1058,22 +1064,23 @@ static int detailed_block(const unsigned char *x, int in_extension)
 
 	if (!ha || !hbl || !va || !vbl) {
 		printf("Invalid Detailed Timings:\n"
-		       "  Horizontal Active/Blanking %d/%d\n"
-		       "  Vertical Active/Blanking %d/%d\n",
+		       "  Horizontal Active/Blanking %u/%u\n"
+		       "  Vertical Active/Blanking %u/%u\n",
 		       ha, hbl, va, vbl);
 		return 0;
 	}
 
 	pixclk_khz = (x[0] + (x[1] << 8)) * 10;
 	refresh = (pixclk_khz * 1000) / ((ha + hbl) * (va + vbl));
-	printf("Detailed mode: Clock %.3f MHz, %d mm x %d mm\n"
-	       "               %4d %4d %4d %4d hborder %d\n"
-	       "               %4d %4d %4d %4d vborder %d\n"
+	hor_mm = x[12] + ((x[14] & 0xf0) << 4);
+	vert_mm = x[13] + ((x[14] & 0x0f) << 8);
+	printf("Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
+	       "               %4u %4u %4u %4u hborder %u\n"
+	       "               %4u %4u %4u %4u vborder %u\n"
 	       "               %chsync %cvsync%s%s %s\n"
-	       "               VertFreq: %d Hz, HorFreq: %d Hz\n",
+	       "               VertFreq: %u Hz, HorFreq: %u Hz\n",
 	       pixclk_khz / 1000.0,
-	       (x[12] + ((x[14] & 0xF0) << 4)),
-	       (x[13] + ((x[14] & 0x0F) << 8)),
+	       hor_mm, vert_mm,
 	       ha, ha + hso, ha + hso + hspw, ha + hbl, hborder,
 	       va, va + vso, va + vso + vspw, va + vbl, vborder,
 	       phsync, pvsync, syncmethod, x[17] & 0x80 ? " interlaced" : "",
@@ -1093,7 +1100,7 @@ static int do_checksum(const unsigned char *x, size_t len)
 {
 	unsigned char check = x[len - 1];
 	unsigned char sum = 0;
-	int i;
+	unsigned i;
 
 	printf("Checksum: 0x%hx", check);
 
@@ -1168,7 +1175,7 @@ static const char *mpeg_h_3d_audio_level(unsigned char x)
 
 static void cta_audio_block(const unsigned char *x, unsigned length)
 {
-	int i, format, ext_format = 0;
+	unsigned i, format, ext_format = 0;
 
 	if (length % 3) {
 		printf("Broken CTA audio block length %d\n", length);
@@ -1180,17 +1187,17 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 		format = (x[i] & 0x78) >> 3;
 		ext_format = (x[i + 2] & 0xf8) >> 3;
 		if (format != 15)
-			printf("    %s, max channels %d\n", audio_format(format),
+			printf("    %s, max channels %u\n", audio_format(format),
 			       (x[i] & 0x07)+1);
 		else if (ext_format == 11)
 			printf("    %s, MPEG-H 3D Audio Level: %s\n", audio_ext_format(ext_format),
 			       mpeg_h_3d_audio_level(x[i] & 0x07));
 		else if (ext_format == 13)
-			printf("    %s, max channels %d\n", audio_ext_format(ext_format),
+			printf("    %s, max channels %u\n", audio_ext_format(ext_format),
 			       (((x[i + 1] & 0x80) >> 3) | ((x[i] & 0x80) >> 4) |
 				(x[i] & 0x07))+1);
 		else
-			printf("    %s, max channels %d\n", audio_ext_format(ext_format),
+			printf("    %s, max channels %u\n", audio_ext_format(ext_format),
 			       (x[i] & 0x07)+1);
 		printf("      Supported sample rates (kHz):%s%s%s%s%s%s%s\n",
 		       (x[i+1] & 0x40) ? " 192" : "",
@@ -1206,7 +1213,7 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 			       (x[i+2] & 0x02) ? " 20" : "",
 			       (x[i+2] & 0x01) ? " 16" : "");
 		} else if (format <= 8) {
-			printf("      Maximum bit rate: %d kb/s\n", x[i+2] * 8);
+			printf("      Maximum bit rate: %u kb/s\n", x[i+2] * 8);
 		} else if (format == 10) {
 			// As specified by the "Dolby Audio and Dolby Atmos over HDMI"
 			// specification (v1.0).
@@ -1215,7 +1222,7 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 			if(x[i+2] & 2)
 				printf("      Supports Joint Object Coding with ACMOD28\n");
 		} else if (format == 14) {
-			printf("      Profile: %d\n", x[i+2] & 7);
+			printf("      Profile: %u\n", x[i+2] & 7);
 		} else if (ext_format == 11 && (x[i+2] & 1)) {
 			printf("      Supports MPEG-H 3D Audio Low Complexity Profile\n");
 		} else if ((ext_format >= 4 && ext_format <= 6) ||
@@ -1234,7 +1241,7 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 
 struct edid_cta_mode {
 	const char *name;
-	int refresh, hor_freq_hz, pixclk_khz;
+	unsigned refresh, hor_freq_hz, pixclk_khz;
 };
 
 static struct edid_cta_mode edid_cta_modes1[] = {
@@ -1422,9 +1429,9 @@ static const struct edid_cta_mode *vic_to_mode(unsigned char vic)
 	return NULL;
 }
 
-static void cta_svd(const unsigned char *x, int n, int for_ycbcr420)
+static void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 {
-	int i;
+	unsigned i;
 
 	for (i = 0; i < n; i++)  {
 		const struct edid_cta_mode *vicmode = NULL;
@@ -1474,7 +1481,7 @@ static void cta_svd(const unsigned char *x, int n, int for_ycbcr420)
 			mode = "Unknown mode";
 		}
 
-		printf("    VIC %3d %s %s HorFreq: %d Hz Clock: %.3f MHz\n",
+		printf("    VIC %3u %s %s HorFreq: %u Hz Clock: %.3f MHz\n",
 		       vic, mode, native ? "(native)" : "", hfreq, clock_khz / 1000.0);
 		if (vic == 1)
 			has_cta861_vic_1 = 1;
@@ -1493,21 +1500,21 @@ static void cta_y420vdb(const unsigned char *x, unsigned length)
 
 static void cta_y420cmdb(const unsigned char *x, unsigned length)
 {
-	int i;
+	unsigned i;
 
 	for (i = 0; i < length; i++) {
 		uint8_t v = x[0 + i];
-		int j;
+		unsigned j;
 
 		for (j = 0; j < 8; j++)
 			if (v & (1 << j))
-				printf("    VSD Index %d\n", i * 8 + j);
+				printf("    VSD Index %u\n", i * 8 + j);
 	}
 }
 
 static void cta_vfpdb(const unsigned char *x, unsigned length)
 {
-	int i;
+	unsigned i;
 
 	for (i = 0; i < length; i++)  {
 		unsigned char svr = x[i];
@@ -1525,17 +1532,17 @@ static void cta_vfpdb(const unsigned char *x, unsigned length)
 			else
 				mode = "Unknown mode";
 
-			printf("    VIC %02d %s\n", vic, mode);
+			printf("    VIC %02u %s\n", vic, mode);
 
 		} else if (svr > 128 && svr < 145) {
-			printf("    DTD number %02d\n", svr - 128);
+			printf("    DTD number %02u\n", svr - 128);
 		}
 	}
 }
 
 static struct {
 	const char *name;
-	int refresh, hor_freq_hz, pixclk_khz;
+	unsigned refresh, hor_freq_hz, pixclk_khz;
 } edid_hdmi_modes[] = {
 	{"3840x2160@30Hz 16:9", 30, 67500, 297000},
 	{"3840x2160@25Hz 16:9", 25, 56250, 297000},
@@ -1550,7 +1557,7 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 	int b = 0;
 
 	printf(" (HDMI)\n");
-	printf("    Source physical address %d.%d.%d.%d\n", x[3] >> 4, x[3] & 0x0f,
+	printf("    Source physical address %u.%u.%u.%u\n", x[3] >> 4, x[3] & 0x0f,
 	       x[4] >> 4, x[4] & 0x0f);
 
 	if (length < 6)
@@ -1573,7 +1580,7 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 	if (length < 7)
 		return;
 
-	printf("    Maximum TMDS clock: %dMHz\n", x[6] * 5);
+	printf("    Maximum TMDS clock: %uMHz\n", x[6] * 5);
 	if (x[6] * 5 > 340)
 		nonconformant_hdmi_vsdb_tmds_rate = 1;
 
@@ -1594,13 +1601,13 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 	}
 
 	if (x[7] & 0x80) {
-		printf("    Video latency: %d\n", x[8 + b]);
-		printf("    Audio latency: %d\n", x[9 + b]);
+		printf("    Video latency: %u\n", x[8 + b]);
+		printf("    Audio latency: %u\n", x[9 + b]);
 		b += 2;
 
 		if (x[7] & 0x40) {
-			printf("    Interlaced video latency: %d\n", x[8 + b]);
-			printf("    Interlaced audio latency: %d\n", x[9 + b]);
+			printf("    Interlaced video latency: %u\n", x[8 + b]);
+			printf("    Interlaced audio latency: %u\n", x[9 + b]);
 			b += 2;
 		}
 	}
@@ -1639,7 +1646,7 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 	if (len_vic) {
 		unsigned hfreq = 0;
 		unsigned clock_khz = 0;
-		int i;
+		unsigned i;
 
 		for (i = 0; i < len_vic; i++) {
 			unsigned char vic = x[8 + b + i];
@@ -1659,7 +1666,7 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 				mode = "Unknown mode";
 			}
 
-			printf("      HDMI VIC %d %s HorFreq: %d Hz Clock: %.3f MHz\n",
+			printf("      HDMI VIC %u %s HorFreq: %u Hz Clock: %.3f MHz\n",
 			       vic, mode, hfreq, clock_khz / 1000.0);
 		}
 
@@ -1692,15 +1699,16 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 			len_3d -= 2;
 		}
 		if (mask) {
-			int i;
+			unsigned i;
+
 			printf("      3D VIC indices:");
 			/* worst bit ordering ever */
 			for (i = 0; i < 8; i++)
 				if (x[9 + b] & (1 << i))
-					printf(" %d", i);
+					printf(" %u", i);
 			for (i = 0; i < 8; i++)
 				if (x[8 + b] & (1 << i))
-					printf(" %d", i + 8);
+					printf(" %u", i + 8);
 			printf("\n");
 			b += 2;
 			len_3d -= 2;
@@ -1713,10 +1721,10 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 		 * (optionally: 3D_Detail_X and reserved)
 		 */
 		if (len_3d > 0) {
-			int end = b + len_3d;
+			unsigned end = b + len_3d;
 
 			while (b < end) {
-				printf("      VIC index %d supports ", x[8 + b] >> 4);
+				printf("      VIC index %u supports ", x[8 + b] >> 4);
 				switch (x[8 + b] & 0x0f) {
 				case 0: printf("frame packing"); break;
 				case 6: printf("top-and-bottom"); break;
@@ -1897,7 +1905,7 @@ DEFINE_FIELD("CE scan behaviour", CE_scan, 0, 1,
 	     { 2, "Always Underscanned" },
 	     { 3, "Support both over- and underscan" });
 
-static struct field *vcdb_fields[] = {
+static const struct field *vcdb_fields[] = {
 	&YCbCr_quantization,
 	&RGB_quantization,
 	&PT_scan,
@@ -1932,7 +1940,7 @@ static const char *speaker_map[] = {
 static void cta_sadb(const unsigned char *x, unsigned length)
 {
 	uint32_t sad;
-	int i;
+	unsigned i;
 
 	if (length < 3)
 		return;
@@ -1957,13 +1965,13 @@ static float decode_uchar_as_float(unsigned char x)
 static void cta_rcdb(const unsigned char *x, unsigned length)
 {
 	uint32_t spm = ((x[3] << 16) | (x[2] << 8) | x[1]);
-	int i;
+	unsigned i;
 
 	if (length < 4)
 		return;
 
 	if (x[0] & 0x40)
-		printf("    Speaker count: %d\n", (x[0] & 0x1f) + 1);
+		printf("    Speaker count: %u\n", (x[0] & 0x1f) + 1);
 
 	printf("    Speaker Presence Mask:\n");
 	for (i = 0; i < ARRAY_SIZE(speaker_map); i++) {
@@ -1971,9 +1979,9 @@ static void cta_rcdb(const unsigned char *x, unsigned length)
 			printf("      %s\n", speaker_map[i]);
 	}
 	if ((x[0] & 0x20) && length >= 7) {
-		printf("    Xmax: %d dm\n", x[4]);
-		printf("    Ymax: %d dm\n", x[5]);
-		printf("    Zmax: %d dm\n", x[6]);
+		printf("    Xmax: %u dm\n", x[4]);
+		printf("    Ymax: %u dm\n", x[5]);
+		printf("    Zmax: %u dm\n", x[6]);
 	}
 	if ((x[0] & 0x80) && length >= 10) {
 		printf("    DisplayX: %.3f * Xmax\n", decode_uchar_as_float(x[7]));
@@ -2016,7 +2024,7 @@ static const char *speaker_location[] = {
 static void cta_sldb(const unsigned char *x, unsigned length)
 {
 	while (length >= 2) {
-		printf("    Channel: %d (%sactive)\n", x[0] & 0x1f,
+		printf("    Channel: %u (%sactive)\n", x[0] & 0x1f,
 		       (x[0] & 0x20) ? "" : "not ");
 		if ((x[1] & 0x1f) < ARRAY_SIZE(speaker_location))
 			printf("      Speaker: %s\n", speaker_location[x[1] & 0x1f]);
@@ -2076,7 +2084,7 @@ static const char *eotf_map[] = {
 
 static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned length)
 {
-	int i;
+	unsigned i;
 
 	if (length >= 2) {
 		printf("    Electro optical transfer functions:\n");
@@ -2089,38 +2097,38 @@ static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned lengt
 		printf("    Supported static metadata descriptors:\n");
 		for (i = 0; i < 8; i++) {
 			if (x[1] & (1 << i))
-				printf("      Static metadata type %d\n", i + 1);
+				printf("      Static metadata type %u\n", i + 1);
 		}
 	}
 
 	if (length >= 3)
-		printf("    Desired content max luminance: %d (%.3f cd/m^2)\n",
+		printf("    Desired content max luminance: %u (%.3f cd/m^2)\n",
 		       x[2], 50.0 * pow(2, x[2] / 32.0));
 
 	if (length >= 4)
-		printf("    Desired content max frame-average luminance: %d (%.3f cd/m^2)\n",
+		printf("    Desired content max frame-average luminance: %u (%.3f cd/m^2)\n",
 		       x[3], 50.0 * pow(2, x[3] / 32.0));
 
 	if (length >= 5)
-		printf("    Desired content min luminance: %d (%.3f cd/m^2)\n",
+		printf("    Desired content min luminance: %u (%.3f cd/m^2)\n",
 		       x[4], (50.0 * pow(2, x[2] / 32.0)) * pow(x[4] / 255.0, 2) / 100.0);
 }
 
 static void cta_hdr_dyn_metadata_block(const unsigned char *x, unsigned length)
 {
 	while (length >= 3) {
-		int type_len = x[0];
-		int type = x[1] | (x[2] << 8);
+		unsigned type_len = x[0];
+		unsigned type = x[1] | (x[2] << 8);
 
 		if (length < type_len + 1)
 			return;
-		printf("    HDR Dynamic Metadata Type %d\n", type);
+		printf("    HDR Dynamic Metadata Type %u\n", type);
 		switch (type) {
 		case 1:
 		case 2:
 		case 4:
 			if (type_len > 2)
-				printf("      Version: %d\n", x[3] & 0xf);
+				printf("      Version: %u\n", x[3] & 0xf);
 			break;
 		default:
 			break;
@@ -2132,11 +2140,11 @@ static void cta_hdr_dyn_metadata_block(const unsigned char *x, unsigned length)
 
 static void cta_ifdb(const unsigned char *x, unsigned length)
 {
-	int len_hdr = x[0] >> 5;
+	unsigned len_hdr = x[0] >> 5;
 
 	if (length < 2)
 		return;
-	printf("    VSIFs: %d\n", x[1]);
+	printf("    VSIFs: %u\n", x[1]);
 	if (length < len_hdr + 2)
 		return;
 	length -= len_hdr + 2;
@@ -2145,12 +2153,12 @@ static void cta_ifdb(const unsigned char *x, unsigned length)
 		int payload_len = x[0] >> 5;
 
 		if ((x[0] & 0x1f) == 1 && length >= 4) {
-			printf("    InfoFrame Type Code %d IEEE OUI: %02x%02x%02x\n",
+			printf("    InfoFrame Type Code %u IEEE OUI: %02x%02x%02x\n",
 			       x[0] & 0x1f, x[3], x[2], x[1]);
 			x += 4;
 			length -= 4;
 		} else {
-			printf("    InfoFrame Type Code %d\n", x[0] & 0x1f);
+			printf("    InfoFrame Type Code %u\n", x[0] & 0x1f);
 			x++;
 			length--;
 		}
@@ -2161,12 +2169,12 @@ static void cta_ifdb(const unsigned char *x, unsigned length)
 
 static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 {
-	int num_descs;
+	unsigned num_descs;
 
 	if (length < 2)
 		return;
 	if (x[0] & 3)
-		printf("    Max Stream Count: %d\n", (x[0] & 3) + 1);
+		printf("    Max Stream Count: %u\n", (x[0] & 3) + 1);
 	if (x[0] & 4)
 		printf("    Supports MS NonMixed\n");
 
@@ -2177,9 +2185,9 @@ static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 	x += 2;
 	while (length >= 4) {
 		if (length > 4) {
-			int format = x[0] & 0xf;
+			unsigned format = x[0] & 0xf;
 
-			printf("    %s, max channels %d\n", audio_format(format),
+			printf("    %s, max channels %u\n", audio_format(format),
 			       (x[1] & 0x1f)+1);
 			printf("      Supported sample rates (kHz):%s%s%s%s%s%s%s\n",
 			       (x[2] & 0x40) ? " 192" : "",
@@ -2196,7 +2204,7 @@ static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 				       (x[3] & 0x01) ? " 16" : "");
 		} else {
 			uint32_t sad = ((x[2] << 16) | (x[1] << 8) | x[0]);
-			int i;
+			unsigned i;
 
 			switch (x[3] >> 4) {
 			case 1:
@@ -2387,9 +2395,9 @@ static void cta_block(const unsigned char *x)
 		}
 		break;
 	default: {
-		int tag = (*x & 0xe0) >> 5;
-		int length = *x & 0x1f;
-		printf("  Unknown tag %d, length %d (raw %02x)\n", tag, length, *x);
+		unsigned tag = (*x & 0xe0) >> 5;
+		unsigned length = *x & 0x1f;
+		printf("  Unknown tag %u, length %u (raw %02x)\n", tag, length, *x);
 		break;
 	}
 	}
@@ -2400,8 +2408,8 @@ static void cta_block(const unsigned char *x)
 static int parse_cta(const unsigned char *x)
 {
 	int ret = 0;
-	int version = x[1];
-	int offset = x[2];
+	unsigned version = x[1];
+	unsigned offset = x[2];
 	const unsigned char *detailed;
 
 	cur_block = "CTA-861";
@@ -2414,7 +2422,7 @@ static int parse_cta(const unsigned char *x)
 			break;
 
 		if (version < 3) {
-			printf("%d 8-byte timing descriptors\n\n", (offset - 4) / 8);
+			printf("%u 8-byte timing descriptors\n\n", (offset - 4) / 8);
 			if (offset - 4 > 0)
 				/* do stuff */ ;
 		}
@@ -2428,12 +2436,12 @@ static int parse_cta(const unsigned char *x)
 				printf("Supports YCbCr 4:4:4\n");
 			if (x[3] & 0x10)
 				printf("Supports YCbCr 4:2:2\n");
-			printf("%d native detailed modes\n\n", x[3] & 0x0f);
+			printf("%u native detailed modes\n\n", x[3] & 0x0f);
 		}
 		if (version == 3) {
 			int i;
 
-			printf("%d bytes of CTA data\n", offset - 4);
+			printf("%u bytes of CTA data\n", offset - 4);
 			for (i = 4; i < offset; i += (x[i] & 0x1f) + 1) {
 				cta_block(x + i);
 			}
@@ -2454,10 +2462,10 @@ static int parse_cta(const unsigned char *x)
 
 static void parse_displayid_detailed_timing(const unsigned char *x)
 {
-	int ha, hbl, hso, hspw;
-	int va, vbl, vso, vspw;
+	unsigned ha, hbl, hso, hspw;
+	unsigned va, vbl, vso, vspw;
 	char phsync, pvsync, *stereo;
-	int pix_clock;
+	unsigned pix_clock;
 	char *aspect;
 
 	switch (x[3] & 0xf) {
@@ -2516,9 +2524,9 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	vspw = x[18] | (x[19] << 8);
 	pvsync = ((x[17] >> 7) & 0x1 ) ? '+' : '-';
 
-	printf("  Detailed mode: Clock %.3f MHz, %d mm x %d mm\n"
-	       "                 %4d %4d %4d %4d\n"
-	       "                 %4d %4d %4d %4d\n"
+	printf("  Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
+	       "                 %4u %4u %4u %4u\n"
+	       "                 %4u %4u %4u %4u\n"
 	       "                 %chsync %cvsync\n",
 	       (float)pix_clock/100.0, 0, 0,
 	       ha, ha + hso, ha + hso + hspw, ha + hbl,
@@ -2528,8 +2536,8 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 }
 
 static const struct {
-	int x, y, refresh, ratio_w, ratio_h;
-	int hor_freq_hz, pixclk_khz, rb, interlaced;
+	unsigned x, y, refresh, ratio_w, ratio_h;
+	unsigned hor_freq_hz, pixclk_khz, rb, interlaced;
 } displayid_vesa_dmt[] = {
 	/* 0x03 bit 7 - 0 */
 	{640, 350, 85, 64, 35, 37900, 31500},
@@ -2626,20 +2634,20 @@ static const struct {
 static int parse_displayid(const unsigned char *x)
 {
 	const unsigned char *orig = x;
-	int version = x[1];
-	int length = x[2];
-	int ext_count = x[4];
-	int i;
+	unsigned version = x[1];
+	unsigned length = x[2];
+	unsigned ext_count = x[4];
+	unsigned i;
 
 	cur_block = "DisplayID";
 
-	printf("Length %d, version %u.%u, extension count %d\n",
+	printf("Length %u, version %u.%u, extension count %u\n",
 	       length, version >> 4, version & 0xf, ext_count);
 
-	int offset = 5;
+	unsigned offset = 5;
 	while (length > 0) {
-		int tag = x[offset];
-		int len = x[offset + 2];
+		unsigned tag = x[offset];
+		unsigned len = x[offset + 2];
 
 		if (len == 0)
 			break;
@@ -2673,7 +2681,7 @@ static int parse_displayid(const unsigned char *x)
 			printf("Type 1 VESA DMT Timings Block\n");
 			for (i = 0; i < min(len, 10) * 8; i++) {
 				if (x[offset + 3 + i / 8] & (1 << (i % 8))) {
-					printf("  %dx%d%s@%dHz %s%u:%u HorFreq: %d Hz Clock: %.3f MHz\n",
+					printf("  %ux%u%s@%uHz %s%u:%u HorFreq: %u Hz Clock: %.3f MHz\n",
 					       displayid_vesa_dmt[i].x,
 					       displayid_vesa_dmt[i].y,
 					       displayid_vesa_dmt[i].interlaced ? "i" : "",
@@ -2718,34 +2726,34 @@ static int parse_displayid(const unsigned char *x)
 			printf("Stereo Display Interface Block\n");
 			break;
 		case 0x12: {
-			int capabilities = x[offset + 3];
-			int num_v_tile = (x[offset + 4] & 0xf) | (x[offset + 6] & 0x30);
-			int num_h_tile = (x[offset + 4] >> 4) | ((x[offset + 6] >> 2) & 0x30);
-			int tile_v_location = (x[offset + 5] & 0xf) | ((x[offset + 6] & 0x3) << 4);
-			int tile_h_location = (x[offset + 5] >> 4) | (((x[offset + 6] >> 2) & 0x3) << 4);
-			int tile_width = x[offset + 7] | (x[offset + 8] << 8);
-			int tile_height = x[offset + 9] | (x[offset + 10] << 8);
-			int pix_mult = x[offset + 11];
+			unsigned capabilities = x[offset + 3];
+			unsigned num_v_tile = (x[offset + 4] & 0xf) | (x[offset + 6] & 0x30);
+			unsigned num_h_tile = (x[offset + 4] >> 4) | ((x[offset + 6] >> 2) & 0x30);
+			unsigned tile_v_location = (x[offset + 5] & 0xf) | ((x[offset + 6] & 0x3) << 4);
+			unsigned tile_h_location = (x[offset + 5] >> 4) | (((x[offset + 6] >> 2) & 0x3) << 4);
+			unsigned tile_width = x[offset + 7] | (x[offset + 8] << 8);
+			unsigned tile_height = x[offset + 9] | (x[offset + 10] << 8);
+			unsigned pix_mult = x[offset + 11];
 
 			printf("Tiled Display Topology Block\n");
 			printf("  Capabilities: 0x%08x\n", capabilities);
-			printf("  Num horizontal tiles: %d Num vertical tiles: %d\n", num_h_tile + 1, num_v_tile + 1);
-			printf("  Tile location: %d, %d\n", tile_h_location, tile_v_location);
-			printf("  Tile resolution: %dx%d\n", tile_width + 1, tile_height + 1);
+			printf("  Num horizontal tiles: %u Num vertical tiles: %u\n", num_h_tile + 1, num_v_tile + 1);
+			printf("  Tile location: %u, %u\n", tile_h_location, tile_v_location);
+			printf("  Tile resolution: %ux%u\n", tile_width + 1, tile_height + 1);
 			if (capabilities & 0x40) {
 				if (pix_mult) {
-					printf("  Top bevel size: %d pixels\n",
+					printf("  Top bevel size: %u pixels\n",
 					       pix_mult * x[offset + 12] / 10);
-					printf("  Bottom bevel size: %d pixels\n",
+					printf("  Bottom bevel size: %u pixels\n",
 					       pix_mult * x[offset + 13] / 10);
-					printf("  Right bevel size: %d pixels\n",
+					printf("  Right bevel size: %u pixels\n",
 					       pix_mult * x[offset + 14] / 10);
-					printf("  Left bevel size: %d pixels\n",
+					printf("  Left bevel size: %u pixels\n",
 					       pix_mult * x[offset + 15] / 10);
 				} else {
 					warn("No bevel information, but the pixel multiplier is non-zero\n");
 				}
-				printf("  Tile resolution: %dx%d\n", tile_width + 1, tile_height + 1);
+				printf("  Tile resolution: %ux%u\n", tile_width + 1, tile_height + 1);
 			} else if (pix_mult) {
 				warn("No bevel information, but the pixel multiplier is non-zero\n");
 			}
@@ -2771,7 +2779,7 @@ static int parse_displayid(const unsigned char *x)
 
 static void extension_version(const unsigned char *x)
 {
-	printf("Extension version: %d\n", x[1]);
+	printf("Extension version: %u\n", x[1]);
 }
 
 static int parse_extension(const unsigned char *x)
@@ -2807,11 +2815,11 @@ static unsigned char *extract_edid(int fd)
 	char *ret = NULL;
 	char *start, *c;
 	unsigned char *out = NULL;
-	int state = 0;
-	int lines = 0;
+	unsigned state = 0;
+	unsigned lines = 0;
 	int i;
-	int out_index = 0;
-	int len, size;
+	unsigned out_index = 0;
+	unsigned len, size;
 
 	size = 1 << 10;
 	ret = malloc(size);
@@ -2856,7 +2864,7 @@ static unsigned char *extract_edid(int fd)
 
 		lines = 0;
 		for (i = 0;; i++) {
-			int j;
+			unsigned j;
 
 			/* Get the next start of the line of EDID hex, assuming spaces for indentation */
 			s = strstr(start, indentation = indentation1);
@@ -3033,10 +3041,10 @@ static unsigned char *extract_edid(int fd)
 	return out;
 }
 
-static void print_subsection(char *name, const unsigned char *edid, int start,
-			     int end)
+static void print_subsection(char *name, const unsigned char *edid,
+			     unsigned start, unsigned end)
 {
-	int i;
+	unsigned i;
 
 	printf("%s:", name);
 	for (i = strlen(name); i < 15; i++)
@@ -3068,7 +3076,7 @@ static void dump_breakdown(const unsigned char *edid)
 static unsigned char crc_calc(const unsigned char *b)
 {
 	unsigned char sum = 0;
-	int i;
+	unsigned i;
 
 	for (i = 0; i < 127; i++)
 		sum += b[i];
@@ -3098,7 +3106,7 @@ static void hexdumpedid(FILE *f, const unsigned char *edid, unsigned size)
 		}
 		if (!crc_ok(buf))
 			fprintf(f, "Block %u has a checksum error (should be 0x%02x)\n",
-					b, crc_calc(buf));
+				b, crc_calc(buf));
 	}
 }
 
@@ -3121,7 +3129,7 @@ static void carraydumpedid(FILE *f, const unsigned char *edid, unsigned size)
 		}
 		if (!crc_ok(buf))
 			fprintf(f, "\t/* Block %u has a checksum error (should be 0x%02x) */\n",
-					b, crc_calc(buf));
+				b, crc_calc(buf));
 	}
 	fprintf(f, "};\n");
 }
@@ -3232,18 +3240,18 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		if (edid[0x11] > 0x0f) {
 			if (edid[0x10] == 0xff) {
 				has_valid_year = 1;
-				printf("Model year %hd\n", edid[0x11] + 1990);
+				printf("Model year %hu\n", edid[0x11] + 1990);
 			} else if (edid[0x11] + 90 <= ptm->tm_year + 1) {
 				has_valid_year = 1;
 				if (edid[0x10])
-					printf("Made in week %hd of %hd\n", edid[0x10], edid[0x11] + 1990);
+					printf("Made in week %hu of %hu\n", edid[0x10], edid[0x11] + 1990);
 				else
-					printf("Made in year %hd\n", edid[0x11] + 1990);
+					printf("Made in year %hu\n", edid[0x11] + 1990);
 			}
 		}
 	}
-		if (!has_valid_year)
-			warn("Invalid year\n");
+	if (!has_valid_year)
+		warn("Invalid year\n");
 
 	/* display section */
 
@@ -3259,7 +3267,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			else if ((edid[0x14] & 0x70) == 0x70)
 				nonconformant_digital_display = 1;
 			else
-				printf("%d bits per primary color channel\n",
+				printf("%u bits per primary color channel\n",
 				       ((edid[0x14] & 0x70) >> 3) + 4);
 
 			switch (edid[0x14] & 0x0f) {
@@ -3282,8 +3290,8 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			nonconformant_digital_display = edid[0x14] & conformance_mask;
 	} else {
 		analog = 1;
-		int voltage = (edid[0x14] & 0x60) >> 5;
-		int sync = (edid[0x14] & 0x0f);
+		unsigned voltage = (edid[0x14] & 0x60) >> 5;
+		unsigned sync = (edid[0x14] & 0x0f);
 		printf("Analog display, Input voltage level: %s V\n",
 		       voltage == 3 ? "0.7/0.7" :
 		       voltage == 2 ? "1.0/0.4" :
@@ -3311,7 +3319,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	}
 
 	if (edid[0x15] && edid[0x16])
-		printf("Maximum image size: %d cm x %d cm\n", edid[0x15], edid[0x16]);
+		printf("Maximum image size: %u cm x %u cm\n", edid[0x15], edid[0x16]);
 	else if (claims_one_point_four && (edid[0x15] || edid[0x16])) {
 		if (edid[0x15])
 			printf("Aspect ratio is %f (landscape)\n", 100.0/(edid[0x16] + 99));
@@ -3415,7 +3423,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			min_hor_freq_hz = min(min_hor_freq_hz, established_timings[i].hor_freq_hz);
 			max_hor_freq_hz = max(max_hor_freq_hz, established_timings[i].hor_freq_hz);
 			max_pixclk_khz = max(max_pixclk_khz, established_timings[i].pixclk_khz);
-			printf("  %dx%d%s@%dHz %u:%u HorFreq: %d Hz Clock: %.3f MHz\n",
+			printf("  %ux%u%s@%uHz %u:%u HorFreq: %d Hz Clock: %.3f MHz\n",
 			       established_timings[i].x, established_timings[i].y,
 			       established_timings[i].interlaced ? "i" : "",
 			       established_timings[i].refresh,
@@ -3441,7 +3449,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	has_valid_detailed_blocks &= detailed_block(edid + 0x6c, 0);
 
 	if (edid[0x7e])
-		printf("Has %d extension blocks\n", edid[0x7e]);
+		printf("Has %u extension blocks\n", edid[0x7e]);
 
 	has_valid_checksum = do_checksum(edid, EDID_PAGE_SIZE);
 
@@ -3475,11 +3483,11 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		    (!claims_one_point_four && !has_range_descriptor))
 			conformant = 0;
 		if (!conformant)
-			printf("EDID block does NOT conform to EDID 1.%d!\n", edid_minor);
+			printf("EDID block does NOT conform to EDID 1.%u!\n", edid_minor);
 		if (nonconformant_srgb_chromaticity)
 			printf("\tsRGB is signaled, but the chromaticities do not match\n");
 		if (nonconformant_digital_display)
-			printf("\tDigital display field contains garbage: %x\n",
+			printf("\tDigital display field contains garbage: 0x%x\n",
 			       nonconformant_digital_display);
 		if (nonconformant_cta861_640x480)
 			printf("\tRequired 640x480p60 timings are missing in the established timings\n"
@@ -3536,10 +3544,10 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		else
 			printf("Warning: ");
 		printf("One or more of the timings is out of range of the Monitor Ranges:\n");
-		printf("  Vertical Freq: %d - %d Hz (Monitor: %d - %d Hz)\n",
+		printf("  Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n",
 		       min_vert_freq_hz, max_vert_freq_hz,
 		       mon_min_vert_freq_hz, mon_max_vert_freq_hz);
-		printf("  Horizontal Freq: %d - %d Hz (Monitor: %d - %d Hz)\n",
+		printf("  Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n",
 		       min_hor_freq_hz, max_hor_freq_hz,
 		       mon_min_hor_freq_hz, mon_max_hor_freq_hz);
 		printf("  Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
@@ -3629,11 +3637,11 @@ int main(int argc, char **argv)
 	char short_options[26 * 2 * 2 + 1];
 	enum output_format out_fmt = OUT_FMT_DEFAULT;
 	int ch;
-	int i;
+	unsigned i;
 
 	while (1) {
 		int option_index = 0;
-		int idx = 0;
+		unsigned idx = 0;
 
 		for (i = 0; long_options[i].name; i++) {
 			if (!isalpha(long_options[i].val))
@@ -3648,7 +3656,7 @@ int main(int argc, char **argv)
 		if (ch == -1)
 			break;
 
-		options[(int)ch] = 1;
+		options[ch] = 1;
 		switch (ch) {
 		case OptHelp:
 			usage();
