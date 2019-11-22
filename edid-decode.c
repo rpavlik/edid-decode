@@ -61,32 +61,20 @@ static int has_valid_checksum = 1;
 static int has_valid_cta_checksum = 1;
 static int has_valid_displayid_checksum = 1;
 static int has_valid_cvt = 1;
-static int has_valid_dummy_block = 1;
 static int has_valid_serial_number = 0;
 static int has_valid_serial_string = 0;
 static int has_valid_ascii_string = 0;
 static int has_valid_name_descriptor = 0;
-static int has_valid_week = 0;
-static int has_valid_year = 0;
 static int has_valid_detailed_blocks = 0;
 static int has_valid_descriptor_ordering = 1;
-static int has_valid_descriptor_pad = 1;
 static int has_valid_range_descriptor = 1;
-static int has_valid_max_dotclock = 1;
-static int has_valid_string_termination = 1;
-static int empty_string = 0;
-static int trailing_space = 0;
 static int has_cta861 = 0;
 static int has_640x480p60_est_timing = 0;
 static int has_cta861_vic_1 = 0;
-static int manufacturer_name_well_formed = 0;
 static int seen_non_detailed_descriptor = 0;
 
-static int warning_excessive_dotclock_correction = 0;
-static int warning_zero_preferred_refresh = 0;
 static int nonconformant_hf_vsdb_position = 0;
 static int duplicate_scdb = 0;
-static int nonconformant_srgb_chromaticity = 0;
 static int nonconformant_cta861_640x480 = 0;
 static int nonconformant_hdmi_vsdb_tmds_rate = 0;
 static int nonconformant_hf_vsdb_tmds_rate = 0;
@@ -284,8 +272,8 @@ static char *manufacturer_name(const unsigned char *x)
 	name[2] = (x[1] & 0x1f) + '@';
 	name[3] = 0;
 
-	if (isupper(name[0]) && isupper(name[1]) && isupper(name[2]))
-		manufacturer_name_well_formed = 1;
+	if (!isupper(name[0]) || !isupper(name[1]) || !isupper(name[2]))
+		fail("manufacturer name field contains garbage\n");
 
 	return name;
 }
@@ -535,24 +523,20 @@ static char *extract_string(const char *name, const unsigned char *x,
 			if (x[i] == 0x0a) {
 				seen_newline = 1;
 				if (!i) {
-					empty_string = 1;
 					fail("%s: empty string\n", name);
 					*valid = 0;
 				} else if (ret[i - 1] == 0x20) {
 					fail("%s: one or more trailing spaces\n", name);
-					trailing_space = 1;
 					*valid = 0;
 				}
 			} else if (x[i] == 0x20) {
 				ret[i] = x[i];
 			} else {
-				has_valid_string_termination = 0;
 				fail("%s: non-printable character\n", name);
 				*valid = 0;
 				return ret;
 			}
 		} else if (x[i] != 0x20) {
-			has_valid_string_termination = 0;
 			fail("%s: non-space after newline\n", name);
 			*valid = 0;
 			return ret;
@@ -560,7 +544,6 @@ static char *extract_string(const char *name, const unsigned char *x,
 	}
 	/* Does the string end with a space? */
 	if (!seen_newline && ret[len - 1] == 0x20) {
-		trailing_space = 1;
 		fail("%s: one or more trailing spaces\n", name);
 		*valid = 0;
 	}
@@ -755,15 +738,11 @@ static int detailed_block(const unsigned char *x, int in_extension)
 		/* Monitor descriptor block, not detailed timing descriptor. */
 		if (x[2] != 0) {
 			/* 1.3, 3.10.3 */
-			printf("Monitor descriptor block has byte 2 nonzero (0x%02x)\n",
-			       x[2]);
-			has_valid_descriptor_pad = 0;
+			fail("monitor descriptor block has byte 2 nonzero (0x%02x)\n", x[2]);
 		}
-		if (x[3] != 0xfd && x[4] != 0x00) {
+		if ((!claims_one_point_four || x[3] != 0xfd) && x[4] != 0x00) {
 			/* 1.3, 3.10.3 */
-			printf("Monitor descriptor block has byte 4 nonzero (0x%02x)\n",
-			       x[4]);
-			has_valid_descriptor_pad = 0;
+			fail("monitor descriptor block has byte 4 nonzero (0x%02x)\n", x[4]);
 		}
 
 		seen_non_detailed_descriptor = 1;
@@ -779,9 +758,12 @@ static int detailed_block(const unsigned char *x, int in_extension)
 		switch (x[3]) {
 		case 0x10:
 			printf("Dummy block\n");
-			for (i = 5; i < 18; i++)
-				if (x[i] != 0x00)
-					has_valid_dummy_block = 0;
+			for (i = 5; i < 18; i++) {
+				if (x[i]) {
+					fail("dummy block filled with garbage\n");
+					break;
+				}
+			}
 			return 1;
 		case 0xf7:
 			printf("Established timings III:\n");
@@ -886,8 +868,6 @@ static int detailed_block(const unsigned char *x, int in_extension)
 						h_min_offset = 255;
 					}
 				}
-			} else if (x[4]) {
-				has_valid_range_descriptor = 0;
 			}
 
 			/*
@@ -934,7 +914,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				printf(", max dotclock %dMHz\n", x[9] * 10);
 			} else {
 				if (claims_one_point_four)
-					has_valid_max_dotclock = 0;
+					fail("EDID 1.4 block does not set max dotclock\n");
 				printf("\n");
 			}
 
@@ -944,11 +924,12 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				printf("CVT version %d.%d\n", (x[11] & 0xf0) >> 4, x[11] & 0x0f);
 
 				if (x[12] & 0xfc) {
-					int raw_offset = (x[12] & 0xfc) >> 2;
+					unsigned raw_offset = (x[12] & 0xfc) >> 2;
+
 					printf("Real max dotclock: %.2fMHz\n",
 					       (x[9] * 10) - (raw_offset * 0.25));
 					if (raw_offset >= 40)
-						warning_excessive_dotclock_correction = 1;
+						warn("CVT block corrects dotclock by more than 9.75MHz\n");
 				}
 
 				max_h_pixels = x[12] & 0x03;
@@ -1004,7 +985,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				if (x[17])
 					printf("Preferred vertical refresh: %d Hz\n", x[17]);
 				else
-					warning_zero_preferred_refresh = 1;
+					warn("CVT block does not set preferred refresh rate\n");
 			}
 
 			/*
@@ -3280,22 +3261,21 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	time(&the_time);
 	ptm = localtime(&the_time);
 	if (edid[0x10] < 55 || (edid[0x10] == 0xff && claims_one_point_four)) {
-		has_valid_week = 1;
-		if (edid[0x11] > 0x0f) {
-			if (edid[0x10] == 0xff) {
-				has_valid_year = 1;
-				printf("Model year %hu\n", edid[0x11] + 1990);
-			} else if (edid[0x11] + 90 <= ptm->tm_year + 1) {
-				has_valid_year = 1;
-				if (edid[0x10])
-					printf("Made in week %hu of %hu\n", edid[0x10], edid[0x11] + 1990);
-				else
-					printf("Made in year %hu\n", edid[0x11] + 1990);
-			}
+		if (edid[0x11] <= 0x0f) {
+			fail("bad year of manufacture\n");
+		} else if (edid[0x10] == 0xff) {
+			printf("Model year %hu\n", edid[0x11] + 1990);
+		} else if (edid[0x11] + 90 <= ptm->tm_year + 1) {
+			if (edid[0x10])
+				printf("Made in week %hu of %hu\n", edid[0x10], edid[0x11] + 1990);
+			else
+				printf("Made in year %hu\n", edid[0x11] + 1990);
+		} else {
+			fail("bad year of manufacture\n");
 		}
+	} else {
+		fail("bad week of manufacture\n");
 	}
-	if (!has_valid_year)
-		fail("Invalid year\n");
 
 	/* display section */
 
@@ -3426,8 +3406,8 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			0xee, 0x91, 0xa3, 0x54, 0x4c, 0x99, 0x26, 0x0f, 0x50, 0x54
 		};
 		printf("Default (sRGB) color space is primary color space\n");
-		nonconformant_srgb_chromaticity =
-			memcmp(edid + 0x19, srgb_chromaticity, sizeof(srgb_chromaticity));
+		if (memcmp(edid + 0x19, srgb_chromaticity, sizeof(srgb_chromaticity)))
+			fail("sRGB is signaled, but the chromaticities do not match\n");
 	}
 	if (edid[0x18] & 0x02) {
 		if (claims_one_point_four)
@@ -3526,18 +3506,13 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		    nonconformant_hdmi_vsdb_tmds_rate ||
 		    nonconformant_hf_vsdb_tmds_rate ||
 		    nonconformant_hf_eeodb ||
-		    nonconformant_srgb_chromaticity ||
 		    nonconformant_cta861_640x480 ||
-		    !has_valid_string_termination ||
-		    !has_valid_descriptor_pad ||
 		    !has_name_descriptor ||
 		    !has_preferred_timing ||
 		    (!claims_one_point_four && !has_range_descriptor))
 			conformant = 0;
 		if (!conformant)
 			printf("EDID block does NOT conform to EDID 1.%u!\n", edid_minor);
-		if (nonconformant_srgb_chromaticity)
-			printf("\tsRGB is signaled, but the chromaticities do not match\n");
 		if (nonconformant_digital_display)
 			printf("\tDigital display field contains garbage: 0x%x\n",
 			       nonconformant_digital_display);
@@ -3560,10 +3535,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			printf("\tMissing preferred timing\n");
 		if (!has_range_descriptor)
 			printf("\tMissing monitor ranges\n");
-		if (!has_valid_descriptor_pad) /* Might be more than just 1.3 */
-			printf("\tInvalid descriptor block padding\n");
-		if (!has_valid_string_termination) /* Likewise */
-			printf("\tDetailed block string not properly terminated\n");
 	} else if (claims_one_point_two) {
 		if (nonconformant_digital_display)
 			conformant = 0;
@@ -3609,19 +3580,13 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	if (nonconformant_extension ||
 	    !has_valid_checksum ||
 	    !has_valid_cvt ||
-	    !has_valid_year ||
-	    !has_valid_week ||
 	    (has_cta861 && has_valid_serial_number && has_valid_serial_string) ||
 	    !has_valid_detailed_blocks ||
-	    !has_valid_dummy_block ||
 	    !has_valid_descriptor_ordering ||
 	    !has_valid_range_descriptor ||
-	    !manufacturer_name_well_formed ||
 	    (has_name_descriptor && !has_valid_name_descriptor) ||
 	    (has_serial_string && !has_valid_serial_string) ||
-	    (has_ascii_string && !has_valid_ascii_string) ||
-	    empty_string ||
-	    trailing_space) {
+	    (has_ascii_string && !has_valid_ascii_string)) {
 		conformant = 0;
 		printf("EDID block does not conform:\n");
 		if (nonconformant_extension)
@@ -3631,34 +3596,20 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			printf("\tBlock has broken checksum\n");
 		if (!has_valid_cvt)
 			printf("\tBroken 3-byte CVT blocks\n");
-		if (!has_valid_year)
-			printf("\tBad year of manufacture\n");
-		if (!has_valid_week)
-			printf("\tBad week of manufacture\n");
 		if (has_cta861 && has_valid_serial_number && has_valid_serial_string)
 			printf("\tBoth the serial number and the serial string are set\n");
 		if (!has_valid_detailed_blocks)
 			printf("\tDetailed blocks filled with garbage\n");
-		if (!has_valid_dummy_block)
-			printf("\tDummy block filled with garbage\n");
-		if (!manufacturer_name_well_formed)
-			printf("\tManufacturer name field contains garbage\n");
 		if (!has_valid_descriptor_ordering)
 			printf("\tInvalid detailed timing descriptor ordering\n");
 		if (!has_valid_range_descriptor)
 			printf("\tRange descriptor contains garbage\n");
-		if (!has_valid_max_dotclock)
-			printf("\tEDID 1.4 block does not set max dotclock\n");
 		if (has_name_descriptor && !has_valid_name_descriptor)
 			printf("\tInvalid Monitor Name descriptor\n");
 		if (has_ascii_string && !has_valid_ascii_string)
 			printf("\tInvalid ASCII string\n");
 		if (has_serial_string && !has_valid_serial_string)
 			printf("\tInvalid serial string\n");
-		if (trailing_space)
-			printf("\tString contains one or more trailing spaces\n");
-		if (empty_string)
-			printf("\tString is empty\n");
 	}
 
 	if (!has_valid_cta_checksum) {
@@ -3670,10 +3621,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		printf("\tBlock has broken checksum\n");
 	}
 
-	if (warning_excessive_dotclock_correction)
-		printf("Warning: CVT block corrects dotclock by more than 9.75MHz\n");
-	if (warning_zero_preferred_refresh)
-		printf("Warning: CVT block does not set preferred refresh rate\n");
 	if ((supported_hdmi_vic_vsb_codes & supported_hdmi_vic_codes) != supported_hdmi_vic_codes)
 		printf("Warning: HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB\n");
 
