@@ -171,11 +171,11 @@ struct field {
 
 static const char *cur_block;
 static char *s_warn;
-static unsigned int s_warn_len = 1;
+static unsigned s_warn_len = 1;
 
 static void warn(const char *fmt, ...)
 {
-	unsigned int length;
+	unsigned length;
 	char buf[256];
 	va_list ap;
 
@@ -250,9 +250,9 @@ static char *manufacturer_name(const unsigned char *x)
 {
 	static char name[4];
 
-	name[0] = ((x[0] & 0x7C) >> 2) + '@';
-	name[1] = ((x[0] & 0x03) << 3) + ((x[1] & 0xE0) >> 5) + '@';
-	name[2] = (x[1] & 0x1F) + '@';
+	name[0] = ((x[0] & 0x7c) >> 2) + '@';
+	name[1] = ((x[0] & 0x03) << 3) + ((x[1] & 0xe0) >> 5) + '@';
+	name[2] = (x[1] & 0x1f) + '@';
 	name[3] = 0;
 
 	if (isupper(name[0]) && isupper(name[1]) && isupper(name[2]))
@@ -622,7 +622,7 @@ static const struct {
 static void print_standard_timing(uint8_t b1, uint8_t b2)
 {
 	int ratio_w, ratio_h;
-	unsigned int x, y, refresh;
+	unsigned x, y, refresh;
 	int pixclk_khz = 0, hor_freq_hz = 0;
 	int i;
 
@@ -735,7 +735,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 		}
 
 		seen_non_detailed_descriptor = 1;
-		if (x[3] <= 0xF) {
+		if (x[3] <= 0xf) {
 			/*
 			 * in principle we can decode these, if we know what they are.
 			 * 0x0f seems to be common in laptop panels.
@@ -751,7 +751,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				if (x[i] != 0x00)
 					has_valid_dummy_block = 0;
 			return 1;
-		case 0xF7:
+		case 0xf7:
 			printf("Established timings III:\n");
 			for (i = 0; i < 44; i++) {
 				if (x[6 + i / 8] & (1 << (7 - i % 8))) {
@@ -770,7 +770,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				}
 			}
 			return 1;
-		case 0xF8: {
+		case 0xf8: {
 			int valid_cvt = 1; /* just this block */
 			printf("CVT 3-byte code descriptor:\n");
 			if (x[5] != 0x01) {
@@ -782,7 +782,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			has_valid_cvt &= valid_cvt;
 			return valid_cvt;
 		}
-		case 0xF9:
+		case 0xf9:
 			printf("Color management data:\n");
 			printf("  Version:  %d\n", x[5]);
 			printf("  Red a3:   %.2f\n", (short)(x[6] | (x[7] << 8)) / 100.0);
@@ -792,12 +792,12 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			printf("  Blue a3:  %.2f\n", (short)(x[14] | (x[15] << 8)) / 100.0);
 			printf("  Blue a2:  %.2f\n", (short)(x[16] | (x[17] << 8)) / 100.0);
 			return 1;
-		case 0xFA:
+		case 0xfa:
 			printf("More standard timings:\n");
 			for (i = 0; i < 6; i++)
 				print_standard_timing(x[5 + i * 2], x[5 + i * 2 + 1]);
 			return 1;
-		case 0xFB: {
+		case 0xfb: {
 			unsigned w_x, w_y;
 			unsigned gamma;
 
@@ -826,12 +826,12 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			printf("\n");
 			return 1;
 		}
-		case 0xFC:
+		case 0xfc:
 			has_name_descriptor = 1;
 			printf("Monitor name: %s\n",
 			       extract_string("Display Product Name", x + 5, &has_valid_name_descriptor, 13));
 			return 1;
-		case 0xFD: {
+		case 0xfd: {
 			int h_max_offset = 0, h_min_offset = 0;
 			int v_max_offset = 0, v_min_offset = 0;
 			int is_cvt = 0;
@@ -981,7 +981,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			 */
 			return has_valid_range_descriptor;
 		}
-		case 0xFE:
+		case 0xfe:
 			/*
 			 * TODO: Two of these in a row, in the third and fourth slots,
 			 * seems to be specified by SPWG: http://www.spwg.org/
@@ -990,7 +990,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			printf("ASCII string: %s\n",
 			       extract_string("Alphanumeric Data String", x + 5, &has_valid_ascii_string, 13));
 			return 1;
-		case 0xFF:
+		case 0xff:
 			has_serial_string = 1;
 			printf("Serial number: %s\n",
 			       extract_string("Display Product Serial Number", x + 5, &has_valid_serial_string, 13));
@@ -1006,15 +1006,15 @@ static int detailed_block(const unsigned char *x, int in_extension)
 	}
 
 	did_detailed_timing = 1;
-	ha = (x[2] + ((x[4] & 0xF0) << 4));
-	hbl = (x[3] + ((x[4] & 0x0F) << 8));
-	hso = (x[8] + ((x[11] & 0xC0) << 2));
+	ha = (x[2] + ((x[4] & 0xf0) << 4));
+	hbl = (x[3] + ((x[4] & 0x0f) << 8));
+	hso = (x[8] + ((x[11] & 0xc0) << 2));
 	hspw = (x[9] + ((x[11] & 0x30) << 4));
 	hborder = x[15];
-	va = (x[5] + ((x[7] & 0xF0) << 4));
-	vbl = (x[6] + ((x[7] & 0x0F) << 8));
-	vso = ((x[10] >> 4) + ((x[11] & 0x0C) << 2));
-	vspw = ((x[10] & 0x0F) + ((x[11] & 0x03) << 4));
+	va = (x[5] + ((x[7] & 0xf0) << 4));
+	vbl = (x[6] + ((x[7] & 0x0f) << 8));
+	vso = ((x[10] >> 4) + ((x[11] & 0x0c) << 2));
+	vspw = ((x[10] & 0x0f) + ((x[11] & 0x03) << 4));
 	vborder = x[16];
 	switch ((x[17] & 0x18) >> 3) {
 	case 0x00:
@@ -1166,7 +1166,7 @@ static const char *mpeg_h_3d_audio_level(unsigned char x)
 	return "BROKEN"; /* can't happen */
 }
 
-static void cta_audio_block(const unsigned char *x, unsigned int length)
+static void cta_audio_block(const unsigned char *x, unsigned length)
 {
 	int i, format, ext_format = 0;
 
@@ -1481,17 +1481,17 @@ static void cta_svd(const unsigned char *x, int n, int for_ycbcr420)
 	}
 }
 
-static void cta_video_block(const unsigned char *x, unsigned int length)
+static void cta_video_block(const unsigned char *x, unsigned length)
 {
 	cta_svd(x, length, 0);
 }
 
-static void cta_y420vdb(const unsigned char *x, unsigned int length)
+static void cta_y420vdb(const unsigned char *x, unsigned length)
 {
 	cta_svd(x, length, 1);
 }
 
-static void cta_y420cmdb(const unsigned char *x, unsigned int length)
+static void cta_y420cmdb(const unsigned char *x, unsigned length)
 {
 	int i;
 
@@ -1505,7 +1505,7 @@ static void cta_y420cmdb(const unsigned char *x, unsigned int length)
 	}
 }
 
-static void cta_vfpdb(const unsigned char *x, unsigned int length)
+static void cta_vfpdb(const unsigned char *x, unsigned length)
 {
 	int i;
 
@@ -1543,7 +1543,7 @@ static struct {
 	{"4096x2160@24Hz 256:135", 24, 54000, 297000},
 };
 
-static void cta_hdmi_block(const unsigned char *x, unsigned int length)
+static void cta_hdmi_block(const unsigned char *x, unsigned length)
 {
 	int mask = 0, formats = 0;
 	int len_vic, len_3d;
@@ -1760,14 +1760,14 @@ static const char *dsc_max_slices[] = {
 	"up to 16 slices and up to (400 MHz/Ksliceadjust) pixel clock per slice",
 };
 
-static void cta_hf_eeodb(const unsigned char *x, unsigned int length)
+static void cta_hf_eeodb(const unsigned char *x, unsigned length)
 {
 	printf("    EDID Extension Block Count: %u\n", x[0]);
 	if (length != 1 || x[0] == 0)
 		nonconformant_hf_eeodb = 1;
 }
 
-static void cta_hf_scdb(const unsigned char *x, unsigned int length)
+static void cta_hf_scdb(const unsigned char *x, unsigned length)
 {
 	unsigned rate = x[1] * 5;
 
@@ -1870,7 +1870,7 @@ static void cta_hf_scdb(const unsigned char *x, unsigned int length)
 		       1024 * (1 + (x[9] & 0x3f)));
 }
 
-static void cta_hdr10plus(const unsigned char *x, unsigned int length)
+static void cta_hdr10plus(const unsigned char *x, unsigned length)
 {
 	printf("    Application Version: %u\n", x[0]);
 }
@@ -1929,7 +1929,7 @@ static const char *speaker_map[] = {
 	"LSd/RSd - Left/Right Surround Direct (HDMI only)",
 };
 
-static void cta_sadb(const unsigned char *x, unsigned int length)
+static void cta_sadb(const unsigned char *x, unsigned length)
 {
 	uint32_t sad;
 	int i;
@@ -1954,7 +1954,7 @@ static float decode_uchar_as_float(unsigned char x)
 	return s / 64.0;
 }
 
-static void cta_rcdb(const unsigned char *x, unsigned int length)
+static void cta_rcdb(const unsigned char *x, unsigned length)
 {
 	uint32_t spm = ((x[3] << 16) | (x[2] << 8) | x[1]);
 	int i;
@@ -2013,7 +2013,7 @@ static const char *speaker_location[] = {
 	"RS - Right Surround",
 };
 
-static void cta_sldb(const unsigned char *x, unsigned int length)
+static void cta_sldb(const unsigned char *x, unsigned length)
 {
 	while (length >= 2) {
 		printf("    Channel: %d (%sactive)\n", x[0] & 0x1f,
@@ -2033,7 +2033,7 @@ static void cta_sldb(const unsigned char *x, unsigned int length)
 	}
 }
 
-static void cta_vcdb(const unsigned char *x, unsigned int length)
+static void cta_vcdb(const unsigned char *x, unsigned length)
 {
 	unsigned char d = x[0];
 
@@ -2051,7 +2051,7 @@ static const char *colorimetry_map[] = {
 	"BT2020RGB",
 };
 
-static void cta_colorimetry_block(const unsigned char *x, unsigned int length)
+static void cta_colorimetry_block(const unsigned char *x, unsigned length)
 {
 	int i;
 
@@ -2074,7 +2074,7 @@ static const char *eotf_map[] = {
 	"Hybrid Log-Gamma",
 };
 
-static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned int length)
+static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned length)
 {
 	int i;
 
@@ -2106,7 +2106,7 @@ static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned int l
 		       x[4], (50.0 * pow(2, x[2] / 32.0)) * pow(x[4] / 255.0, 2) / 100.0);
 }
 
-static void cta_hdr_dyn_metadata_block(const unsigned char *x, unsigned int length)
+static void cta_hdr_dyn_metadata_block(const unsigned char *x, unsigned length)
 {
 	while (length >= 3) {
 		int type_len = x[0];
@@ -2130,7 +2130,7 @@ static void cta_hdr_dyn_metadata_block(const unsigned char *x, unsigned int leng
 	}
 }
 
-static void cta_ifdb(const unsigned char *x, unsigned int length)
+static void cta_ifdb(const unsigned char *x, unsigned length)
 {
 	int len_hdr = x[0] >> 5;
 
@@ -2159,7 +2159,7 @@ static void cta_ifdb(const unsigned char *x, unsigned int length)
 	}
 }
 
-static void cta_hdmi_audio_block(const unsigned char *x, unsigned int length)
+static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 {
 	int num_descs;
 
@@ -2228,8 +2228,8 @@ static void cta_block(const unsigned char *x)
 	static int last_block_was_hdmi_vsdb;
 	static int have_hf_vsdb, have_hf_scdb;
 	static int first_block = 1;
-	unsigned int length = x[0] & 0x1f;
-	unsigned int oui;
+	unsigned length = x[0] & 0x1f;
+	unsigned oui;
 
 	switch ((x[0] & 0xe0) >> 5) {
 	case 0x01:
@@ -2792,8 +2792,8 @@ static int parse_extension(const unsigned char *x)
 	case 0x70: printf("DisplayID Extension Block\n");
 		   conformant_extension = parse_displayid(x);
 		   break;
-	case 0xF0: printf("Block map\n"); break;
-	case 0xFF: printf("Manufacturer-specific Extension Block\n"); break;
+	case 0xf0: printf("Block map\n"); break;
+	case 0xff: printf("Manufacturer-specific Extension Block\n"); break;
 	default:   printf("Unknown Extension Block\n"); break;
 	}
 
@@ -3219,10 +3219,10 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	cur_block = "Vendor & Product Identification";
 	printf("Manufacturer: %s Model %x Serial Number %u\n",
 	       manufacturer_name(edid + 0x08),
-	       (unsigned short)(edid[0x0A] + (edid[0x0B] << 8)),
-	       (unsigned int)(edid[0x0C] + (edid[0x0D] << 8)
-			      + (edid[0x0E] << 16) + (edid[0x0F] << 24)));
-	has_valid_serial_number = edid[0x0C] || edid[0x0D] || edid[0x0E] || edid[0x0F];
+	       (unsigned short)(edid[0x0a] + (edid[0x0b] << 8)),
+	       (unsigned)(edid[0x0c] + (edid[0x0d] << 8) +
+			  (edid[0x0e] << 16) + (edid[0x0f] << 24)));
+	has_valid_serial_number = edid[0x0c] || edid[0x0d] || edid[0x0e] || edid[0x0f];
 	/* XXX need manufacturer ID table */
 
 	time(&the_time);
@@ -3273,17 +3273,17 @@ static int edid_from_file(const char *from_file, const char *to_file,
 				   nonconformant_digital_display = 1;
 			}
 		} else if (claims_one_point_two) {
-			conformance_mask = 0x7E;
+			conformance_mask = 0x7e;
 			if (edid[0x14] & 0x01) {
 				printf("DFP 1.x compatible TMDS\n");
 			}
-		} else conformance_mask = 0x7F;
+		} else conformance_mask = 0x7f;
 		if (!nonconformant_digital_display)
 			nonconformant_digital_display = edid[0x14] & conformance_mask;
 	} else {
 		analog = 1;
 		int voltage = (edid[0x14] & 0x60) >> 5;
-		int sync = (edid[0x14] & 0x0F);
+		int sync = (edid[0x14] & 0x0f);
 		printf("Analog display, Input voltage level: %s V\n",
 		       voltage == 3 ? "0.7/0.7" :
 		       voltage == 2 ? "1.0/0.4" :
@@ -3330,7 +3330,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			printf("Gamma: 1.0\n");
 	} else printf("Gamma: %.2f\n", ((edid[0x17] + 100.0) / 100.0));
 
-	if (edid[0x18] & 0xE0) {
+	if (edid[0x18] & 0xe0) {
 		printf("DPMS levels:");
 		if (edid[0x18] & 0x80) printf(" Standby");
 		if (edid[0x18] & 0x40) printf(" Suspend");
@@ -3437,8 +3437,8 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	if (has_preferred_timing && !did_detailed_timing)
 		has_preferred_timing = 0; /* not really accurate... */
 	has_valid_detailed_blocks &= detailed_block(edid + 0x48, 0);
-	has_valid_detailed_blocks &= detailed_block(edid + 0x5A, 0);
-	has_valid_detailed_blocks &= detailed_block(edid + 0x6C, 0);
+	has_valid_detailed_blocks &= detailed_block(edid + 0x5a, 0);
+	has_valid_detailed_blocks &= detailed_block(edid + 0x6c, 0);
 
 	if (edid[0x7e])
 		printf("Has %d extension blocks\n", edid[0x7e]);
@@ -3732,7 +3732,7 @@ int main(int argc, char **argv)
  * 0x6c - 0x70: 00 00 00 fe 00
  * 0x71 - 0x78: smbus nits values (whut)
  * 0x79: number of lvds channels (1 or 2)
- * 0x7A: panel self test (1 if present)
+ * 0x7a: panel self test (1 if present)
  * and then dummy terminator
  *
  * SPWG also says something strange about the LSB of detailed descriptor 1:
