@@ -2491,6 +2491,7 @@ static int parse_cta(const unsigned char *x)
 			printf("\n");
 		}
 
+		cur_block = "CTA-861 Detailed Timings";
 		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18)
 			if (detailed[0])
 				detailed_block(detailed, 1);
