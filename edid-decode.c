@@ -1083,14 +1083,14 @@ static int detailed_block(const unsigned char *x, int in_extension)
 	hor_mm = x[12] + ((x[14] & 0xf0) << 4);
 	vert_mm = x[13] + ((x[14] & 0x0f) << 8);
 	printf("Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
-	       "               %4u %4u %4u %4u hborder %u\n"
-	       "               %4u %4u %4u %4u vborder %u\n"
+	       "               %4u %4u %4u %4u (%3u %3u %3d) hborder %u\n"
+	       "               %4u %4u %4u %4u (%3u %3u %3d) vborder %u\n"
 	       "               %chsync %cvsync%s%s %s\n"
 	       "               VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       pixclk_khz / 1000.0,
 	       hor_mm, vert_mm,
-	       ha, ha + hso, ha + hso + hspw, ha + hbl, hborder,
-	       va, va + vso, va + vso + vspw, va + vbl, vborder,
+	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw, hborder,
+	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw, vborder,
 	       phsync, pvsync, syncmethod, x[17] & 0x80 ? " interlaced" : "", stereo,
 	       refresh, (double)pixclk_khz / (ha + hbl)
 	      );
@@ -2551,13 +2551,16 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	pvsync = ((x[17] >> 7) & 0x1 ) ? '+' : '-';
 	
 	printf("  Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
-	       "                 %4u %4u %4u %4u\n"
-	       "                 %4u %4u %4u %4u\n"
-	       "                 %chsync %cvsync\n",
+	       "                 %4u %4u %4u %4u (%3u %3u %3d)\n"
+	       "                 %4u %4u %4u %4u (%3u %3u %3d)\n"
+	       "                 %chsync %cvsync\n"
+	       "                 VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       (float)pix_clock/100.0, 0, 0,
-	       ha, ha + hso, ha + hso + hspw, ha + hbl,
-	       va, va + vso, va + vso + vspw, va + vbl,
-	       phsync, pvsync
+	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw,
+	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw,
+	       phsync, pvsync,
+	       (pix_clock * 10000.0) / ((ha + hbl) * (va + vbl)),
+	       (pix_clock * 10.0) / (ha + hbl)
 	      );
 }
 
