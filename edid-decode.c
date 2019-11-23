@@ -1908,6 +1908,20 @@ static void cta_hdr10plus(const unsigned char *x, unsigned length)
 	printf("    Application Version: %u\n", x[0]);
 }
 
+static void hex_block(const unsigned char *x, unsigned length)
+{
+	if (length) {
+		unsigned i;
+
+		for (i = 0; i < length; i++)
+			printf("%02x", x[i]);
+		printf("  ");
+		for (i = 0; i < length; i++)
+			printf("%c", x[i] >= ' ' && x[i] <= '~' ? x[i] : '.');
+		printf("\n");
+	}
+}
+
 DEFINE_FIELD("YCbCr quantization", YCbCr_quantization, 7, 7,
 	     { 0, "No Data" },
 	     { 1, "Selectable (via AVI YQ)" });
@@ -2295,7 +2309,9 @@ static void cta_block(const unsigned char *x)
 			cta_hf_scdb(x + 4, length - 3);
 			have_hf_vsdb = 1;
 		} else {
-			printf("\n");
+			printf(" (unknown)\n");
+			printf("    ");
+			hex_block(x + 4, length - 3);
 		}
 		break;
 	case 0x04:
@@ -2322,7 +2338,9 @@ static void cta_block(const unsigned char *x)
 				printf(" (HDR10+)\n");
 				cta_hdr10plus(x + 5, length - 4);
 			} else {
-				printf("\n");
+				printf(" (unknown)\n");
+				printf("    ");
+				hex_block(x + 5, length - 4);
 			}
 			break;
 		case 0x02:
