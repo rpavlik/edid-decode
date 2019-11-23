@@ -2450,7 +2450,7 @@ static void cta_block(const unsigned char *x)
 
 static int parse_cta(const unsigned char *x)
 {
-	int ret = 0;
+	int ret = 0; // 0 = conformant
 	unsigned version = x[1];
 	unsigned offset = x[2];
 	const unsigned char *detailed;
@@ -2459,7 +2459,7 @@ static int parse_cta(const unsigned char *x)
 
 	if (version >= 1) do {
 		if (version == 1 && x[3] != 0)
-			ret = 1;
+			ret = 1; // 1 = nonconformant
 
 		if (offset < 4)
 			break;
@@ -2831,28 +2831,72 @@ static void extension_version(const unsigned char *x)
 
 static int parse_extension(const unsigned char *x)
 {
-	int conformant_extension = 0;
+	int nonconformant_extension = 0;
 
 	printf("\n");
 
 	switch (x[0]) {
-	case 0x02: printf("CTA Extension Block\n");
-		   extension_version(x);
-		   conformant_extension = parse_cta(x);
-		   break;
-	case 0x10: printf("VTB Extension Block\n"); break;
-	case 0x40: printf("DI Extension Block\n"); break;
-	case 0x50: printf("LS Extension Block\n"); break;
-	case 0x60: printf("DPVL Extension Block\n"); break;
-	case 0x70: printf("DisplayID Extension Block\n");
-		   conformant_extension = parse_displayid(x);
-		   break;
-	case 0xf0: printf("Block map\n"); break;
-	case 0xff: printf("Manufacturer-specific Extension Block\n"); break;
-	default:   printf("Unknown Extension Block\n"); break;
+	case 0x02:
+		printf("CTA Extension Block\n");
+		extension_version(x);
+		nonconformant_extension = parse_cta(x);
+		break;
+	case 0x10:
+		printf("VTB Extension Block\n");
+		extension_version(x);
+		printf("  ");
+		hex_block(x + 2, 125);
+		do_checksum(x, EDID_PAGE_SIZE);
+		break;
+	case 0x40:
+		printf("DI Extension Block\n");
+		extension_version(x);
+		printf("  ");
+		hex_block(x + 2, 125);
+		do_checksum(x, EDID_PAGE_SIZE);
+		break;
+	case 0x50:
+		printf("LS Extension Block\n");
+		extension_version(x);
+		printf("  ");
+		hex_block(x + 2, 125);
+		do_checksum(x, EDID_PAGE_SIZE);
+		break;
+	case 0x60:
+		printf("DPVL Extension Block\n");
+		extension_version(x);
+		printf("  ");
+		hex_block(x + 2, 125);
+		do_checksum(x, EDID_PAGE_SIZE);
+		break;
+	case 0x70:
+		printf("DisplayID Extension Block\n");
+		nonconformant_extension = parse_displayid(x);
+		do_checksum(x, EDID_PAGE_SIZE);
+		break;
+	case 0xf0:
+		printf("Block map\n");
+		printf("  ");
+		hex_block(x + 1, 126);
+		do_checksum(x, EDID_PAGE_SIZE);
+		break;
+	case 0xff:
+		printf("Manufacturer-specific Extension Block\n");
+		extension_version(x);
+		printf("  ");
+		hex_block(x + 2, 125);
+		do_checksum(x, EDID_PAGE_SIZE);
+		break;
+	default:
+		printf("Unknown Extension Block (0x%02x)\n", x[0]);
+		extension_version(x);
+		printf("  ");
+		hex_block(x + 2, 125);
+		do_checksum(x, EDID_PAGE_SIZE);
+		break;
 	}
 
-	return conformant_extension;
+	return nonconformant_extension;
 }
 
 static int edid_lines = 0;
