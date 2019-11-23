@@ -1127,13 +1127,13 @@ static int do_checksum(const unsigned char *x, size_t len)
 	unsigned char sum = 0;
 	unsigned i;
 
-	printf("Checksum: 0x%hx", check);
+	printf("Checksum: 0x%hhx", check);
 
 	for (i = 0; i < len-1; i++)
 		sum += x[i];
 
 	if ((unsigned char)(check + sum) != 0) {
-		printf(" (should be 0x%hx)\n", -sum & 0xff);
+		printf(" (should be 0x%x)\n", -sum & 0xff);
 		return 0;
 	}
 
@@ -3251,7 +3251,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	}
 
 	cur_block = "EDID Structure Version & Revision";
-	printf("EDID version: %hd.%hd\n", edid[0x12], edid[0x13]);
+	printf("EDID version: %hhu.%hhu\n", edid[0x12], edid[0x13]);
 	if (edid[0x12] == 1) {
 		if (edid[0x13] > 4) {
 			printf("Claims > 1.4, assuming 1.4 conformance\n");
@@ -3286,12 +3286,12 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		if (edid[0x11] <= 0x0f) {
 			fail("bad year of manufacture\n");
 		} else if (edid[0x10] == 0xff) {
-			printf("Model year %hu\n", edid[0x11] + 1990);
+			printf("Model year %u\n", edid[0x11] + 1990);
 		} else if (edid[0x11] + 90 <= ptm->tm_year + 1) {
 			if (edid[0x10])
-				printf("Made in week %hu of %hu\n", edid[0x10], edid[0x11] + 1990);
+				printf("Made in week %hhu of %u\n", edid[0x10], edid[0x11] + 1990);
 			else
-				printf("Made in year %hu\n", edid[0x11] + 1990);
+				printf("Made in year %u\n", edid[0x11] + 1990);
 		} else {
 			fail("bad year of manufacture\n");
 		}
