@@ -863,9 +863,9 @@ static int detailed_block(const unsigned char *x, int in_extension)
 						v_min_offset = 255;
 					}
 				}
-				if (x[4] & 0x04) {
+				if (x[4] & 0x08) {
 					h_max_offset = 255;
-					if (x[4] & 0x03) {
+					if (x[4] & 0x04) {
 						h_min_offset = 255;
 					}
 				}
