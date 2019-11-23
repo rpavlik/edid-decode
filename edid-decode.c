@@ -2538,18 +2538,18 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 		break;
 	}
 	printf("  Aspect %s%s%s\n", aspect, x[3] & 0x80 ? ", preferred" : "", stereo);
-	pix_clock = x[0] + (x[1] << 8) + (x[2] << 16);
-	ha = x[4] | (x[5] << 8);
-	hbl = x[6] | (x[7] << 8);
-	hso = x[8] | ((x[9] & 0x7f) << 8);
+	pix_clock = 1 + (x[0] + (x[1] << 8) + (x[2] << 16));
+	ha = 1 + (x[4] | (x[5] << 8));
+	hbl = 1 + (x[6] | (x[7] << 8));
+	hso = 1 + (x[8] | ((x[9] & 0x7f) << 8));
 	phsync = ((x[9] >> 7) & 0x1) ? '+' : '-';
-	hspw = x[10] | (x[11] << 8);
-	va = x[12] | (x[13] << 8);
-	vbl = x[14] | (x[15] << 8);
-	vso = x[16] | ((x[17] & 0x7f) << 8);
-	vspw = x[18] | (x[19] << 8);
+	hspw = 1 + (x[10] | (x[11] << 8));
+	va = 1 + (x[12] | (x[13] << 8));
+	vbl = 1 + (x[14] | (x[15] << 8));
+	vso = 1 + (x[16] | ((x[17] & 0x7f) << 8));
+	vspw = 1 + (x[18] | (x[19] << 8));
 	pvsync = ((x[17] >> 7) & 0x1 ) ? '+' : '-';
-
+	
 	printf("  Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
 	       "                 %4u %4u %4u %4u\n"
 	       "                 %4u %4u %4u %4u\n"
