@@ -2326,6 +2326,7 @@ static void cta_block(const unsigned char *x)
 		break;
 	case 0x05:
 		printf("  VESA DTC Data Block\n");
+		hex_block("  ", x + 1, length);
 		break;
 	case 0x07:
 		printf("  Extended tag: ");
@@ -2350,12 +2351,15 @@ static void cta_block(const unsigned char *x)
 			break;
 		case 0x02:
 			printf("VESA Video Display Device Data Block\n");
+			hex_block("  ", x + 2, length - 1);
 			break;
 		case 0x03:
 			printf("VESA Video Timing Block Extension\n");
+			hex_block("  ", x + 2, length - 1);
 			break;
 		case 0x04:
 			printf("Reserved for HDMI Video Data Block\n");
+			hex_block("  ", x + 2, length - 1);
 			break;
 		case 0x05:
 			cur_block = "Colorimetry Data Block";
@@ -2389,9 +2393,11 @@ static void cta_block(const unsigned char *x)
 			break;
 		case 0x10:
 			printf("Reserved for CTA Miscellaneous Audio Fields\n");
+			hex_block("  ", x + 2, length - 1);
 			break;
 		case 0x11:
 			printf("Vendor-Specific Audio Data Block\n");
+			hex_block("  ", x + 2, length - 1);
 			break;
 		case 0x12:
 			cur_block = "HDMI Audio Data Block";
@@ -2439,6 +2445,7 @@ static void cta_block(const unsigned char *x)
 				printf("Reserved for audio-related blocks (%02x)\n", x[1]);
 			else
 				printf("Reserved (%02x)\n", x[1]);
+			hex_block("  ", x + 2, length - 1);
 			break;
 		}
 		break;
@@ -2560,7 +2567,7 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 		stereo = ", reserved";
 		break;
 	}
-	printf("  Aspect %s%s%s\n", aspect, x[3] & 0x80 ? ", preferred" : "", stereo);
+	printf("    Aspect %s%s%s\n", aspect, x[3] & 0x80 ? ", preferred" : "", stereo);
 	pix_clock = 1 + (x[0] + (x[1] << 8) + (x[2] << 16));
 	ha = 1 + (x[4] | (x[5] << 8));
 	hbl = 1 + (x[6] | (x[7] << 8));
@@ -2573,11 +2580,11 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	vspw = 1 + (x[18] | (x[19] << 8));
 	pvsync = ((x[17] >> 7) & 0x1 ) ? '+' : '-';
 	
-	printf("  Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
-	       "                 %4u %4u %4u %4u (%3u %3u %3d)\n"
-	       "                 %4u %4u %4u %4u (%3u %3u %3d)\n"
-	       "                 %chsync %cvsync\n"
-	       "                 VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
+	printf("    Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
+	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
+	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
+	       "                   %chsync %cvsync\n"
+	       "                   VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       (float)pix_clock/100.0, 0, 0,
 	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw,
 	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw,
@@ -2705,77 +2712,93 @@ static int parse_displayid(const unsigned char *x)
 			break;
 		switch (tag) {
 		case 0:
-			printf("Product ID Block\n");
+			printf("  Product ID Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 1:
-			printf("Display Parameters Block\n");
+			printf("  Display Parameters Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 2:
-			printf("Color Characteristics Block\n");
+			printf("  Color Characteristics Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 3: {
-			printf("Type 1 Detailed Timings Block\n");
+			printf("  Type 1 Detailed Timings Block\n");
 			for (i = 0; i < len / 20; i++) {
 				parse_displayid_detailed_timing(&x[offset + 3 + (i * 20)]);
 			}
 			break;
 		}
 		case 4:
-			printf("Type 2 Detailed Timings Block\n");
+			printf("  Type 2 Detailed Timings Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 5:
-			printf("Type 3 Short Timings Block\n");
+			printf("  Type 3 Short Timings Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 6:
-			printf("Type 4 DMT Timings Block\n");
+			printf("  Type 4 DMT Timings Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 7:
-			printf("Type 1 VESA DMT Timings Block\n");
+			printf("  Type 1 VESA DMT Timings Block\n");
 			for (i = 0; i < min(len, 10) * 8; i++) {
-				if (x[offset + 3 + i / 8] & (1 << (i % 8))) {
-					printf("  %ux%u%s@%uHz %s%u:%u HorFreq: %.3f kHz Clock: %.3f MHz\n",
-					       displayid_vesa_dmt[i].x,
-					       displayid_vesa_dmt[i].y,
-					       displayid_vesa_dmt[i].interlaced ? "i" : "",
-					       displayid_vesa_dmt[i].refresh,
-					       displayid_vesa_dmt[i].rb ? "RB " : "",
-					       displayid_vesa_dmt[i].ratio_w, displayid_vesa_dmt[i].ratio_h,
-					       displayid_vesa_dmt[i].hor_freq_hz / 1000.0,
-					       displayid_vesa_dmt[i].pixclk_khz / 1000.0);
-					min_vert_freq_hz = min(min_vert_freq_hz, displayid_vesa_dmt[i].refresh);
-					max_vert_freq_hz = max(max_vert_freq_hz, displayid_vesa_dmt[i].refresh);
-					min_hor_freq_hz = min(min_hor_freq_hz, displayid_vesa_dmt[i].hor_freq_hz);
-					max_hor_freq_hz = max(max_hor_freq_hz, displayid_vesa_dmt[i].hor_freq_hz);
-					max_pixclk_khz = max(max_pixclk_khz, displayid_vesa_dmt[i].pixclk_khz);
-				}
+				if (!(x[offset + 3 + i / 8] & (1 << (i % 8))))
+					continue;
+
+				printf("    %ux%u%s@%uHz %s%u:%u HorFreq: %.3f kHz Clock: %.3f MHz\n",
+				       displayid_vesa_dmt[i].x,
+				       displayid_vesa_dmt[i].y,
+				       displayid_vesa_dmt[i].interlaced ? "i" : "",
+				       displayid_vesa_dmt[i].refresh,
+				       displayid_vesa_dmt[i].rb ? "RB " : "",
+				       displayid_vesa_dmt[i].ratio_w, displayid_vesa_dmt[i].ratio_h,
+				       displayid_vesa_dmt[i].hor_freq_hz / 1000.0,
+				       displayid_vesa_dmt[i].pixclk_khz / 1000.0);
+				min_vert_freq_hz = min(min_vert_freq_hz, displayid_vesa_dmt[i].refresh);
+				max_vert_freq_hz = max(max_vert_freq_hz, displayid_vesa_dmt[i].refresh);
+				min_hor_freq_hz = min(min_hor_freq_hz, displayid_vesa_dmt[i].hor_freq_hz);
+				max_hor_freq_hz = max(max_hor_freq_hz, displayid_vesa_dmt[i].hor_freq_hz);
+				max_pixclk_khz = max(max_pixclk_khz, displayid_vesa_dmt[i].pixclk_khz);
 			}
 			break;
 		case 8:
-			printf("CTA Timings Block\n");
+			printf("  CTA Timings Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 9:
-			printf("Video Timing Range Block\n");
+			printf("  Video Timing Range Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 0xa:
-			printf("Product Serial Number Block\n");
+			printf("  Product Serial Number Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 0xb:
-			printf("GP ASCII String Block\n");
+			printf("  GP ASCII String Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 0xc:
-			printf("Display Device Data Block\n");
+			printf("  Display Device Data Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 0xd:
-			printf("Interface Power Sequencing Block\n");
+			printf("  Interface Power Sequencing Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 0xe:
-			printf("Transfer Characteristics Block\n");
+			printf("  Transfer Characteristics Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 0xf:
-			printf("Display Interface Block\n");
+			printf("  Display Interface Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 0x10:
-			printf("Stereo Display Interface Block\n");
+			printf("  Stereo Display Interface Block\n");
+			hex_block("    ", x + offset + 3, len - 3);
 			break;
 		case 0x12: {
 			unsigned capabilities = x[offset + 3];
@@ -2787,32 +2810,33 @@ static int parse_displayid(const unsigned char *x)
 			unsigned tile_height = x[offset + 9] | (x[offset + 10] << 8);
 			unsigned pix_mult = x[offset + 11];
 
-			printf("Tiled Display Topology Block\n");
-			printf("  Capabilities: 0x%08x\n", capabilities);
-			printf("  Num horizontal tiles: %u Num vertical tiles: %u\n", num_h_tile + 1, num_v_tile + 1);
-			printf("  Tile location: %u, %u\n", tile_h_location, tile_v_location);
-			printf("  Tile resolution: %ux%u\n", tile_width + 1, tile_height + 1);
+			printf("  Tiled Display Topology Block\n");
+			printf("    Capabilities: 0x%08x\n", capabilities);
+			printf("    Num horizontal tiles: %u Num vertical tiles: %u\n", num_h_tile + 1, num_v_tile + 1);
+			printf("    Tile location: %u, %u\n", tile_h_location, tile_v_location);
+			printf("    Tile resolution: %ux%u\n", tile_width + 1, tile_height + 1);
 			if (capabilities & 0x40) {
 				if (pix_mult) {
-					printf("  Top bevel size: %u pixels\n",
+					printf("    Top bevel size: %u pixels\n",
 					       pix_mult * x[offset + 12] / 10);
-					printf("  Bottom bevel size: %u pixels\n",
+					printf("    Bottom bevel size: %u pixels\n",
 					       pix_mult * x[offset + 13] / 10);
-					printf("  Right bevel size: %u pixels\n",
+					printf("    Right bevel size: %u pixels\n",
 					       pix_mult * x[offset + 14] / 10);
-					printf("  Left bevel size: %u pixels\n",
+					printf("    Left bevel size: %u pixels\n",
 					       pix_mult * x[offset + 15] / 10);
 				} else {
 					fail("No bevel information, but the pixel multiplier is non-zero\n");
 				}
-				printf("  Tile resolution: %ux%u\n", tile_width + 1, tile_height + 1);
+				printf("    Tile resolution: %ux%u\n", tile_width + 1, tile_height + 1);
 			} else if (pix_mult) {
 				fail("No bevel information, but the pixel multiplier is non-zero\n");
 			}
 			break;
 		}
 		default:
-			printf("Unknown DisplayID Data Block 0x%x\n", tag);
+			printf("  Unknown DisplayID Data Block 0x%x\n", tag);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		}
 		length -= len + 3;
@@ -2823,6 +2847,7 @@ static int parse_displayid(const unsigned char *x)
 	 * but checksum is calculated over the entire structure
 	 * (excluding DisplayID-in-EDID magic byte)
 	 */
+	printf("  ");
 	has_valid_displayid_checksum = do_checksum(orig+1, orig[2] + 5);
 	return 0;
 }
@@ -2890,6 +2915,7 @@ static int parse_extension(const unsigned char *x)
 		printf("Unknown Extension Block (0x%02x)\n", x[0]);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
+		printf("  ");
 		do_checksum(x, EDID_PAGE_SIZE);
 		break;
 	}
