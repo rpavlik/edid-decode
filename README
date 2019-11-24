@@ -15,6 +15,19 @@ that 'edid-decode' appears in the subject line.
 
 Please add a 'Signed-off-by' line when submitting patches!
 
+New sample EDIDs are welcome. Please note that these must be real
+EDIDs read from real hardware, so no artificially constructed EDIDs.
+
+The naming of EDIDs in the data directory is:
+
+<vendor>-<model>-<port>[-tileX]
+
+<port> is one of dp, hdmi, vga, dvi
+When a tile is also specified, then dp should include the DP connector
+number, e.g. dp1-tile0, dp2-tile1.
+
+All lower case.
+
 I can also be contacted directly:
 
 Hans Verkuil <hverkuil-cisco@xs4all.nl>
