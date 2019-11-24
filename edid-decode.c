@@ -1506,7 +1506,7 @@ static void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 			mode = "Unknown mode";
 		}
 
-		printf("VIC %3u %s%sHorFreq: %.3f kHz Clock: %.3f MHz",
+		printf("    VIC %3u %s%sHorFreq: %.3f kHz Clock: %.3f MHz\n",
 		       vic, mode, native ? " (native) " : " ", hfreq / 1000.0, clock_khz / 1000.0);
 		if (vic == 1)
 			has_cta861_vic_1 = 1;
