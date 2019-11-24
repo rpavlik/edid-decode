@@ -1908,16 +1908,22 @@ static void cta_hdr10plus(const unsigned char *x, unsigned length)
 	printf("    Application Version: %u\n", x[0]);
 }
 
-static void hex_block(const unsigned char *x, unsigned length)
+static void hex_block(const char *prefix, const unsigned char *x, unsigned length)
 {
-	if (length) {
-		unsigned i;
+	unsigned i, j;
 
-		for (i = 0; i < length; i++)
-			printf("%02x", x[i]);
-		printf("  ");
-		for (i = 0; i < length; i++)
-			printf("%c", x[i] >= ' ' && x[i] <= '~' ? x[i] : '.');
+	if (!length)
+		return;
+
+	for (i = 0; i < length; i += 16) {
+		printf("%s", prefix);
+		for (j = 0; j < 16; j++)
+			if (i + j < length)
+				printf("%02x ", x[i + j]);
+			else if (length > 16)
+				printf("   ");
+		for (j = 0; j < 16 && i + j < length; j++)
+			printf("%c", x[i + j] >= ' ' && x[i + j] <= '~' ? x[i + j] : '.');
 		printf("\n");
 	}
 }
@@ -2310,8 +2316,7 @@ static void cta_block(const unsigned char *x)
 			have_hf_vsdb = 1;
 		} else {
 			printf(" (unknown)\n");
-			printf("    ");
-			hex_block(x + 4, length - 3);
+			hex_block("    ", x + 4, length - 3);
 		}
 		break;
 	case 0x04:
@@ -2340,7 +2345,7 @@ static void cta_block(const unsigned char *x)
 			} else {
 				printf(" (unknown)\n");
 				printf("    ");
-				hex_block(x + 5, length - 4);
+				hex_block("    ", x + 5, length - 4);
 			}
 			break;
 		case 0x02:
@@ -2844,29 +2849,25 @@ static int parse_extension(const unsigned char *x)
 	case 0x10:
 		printf("VTB Extension Block\n");
 		extension_version(x);
-		printf("  ");
-		hex_block(x + 2, 125);
+		hex_block("  ", x + 2, 125);
 		do_checksum(x, EDID_PAGE_SIZE);
 		break;
 	case 0x40:
 		printf("DI Extension Block\n");
 		extension_version(x);
-		printf("  ");
-		hex_block(x + 2, 125);
+		hex_block("  ", x + 2, 125);
 		do_checksum(x, EDID_PAGE_SIZE);
 		break;
 	case 0x50:
 		printf("LS Extension Block\n");
 		extension_version(x);
-		printf("  ");
-		hex_block(x + 2, 125);
+		hex_block("  ", x + 2, 125);
 		do_checksum(x, EDID_PAGE_SIZE);
 		break;
 	case 0x60:
 		printf("DPVL Extension Block\n");
 		extension_version(x);
-		printf("  ");
-		hex_block(x + 2, 125);
+		hex_block("  ", x + 2, 125);
 		do_checksum(x, EDID_PAGE_SIZE);
 		break;
 	case 0x70:
@@ -2876,22 +2877,19 @@ static int parse_extension(const unsigned char *x)
 		break;
 	case 0xf0:
 		printf("Block map\n");
-		printf("  ");
-		hex_block(x + 1, 126);
+		hex_block("  ", x + 1, 126);
 		do_checksum(x, EDID_PAGE_SIZE);
 		break;
 	case 0xff:
 		printf("Manufacturer-specific Extension Block\n");
 		extension_version(x);
-		printf("  ");
-		hex_block(x + 2, 125);
+		hex_block("  ", x + 2, 125);
 		do_checksum(x, EDID_PAGE_SIZE);
 		break;
 	default:
 		printf("Unknown Extension Block (0x%02x)\n", x[0]);
 		extension_version(x);
-		printf("  ");
-		hex_block(x + 2, 125);
+		hex_block("  ", x + 2, 125);
 		do_checksum(x, EDID_PAGE_SIZE);
 		break;
 	}
