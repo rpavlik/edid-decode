@@ -64,7 +64,6 @@ static int has_serial_string = 0;
 static int has_valid_name_descriptor = 0;
 static int has_valid_detailed_blocks = 0;
 static int has_valid_descriptor_ordering = 1;
-static int has_valid_range_descriptor = 1;
 static int has_cta861 = 0;
 static int has_640x480p60_est_timing = 0;
 static int has_cta861_vic_1 = 0;
@@ -833,8 +832,9 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			int h_max_offset = 0, h_min_offset = 0;
 			int v_max_offset = 0, v_min_offset = 0;
 			int is_cvt = 0;
-			has_range_descriptor = 1;
 			char *range_class = "";
+
+			has_range_descriptor = 1;
 			/* 
 			 * XXX todo: implement feature flags, vtd blocks
 			 * XXX check: ranges are well-formed; block termination if no vtd
@@ -864,7 +864,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			case 0x01: /* range limits only */
 				range_class = "bare limits";
 				if (!claims_one_point_four)
-					has_valid_range_descriptor = 0;
+					fail("'%s' is not allowed for EDID < 1.4\n", range_class);
 				break;
 			case 0x02: /* secondary gtf curve */
 				range_class = "GTF with icing";
@@ -873,20 +873,20 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				range_class = "CVT";
 				is_cvt = 1;
 				if (!claims_one_point_four)
-					has_valid_range_descriptor = 0;
+					fail("'%s' is not allowed for EDID < 1.4\n", range_class);
 				break;
 			default: /* invalid */
-				has_valid_range_descriptor = 0;
+				fail("invalid range class 0x%02x\n", x[10]);
 				range_class = "invalid";
 				break;
 			}
 
 			if (x[5] + v_min_offset > x[6] + v_max_offset)
-				has_valid_range_descriptor = 0;
+				fail("min vertical rate > max vertical rate\n");
 			mon_min_vert_freq_hz = x[5] + v_min_offset;
 			mon_max_vert_freq_hz = x[6] + v_max_offset;
 			if (x[7] + h_min_offset > x[8] + h_max_offset)
-				has_valid_range_descriptor = 0;
+				fail("min horizontal freq > max horizontal freq\n");
 			mon_min_hor_freq_hz = (x[7] + h_min_offset) * 1000;
 			mon_max_hor_freq_hz = (x[8] + h_max_offset) * 1000;
 			printf("Monitor ranges (%s): %d-%dHz V, %d-%dkHz H",
@@ -930,16 +930,29 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				       x[14] & 0x10 ? "5:4" : "",
 				       x[14] & 0x08 ? "15:9" : "");
 				if (x[14] & 0x07)
-					has_valid_range_descriptor = 0;
+					fail("Reserved bits of byte 14 are non-zero\n");
 
 				printf("Preferred aspect ratio: ");
 				switch((x[15] & 0xe0) >> 5) {
-				case 0x00: printf("4:3"); break;
-				case 0x01: printf("16:9"); break;
-				case 0x02: printf("16:10"); break;
-				case 0x03: printf("5:4"); break;
-				case 0x04: printf("15:9"); break;
-				default: printf("(broken)"); break;
+				case 0x00:
+					printf("4:3");
+					break;
+				case 0x01:
+					printf("16:9");
+					break;
+				case 0x02:
+					printf("16:10");
+					break;
+				case 0x03:
+					printf("5:4");
+					break;
+				case 0x04:
+					printf("15:9");
+					break;
+				default:
+					printf("(broken)");
+					fail("invalid preferred aspect ratio\n");
+					break;
 				}
 				printf("\n");
 
@@ -949,7 +962,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 					printf("Supports CVT reduced blanking\n");
 
 				if (x[15] & 0x07)
-					has_valid_range_descriptor = 0;
+					fail("Reserved bits of byte 15 are non-zero\n");
 
 				if (x[16] & 0xf0) {
 					printf("Supported display scaling:\n");
@@ -964,7 +977,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				}
 
 				if (x[16] & 0x0f)
-					has_valid_range_descriptor = 0;
+					fail("Reserved bits of byte 16 are non-zero\n");
 
 				if (x[17])
 					printf("Preferred vertical refresh: %d Hz\n", x[17]);
@@ -976,7 +989,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			 * Slightly weird to return a global, but I've never seen any
 			 * EDID block wth two range descriptors, so it's harmless.
 			 */
-			return has_valid_range_descriptor;
+			return 0;
 		}
 		case 0xfe:
 			/*
@@ -3656,7 +3669,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			printf("\tHas descriptor blocks other than detailed timings\n");
 	}
 
-	if (has_range_descriptor && has_valid_range_descriptor &&
+	if (has_range_descriptor &&
 	    (min_vert_freq_hz < mon_min_vert_freq_hz ||
 	     max_vert_freq_hz > mon_max_vert_freq_hz ||
 	     min_hor_freq_hz < mon_min_hor_freq_hz ||
@@ -3686,7 +3699,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	    !has_valid_cvt ||
 	    !has_valid_detailed_blocks ||
 	    !has_valid_descriptor_ordering ||
-	    !has_valid_range_descriptor ||
 	    (has_name_descriptor && !has_valid_name_descriptor)) {
 		conformant = 0;
 		printf("EDID block does not conform:\n");
@@ -3701,8 +3713,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			printf("\tDetailed blocks filled with garbage\n");
 		if (!has_valid_descriptor_ordering)
 			printf("\tInvalid detailed timing descriptor ordering\n");
-		if (!has_valid_range_descriptor)
-			printf("\tRange descriptor contains garbage\n");
 		if (has_name_descriptor && !has_valid_name_descriptor)
 			printf("\tInvalid Monitor Name descriptor\n");
 	}
