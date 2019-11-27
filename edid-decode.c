@@ -60,8 +60,6 @@ static int has_cta861 = 0;
 static int has_640x480p60_est_timing = 0;
 static int has_cta861_vic_1 = 0;
 
-static int nonconformant_cta861_640x480 = 0;
-
 static unsigned min_hor_freq_hz = 0xfffffff;
 static unsigned max_hor_freq_hz = 0;
 static unsigned min_vert_freq_hz = 0xfffffff;
@@ -1651,7 +1649,7 @@ static void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 			fail("unknown VIC %u\n", vic);
 		}
 
-		if (vic == 1)
+		if (vic == 1 && !for_ycbcr420)
 			has_cta861_vic_1 = 1;
 	}
 }
@@ -2640,7 +2638,9 @@ static void parse_cta(const unsigned char *x)
 	} while (0);
 
 	has_cta861 = 1;
-	nonconformant_cta861_640x480 = !has_cta861_vic_1 && !has_640x480p60_est_timing;
+	if (!has_cta861_vic_1 && !has_640x480p60_est_timing)
+		fail("Required 640x480p60 timings are missing in the established timings"
+		     "and the SVD list (VIC 1)\n");
 }
 
 static void parse_displayid_detailed_timing(const unsigned char *x)
@@ -3603,7 +3603,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	if (claims_one_point_three) {
 		if (nonconformant_digital_display ||
-		    nonconformant_cta861_640x480 ||
 		    !has_preferred_timing ||
 		    (!claims_one_point_four && !has_range_descriptor))
 			conformant = 0;
@@ -3612,9 +3611,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		if (nonconformant_digital_display)
 			printf("\tDigital display field contains garbage: 0x%x\n",
 			       nonconformant_digital_display);
-		if (nonconformant_cta861_640x480)
-			printf("\tRequired 640x480p60 timings are missing in the established timings\n"
-			       "\tand/or in the SVD list (VIC 1)\n");
 		if (!has_preferred_timing)
 			printf("\tMissing preferred timing\n");
 		if (!has_range_descriptor)
