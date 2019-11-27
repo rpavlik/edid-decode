@@ -3639,29 +3639,37 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		 * EDID 1.4 states (in an Errata) that explicitly defined
 		 * timings supersede the monitor range definition.
 		 */
-		if (!claims_one_point_four)
-			conformant = 0;
-		else
-			printf("Warning: ");
-		printf("One or more of the timings is out of range of the Monitor Ranges:\n");
-		printf("  Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n",
-		       min_vert_freq_hz, max_vert_freq_hz,
-		       mon_min_vert_freq_hz, mon_max_vert_freq_hz);
-		printf("  Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n",
-		       min_hor_freq_hz, max_hor_freq_hz,
-		       mon_min_hor_freq_hz, mon_max_hor_freq_hz);
-		printf("  Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
-		       max_pixclk_khz / 1000.0, mon_max_pixclk_khz / 1000.0);
+		if (!claims_one_point_four) {
+			fail("One or more of the timings is out of range of the Monitor Ranges:\n"
+			     "  Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
+			     "  Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
+			     "  Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
+			     min_vert_freq_hz, max_vert_freq_hz,
+			     mon_min_vert_freq_hz, mon_max_vert_freq_hz,
+			     min_hor_freq_hz, max_hor_freq_hz,
+			     mon_min_hor_freq_hz, mon_max_hor_freq_hz,
+			     max_pixclk_khz / 1000.0, mon_max_pixclk_khz / 1000.0);
+		} else {
+			warn("One or more of the timings is out of range of the Monitor Ranges:\n"
+			     "  Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
+			     "  Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
+			     "  Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
+			     min_vert_freq_hz, max_vert_freq_hz,
+			     mon_min_vert_freq_hz, mon_max_vert_freq_hz,
+			     min_hor_freq_hz, max_hor_freq_hz,
+			     mon_min_hor_freq_hz, mon_max_hor_freq_hz,
+			     max_pixclk_khz / 1000.0, mon_max_pixclk_khz / 1000.0);
+		}
 	}
 
 	if ((supported_hdmi_vic_vsb_codes & supported_hdmi_vic_codes) != supported_hdmi_vic_codes)
 		printf("Warning: HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB\n");
 
 	free(edid);
-	if (s_fail)
-		printf("\nFailures:\n\n%s", s_fail);
 	if (s_warn)
 		printf("\nWarnings:\n\n%s", s_warn);
+	if (s_fail)
+		printf("\nFailures:\n\n%s", s_fail);
 	printf("\nEDID conformity: %s\n", conformant ? "PASS" : "FAIL");
 	return conformant ? 0 : -2;
 }
