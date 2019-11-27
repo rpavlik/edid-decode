@@ -1073,11 +1073,11 @@ static void detailed_timings(const char *prefix, const unsigned char *x)
 	}
 
 	if (!ha || !hbl || !hso || !hspw || !va || !vbl || !vso || !vspw)
-		fail("0 values in the detailed timings:\n"
-		     "  Horizontal Active/Blanking %u/%u\n"
-		     "  Horizontal Sync Offset/Width %u/%u\n"
-		     "  Vertical Active/Blanking %u/%u\n"
-		     "  Vertical Sync Offset/Width %u/%u\n",
+		fail("\n  0 values in the detailed timings:\n"
+		     "    Horizontal Active/Blanking %u/%u\n"
+		     "    Horizontal Sync Offset/Width %u/%u\n"
+		     "    Vertical Active/Blanking %u/%u\n"
+		     "    Vertical Sync Offset/Width %u/%u\n",
 		     ha, hbl, hso, hspw, va, vbl, vso, vspw);
 
 	pixclk_khz = (x[0] + (x[1] << 8)) * 10;
@@ -3640,20 +3640,20 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		 * timings supersede the monitor range definition.
 		 */
 		if (!claims_one_point_four) {
-			fail("One or more of the timings is out of range of the Monitor Ranges:\n"
-			     "  Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
-			     "  Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
-			     "  Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
+			fail("\n  One or more of the timings is out of range of the Monitor Ranges:\n"
+			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
+			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
+			     "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
 			     min_vert_freq_hz, max_vert_freq_hz,
 			     mon_min_vert_freq_hz, mon_max_vert_freq_hz,
 			     min_hor_freq_hz, max_hor_freq_hz,
 			     mon_min_hor_freq_hz, mon_max_hor_freq_hz,
 			     max_pixclk_khz / 1000.0, mon_max_pixclk_khz / 1000.0);
 		} else {
-			warn("One or more of the timings is out of range of the Monitor Ranges:\n"
-			     "  Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
-			     "  Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
-			     "  Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
+			warn("\n  One or more of the timings is out of range of the Monitor Ranges:\n"
+			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
+			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
+			     "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
 			     min_vert_freq_hz, max_vert_freq_hz,
 			     mon_min_vert_freq_hz, mon_max_vert_freq_hz,
 			     min_hor_freq_hz, max_hor_freq_hz,
