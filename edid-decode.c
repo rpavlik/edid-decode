@@ -726,14 +726,8 @@ static int detailed_block(const unsigned char *x, int in_extension)
 	unsigned pixclk_khz;
 	double refresh;
 	unsigned i;
-	char phsync, pvsync, *syncmethod, *stereo;
-
-#if 0
-	printf("Hex of detail: ");
-	for (i = 0; i < 18; i++)
-		printf("%02x", x[i]);
-	printf("\n");
-#endif
+	char *phsync = "", *pvsync = "";
+	char *syncmethod = NULL, *syncmethod_details = "", *stereo;
 
 	if (x[0] == 0 && x[1] == 0) {
 		/* Monitor descriptor block, not detailed timing descriptor. */
@@ -1033,19 +1027,36 @@ static int detailed_block(const unsigned char *x, int in_extension)
 	switch ((x[17] & 0x18) >> 3) {
 	case 0x00:
 		syncmethod = " analog composite";
-		break;
+		/* fall-through */
 	case 0x01:
-		syncmethod = " bipolar analog composite";
+		if (!syncmethod)
+			syncmethod = " bipolar analog composite";
+		switch ((x[17] & 0x06) >> 1) {
+		case 0x00:
+			syncmethod_details = " sync-on-green";
+			break;
+		case 0x01:
+			break;
+		case 0x02:
+			syncmethod_details = " serrate, sync-on-green";
+			break;
+		case 0x03:
+			syncmethod_details = " serrate";
+			break;
+		}
 		break;
 	case 0x02:
 		syncmethod = " digital composite";
+		phsync = (x[17] & (1 << 1)) ? "+" : "-";
+		if (x[17] & (1 << 2))
+		    syncmethod_details = " serrate";
 		break;
 	case 0x03:
 		syncmethod = "";
+		pvsync = (x[17] & (1 << 2)) ? "+" : "-";
+		phsync = (x[17] & (1 << 1)) ? "+" : "-";
 		break;
 	}
-	pvsync = (x[17] & (1 << 2)) ? '+' : '-';
-	phsync = (x[17] & (1 << 1)) ? '+' : '-';
 	switch (x[17] & 0x61) {
 	case 0x20:
 		stereo = "field sequential L/R";
@@ -1070,30 +1081,39 @@ static int detailed_block(const unsigned char *x, int in_extension)
 		break;
 	}
 
-	if (!ha || !hbl || !va || !vbl) {
-		printf("Invalid Detailed Timings:\n"
-		       "  Horizontal Active/Blanking %u/%u\n"
-		       "  Vertical Active/Blanking %u/%u\n",
-		       ha, hbl, va, vbl);
-		return 0;
-	}
+	if (!ha || !hbl || !hso || !hspw || !va || !vbl || !vso || !vspw)
+		fail("Invalid Detailed Timings:\n"
+		     "  Horizontal Active/Blanking %u/%u\n"
+		     "  Horizontal Sync Offset/Width %u/%u\n"
+		     "  Vertical Active/Blanking %u/%u\n"
+		     "  Vertical Sync Offset/Width %u/%u\n",
+		     ha, hbl, hso, hspw, va, vbl, vso, vspw);
 
 	pixclk_khz = (x[0] + (x[1] << 8)) * 10;
-	refresh = (pixclk_khz * 1000.0) / ((ha + hbl) * (va + vbl));
+	if (pixclk_khz < 10000)
+		fail("pixelclock < 10 MHz\n");
+	if ((ha + hbl) && (va + vbl))
+		refresh = (pixclk_khz * 1000.0) / ((ha + hbl) * (va + vbl));
+	else
+		refresh = 0.0;
 	hor_mm = x[12] + ((x[14] & 0xf0) << 4);
 	vert_mm = x[13] + ((x[14] & 0x0f) << 8);
 	printf("Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
 	       "               %4u %4u %4u %4u (%3u %3u %3d) hborder %u\n"
 	       "               %4u %4u %4u %4u (%3u %3u %3d) vborder %u\n"
-	       "               %chsync %cvsync%s%s %s\n"
+	       "               %shsync %svsync%s%s%s %s\n"
 	       "               VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       pixclk_khz / 1000.0,
 	       hor_mm, vert_mm,
 	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw, hborder,
 	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw, vborder,
-	       phsync, pvsync, syncmethod, x[17] & 0x80 ? " interlaced" : "", stereo,
-	       refresh, (double)pixclk_khz / (ha + hbl)
-	      );
+	       phsync, pvsync, syncmethod, syncmethod_details,
+	       x[17] & 0x80 ? " interlaced" : "", stereo,
+	       refresh, ha + hbl ? (double)pixclk_khz / (ha + hbl) : 0.0);
+	if (hso + hspw >= hbl)
+		fail("0 or negative horizontal back porch\n");
+	if (vso + vspw >= vbl)
+		fail("0 or negative vertical back porch\n");
 	if ((!max_display_width_mm && hor_mm) ||
 	    (!max_display_height_mm && vert_mm)) {
 		fail("mismatch of image size vs display size: image size is set, but not display size\n");
@@ -1111,12 +1131,15 @@ static int detailed_block(const unsigned char *x, int in_extension)
 		fail("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
 		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
 	}
-	min_vert_freq_hz = min(min_vert_freq_hz, refresh);
-	max_vert_freq_hz = max(max_vert_freq_hz, refresh);
-	min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
-	max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
-	max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
-	/* XXX flag decode */
+	if (refresh) {
+		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
+		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
+	}
+	if (pixclk_khz && (ha + hbl)) {
+		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
+		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
+		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
+	}
 
 	return 1;
 }
