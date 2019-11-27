@@ -58,7 +58,6 @@ static int has_preferred_timing = 0;
 static int has_valid_checksum = 1;
 static int has_valid_cta_checksum = 1;
 static int has_valid_displayid_checksum = 1;
-static int has_valid_cvt = 1;
 static int has_serial_number = 0;
 static int has_serial_string = 0;
 static int has_valid_name_descriptor = 0;
@@ -101,6 +100,15 @@ enum output_format {
 	OUT_FMT_HEX,
 	OUT_FMT_RAW,
 	OUT_FMT_CARRAY
+};
+
+// Short Timings (for DMT and Established Timings I && II)
+struct short_timings {
+	unsigned x, y;
+	unsigned refresh;
+	unsigned ratio_w, ratio_h;
+	unsigned hor_freq_hz, pixclk_khz;
+	unsigned rb, interlaced;
 };
 
 /*
@@ -274,14 +282,182 @@ static char *manufacturer_name(const unsigned char *x)
 	return name;
 }
 
+static const struct {
+	unsigned dmt_id;
+	unsigned std_id;
+	unsigned cvt_id;
+	struct short_timings t;
+} dmt_timings[] = {
+	{ 0x01, 0x0000, 0x000000, { 640, 350, 85, 64, 35, 37900, 31500 } },
+
+	{ 0x02, 0x3119, 0x000000, { 640, 400, 85, 16, 10, 37900, 31500 } },
+
+	{ 0x03, 0x0000, 0x000000, { 720, 400, 85, 9, 5, 37900, 35500 } },
+
+	{ 0x04, 0x3140, 0x000000, { 640, 480, 60, 4, 3, 31469, 25175 } },
+	{ 0x05, 0x314c, 0x000000, { 640, 480, 72, 4, 3, 37900, 31500 } },
+	{ 0x06, 0x314f, 0x000000, { 640, 480, 75, 4, 3, 37500, 31500 } },
+	{ 0x07, 0x3159, 0x000000, { 640, 480, 85, 4, 3, 43300, 36000 } },
+
+	{ 0x08, 0x0000, 0x000000, { 800, 600, 56, 4, 3, 35200, 36000 } },
+	{ 0x09, 0x4540, 0x000000, { 800, 600, 60, 4, 3, 37900, 40000 } },
+	{ 0x0a, 0x454c, 0x000000, { 800, 600, 72, 4, 3, 48100, 50000 } },
+	{ 0x0b, 0x454f, 0x000000, { 800, 600, 75, 4, 3, 46900, 49500 } },
+	{ 0x0c, 0x4559, 0x000000, { 800, 600, 85, 4, 3, 53700, 56250 } },
+	{ 0x0d, 0x0000, 0x000000, { 800, 600, 120, 4, 3, 76302, 73250, 1 } },
+
+	{ 0x0e, 0x0000, 0x000000, { 848, 480, 60, 16, 9, 31020, 33750 } },
+
+	{ 0x0f, 0x0000, 0x000000, { 1024, 768, 43, 4, 3, 35522, 44900, 0, 1 } },
+	{ 0x10, 0x6140, 0x000000, { 1024, 768, 60, 4, 3, 48400, 65000 } },
+	{ 0x11, 0x614c, 0x000000, { 1024, 768, 70, 4, 3, 56500, 75000 } },
+	{ 0x12, 0x614f, 0x000000, { 1024, 768, 75, 4, 3, 60000, 78750 } },
+	{ 0x13, 0x6159, 0x000000, { 1024, 768, 85, 4, 3, 68700, 94500 } },
+	{ 0x14, 0x0000, 0x000000, { 1024, 768, 120, 4, 3, 97551, 115500, 1 } },
+
+	{ 0x15, 0x714f, 0x000000, { 1152, 864, 75, 4, 3, 67500, 108000 } },
+
+	{ 0x55, 0x81c0, 0x000000, { 1280, 720, 60, 16, 9, 45000, 74250 } },
+
+	{ 0x16, 0x0000, 0x7f1c21, { 1280, 768, 60, 5, 3, 47400, 68250, 1 } },
+	{ 0x17, 0x0000, 0x7f1c28, { 1280, 768, 60, 5, 3, 47800, 79500 } },
+	{ 0x18, 0x0000, 0x7f1c44, { 1280, 768, 75, 5, 3, 60300, 102250 } },
+	{ 0x19, 0x0000, 0x7f1c62, { 1280, 768, 85, 5, 3, 68600, 117500 } },
+	{ 0x1a, 0x0000, 0x000000, { 1280, 768, 120, 5, 3, 97396, 140250, 1 } },
+
+	{ 0x1b, 0x0000, 0x8f1821, { 1280, 800, 60, 16, 10, 49306, 710000, 1 } },
+	{ 0x1c, 0x8100, 0x8f1828, { 1280, 800, 60, 16, 10, 49702, 83500 } },
+	{ 0x1d, 0x810f, 0x8f1844, { 1280, 800, 75, 16, 10, 62795, 106500 } },
+	{ 0x1e, 0x8119, 0x8f1862, { 1280, 800, 85, 16, 10, 71554, 122500 } },
+	{ 0x1f, 0x0000, 0x000000, { 1280, 800, 120, 16, 10, 101563, 146250, 1 } },
+
+	{ 0x20, 0x8140, 0x000000, { 1280, 960, 60, 4, 3, 60000, 108000 } },
+	{ 0x21, 0x8159, 0x000000, { 1280, 960, 85, 4, 3, 85900, 148500 } },
+	{ 0x22, 0x0000, 0x000000, { 1280, 960, 120, 4, 3, 121875, 175500, 1 } },
+
+	{ 0x23, 0x8180, 0x000000, { 1280, 1024, 60, 5, 4, 64000, 108000 } },
+	{ 0x24, 0x818f, 0x000000, { 1280, 1024, 75, 5, 4, 80000, 135000 } },
+	{ 0x25, 0x8199, 0x000000, { 1280, 1024, 85, 5, 4, 91100, 157500 } },
+	{ 0x26, 0x0000, 0x000000, { 1280, 1024, 120, 5, 4, 130035, 187250, 1 } },
+
+	{ 0x27, 0x0000, 0x000000, { 1360, 768, 60, 85, 48, 47700, 85500 } },
+	{ 0x28, 0x0000, 0x000000, { 1360, 768, 120, 85, 48, 97533, 148250, 1 } },
+
+	{ 0x51, 0x0000, 0x000000, { 1366, 768, 60, 85, 48, 47700, 85500 } },
+	{ 0x56, 0x0000, 0x000000, { 1366, 768, 60, 85, 48, 48000, 72000, 1 } },
+
+	{ 0x29, 0x0000, 0x0c2021, { 1400, 1050, 60, 4, 3, 64700, 101000, 1 } },
+	{ 0x2a, 0x9040, 0x0c2028, { 1400, 1050, 60, 4, 3, 65300, 121750 } },
+	{ 0x2b, 0x904f, 0x0c2044, { 1400, 1050, 75, 4, 3, 82300, 156000 } },
+	{ 0x2c, 0x9059, 0x0c2062, { 1400, 1050, 85, 4, 3, 93900, 179500 } },
+	{ 0x2d, 0x0000, 0x000000, { 1400, 1050, 120, 4, 3, 133333, 208000, 1 } },
+
+	{ 0x2e, 0x0000, 0xc11821, { 1440, 900, 60, 16, 10, 55500, 88750, 1 } },
+	{ 0x2f, 0x9500, 0xc11828, { 1440, 900, 60, 16, 10, 65300, 121750 } },
+	{ 0x30, 0x950f, 0xc11844, { 1440, 900, 75, 16, 10, 82300, 156000 } },
+	{ 0x31, 0x9519, 0xc11868, { 1440, 900, 85, 16, 10, 93900, 179500 } },
+	{ 0x32, 0x0000, 0x000000, { 1440, 900, 120, 16, 10, 114219, 182750, 1 } },
+
+	{ 0x53, 0xa9c0, 0x000000, { 1600, 900, 60, 16, 9, 60000, 108000, 1 } },
+
+	{ 0x33, 0xa940, 0x000000, { 1600, 1200, 60, 4, 3, 75000, 162000 } },
+	{ 0x34, 0xa945, 0x000000, { 1600, 1200, 65, 4, 3, 81300, 175500 } },
+	{ 0x35, 0xa94a, 0x000000, { 1600, 1200, 70, 4, 3, 87500, 189000 } },
+	{ 0x36, 0xa94f, 0x000000, { 1600, 1200, 75, 4, 3, 93800, 202500 } },
+	{ 0x37, 0xa959, 0x000000, { 1600, 1200, 85, 4, 3, 106300, 229500 } },
+	{ 0x38, 0x0000, 0x000000, { 1600, 1200, 120, 4, 3, 152415, 268250, 1 } },
+
+	{ 0x39, 0x0000, 0x0c2821, { 1680, 1050, 60, 16, 10, 64700, 119000, 1 } },
+	{ 0x3a, 0xb300, 0x0c2828, { 1680, 1050, 60, 16, 10, 65300, 146250 } },
+	{ 0x3b, 0xb30f, 0x0c2844, { 1680, 1050, 75, 16, 10, 82300, 187000 } },
+	{ 0x3c, 0xb319, 0x0c2868, { 1680, 1050, 85, 16, 10, 93900, 214750 } },
+	{ 0x3d, 0x0000, 0x000000, { 1680, 1050, 120, 16, 10, 133424, 245500, 1 } },
+
+	{ 0x3e, 0xc140, 0x000000, { 1792, 1344, 60, 4, 3, 83600, 204750 } },
+	{ 0x3f, 0xc14f, 0x000000, { 1792, 1344, 75, 4, 3, 106300, 261000 } },
+	{ 0x40, 0x0000, 0x000000, { 1792, 1344, 120, 4, 3, 170722, 333250, 1 } },
+
+	{ 0x41, 0xc940, 0x000000, { 1856, 1392, 60, 4, 3, 86300, 218250 } },
+	{ 0x42, 0xc94f, 0x000000, { 1856, 1392, 75, 4, 3, 112500, 288000 } },
+	{ 0x43, 0x0000, 0x000000, { 1856, 1392, 120, 4, 3, 176835, 356500, 1 } },
+
+	{ 0x52, 0xd1c0, 0x000000, { 1920, 1080, 60, 16, 9, 675000, 148500 } },
+
+	{ 0x44, 0x0000, 0x572821, { 1920, 1200, 60, 16, 10, 74000, 154000, 1 } },
+	{ 0x45, 0xd100, 0x572828, { 1920, 1200, 60, 16, 10, 74600, 193250 } },
+	{ 0x46, 0xd10f, 0x572844, { 1920, 1200, 75, 16, 10, 94000, 245250 } },
+	{ 0x47, 0xd119, 0x572862, { 1920, 1200, 85, 16, 10, 107200, 281250 } },
+	{ 0x48, 0x0000, 0x000000, { 1920, 1200, 120, 16, 10, 152404, 317000, 1 } },
+
+	{ 0x49, 0xd140, 0x000000, { 1920, 1440, 60, 4, 3, 90000, 234000 } },
+	{ 0x4a, 0xd14f, 0x000000, { 1920, 1440, 75, 4, 3, 112500, 297000 } },
+	{ 0x4b, 0x0000, 0x000000, { 1920, 1440, 120, 4, 3, 182933, 380500, 1 } },
+
+	{ 0x54, 0xe1c0, 0x000000, { 2048, 1152, 60, 16, 9, 72000, 162000, 1 } },
+
+	{ 0x4c, 0x0000, 0x1f3821, { 2560, 1600, 60, 16, 10, 98713, 268500, 1 } },
+	{ 0x4d, 0x0000, 0x1f3828, { 2560, 1600, 60, 16, 10, 99458, 348500 } },
+	{ 0x4e, 0x0000, 0x1f3844, { 2560, 1600, 75, 16, 10, 125354, 443250 } },
+	{ 0x4f, 0x0000, 0x1f3862, { 2560, 1600, 85, 16, 10, 142887, 505250 } },
+	{ 0x50, 0x0000, 0x000000, { 2560, 1600, 120, 16, 10, 203217, 552750, 1 } },
+
+	{ 0x57, 0x0000, 0x000000, { 4096, 2160, 60, 256, 135, 133320, 556744, 1 } },
+	{ 0x58, 0x0000, 0x000000, { 4096, 2160, 59, 256, 135, 133187, 556188, 1 } },
+};
+
+static const struct short_timings *find_dmt_id(unsigned char dmt_id)
+{
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(dmt_timings); i++)
+		if (dmt_timings[i].dmt_id == dmt_id)
+			return &dmt_timings[i].t;
+	return NULL;
+}
+
+static const struct short_timings *find_std_id(unsigned short std_id)
+{
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(dmt_timings); i++)
+		if (dmt_timings[i].std_id == std_id)
+			return &dmt_timings[i].t;
+	return NULL;
+}
+
+static void print_short_timings(const char *prefix, const struct short_timings *t, const char *suffix)
+{
+	if (!t) {
+		// Should not happen
+		fail("unknown short timings\n");
+		return;
+	}
+	min_vert_freq_hz = min(min_vert_freq_hz, t->refresh);
+	max_vert_freq_hz = max(max_vert_freq_hz, t->refresh);
+	min_hor_freq_hz = min(min_hor_freq_hz, t->hor_freq_hz);
+	max_hor_freq_hz = max(max_hor_freq_hz, t->hor_freq_hz);
+	max_pixclk_khz = max(max_pixclk_khz, t->pixclk_khz);
+
+	printf("%s%ux%u%s@%uHz %s%u:%u HorFreq: %.3f kHz Clock: %.3f MHz%s\n",
+	       prefix,
+	       t->x, t->y,
+	       t->interlaced ? "i" : "",
+	       t->refresh,
+	       t->rb ? "RB " : "",
+	       t->ratio_w, t->ratio_h,
+	       t->hor_freq_hz / 1000.0,
+	       t->pixclk_khz / 1000.0,
+	       suffix);
+}
+
 /*
  * Copied from xserver/hw/xfree86/modes/xf86cvt.c
  */
-static void edid_cvt_mode(int HDisplay, int VDisplay,
-			  int VRefresh, int Reduced,
-			  unsigned *MinHFreq, unsigned *MaxHFreq,
-			  unsigned *MaxClock)
+static void edid_cvt_mode(struct short_timings *t, int preferred)
 {
+	int HDisplay = t->x;
+	int VDisplay = t->y;
+
 	/* 1) top/bottom margin size (% of height) - default: 1.8 */
 #define CVT_MARGIN_PERCENTAGE 1.8
 
@@ -298,7 +474,7 @@ static void edid_cvt_mode(int HDisplay, int VDisplay,
 #define CVT_CLOCK_STEP 250
 
 	float HPeriod;
-	unsigned HTotal, Clock, HorFreq;
+	unsigned HTotal;
 	int VSync;
 
 	/* 2. Horizontal pixels */
@@ -318,7 +494,7 @@ static void edid_cvt_mode(int HDisplay, int VDisplay,
 	else                        /* Custom */
 		VSync = 10;
 
-	if (!Reduced) {             /* simplified GTF calculation */
+	if (!t->rb) {             /* simplified GTF calculation */
 
 		/* 4) Minimum time of vertical sync + back porch interval (µs)
 		 * default 550.0 */
@@ -331,7 +507,7 @@ static void edid_cvt_mode(int HDisplay, int VDisplay,
 		int HBlank;
 
 		/* 8. Estimated Horizontal period */
-		HPeriod = ((float) (1000000.0 / VRefresh - CVT_MIN_VSYNC_BP)) /
+		HPeriod = ((float) (1000000.0 / t->refresh - CVT_MIN_VSYNC_BP)) /
 			(VDisplay + CVT_MIN_V_PORCH);
 
 		/* 5) Definition of Horizontal blanking time limitation */
@@ -379,7 +555,7 @@ static void edid_cvt_mode(int HDisplay, int VDisplay,
 		int VBILines;
 
 		/* 8. Estimate Horizontal period. */
-		HPeriod = ((float) (1000000.0 / VRefresh - CVT_RB_MIN_VBLANK)) / VDisplay;
+		HPeriod = ((float) (1000000.0 / t->refresh - CVT_RB_MIN_VBLANK)) / VDisplay;
 
 		/* 9. Find number of lines in vertical blanking */
 		VBILines = ((float) CVT_RB_MIN_VBLANK) / HPeriod + 1;
@@ -393,117 +569,87 @@ static void edid_cvt_mode(int HDisplay, int VDisplay,
 	}
 
 	/* 15/13. Find pixel clock frequency (kHz for xf86) */
-	Clock = HTotal * 1000.0 / HPeriod;
-	Clock -= Clock % CVT_CLOCK_STEP;
-	HorFreq = (Clock * 1000) / HTotal;
+	t->pixclk_khz = HTotal * 1000.0 / HPeriod;
+	t->pixclk_khz -= t->pixclk_khz % CVT_CLOCK_STEP;
+	t->hor_freq_hz = (t->pixclk_khz * 1000) / HTotal;
 
-	*MinHFreq = min(*MinHFreq, HorFreq);
-	*MaxHFreq = max(*MaxHFreq, HorFreq);
-	*MaxClock = max(*MaxClock, Clock);
-	min_hor_freq_hz = min(min_hor_freq_hz, HorFreq);
-	max_hor_freq_hz = max(max_hor_freq_hz, HorFreq);
-	max_pixclk_khz = max(max_pixclk_khz, Clock);
+	print_short_timings("    ", t, preferred ? " (preferred vertical rate)" : "");
 }
 
-static int detailed_cvt_descriptor(const unsigned char *x, int first)
+static void detailed_cvt_descriptor(const unsigned char *x, int first)
 {
-	const unsigned char empty[3] = { 0, 0, 0 };
-	const char *ratio;
-	char *names[] = { "50", "60", "75", "85" };
-	unsigned width, height;
-	int valid = 1;
-	int fifty = 0, sixty = 0, seventyfive = 0, eightyfive = 0, reduced = 0;
-	unsigned min_refresh = 0xfffffff, max_refresh = 0;
+	static const unsigned char empty[3] = { 0, 0, 0 };
+	struct short_timings cvt_t = {};
+	unsigned char preferred;
 
 	if (!first && !memcmp(x, empty, 3))
-		return valid;
+		return;
 
-	height = x[0];
-	height |= (x[1] & 0xf0) << 4;
-	height++;
-	height *= 2;
+	cvt_t.y = x[0];
+	if (!cvt_t.y)
+		fail("CVT byte 0 is 0, which is a reserved value\n");
+	cvt_t.y |= (x[1] & 0xf0) << 4;
+	cvt_t.y++;
+	cvt_t.y *= 2;
 
 	switch (x[1] & 0x0c) {
 	case 0x00:
 	default: /* avoids 'width/ratio may be used uninitialized' warnings */
-		width = 8 * (((height * 4) / 3) / 8);
-		ratio = "4:3";
+		cvt_t.ratio_w = 4;
+		cvt_t.ratio_h = 3;
 		break;
 	case 0x04:
-		width = 8 * (((height * 16) / 9) / 8);
-		ratio = "16:9";
+		cvt_t.ratio_w = 16;
+		cvt_t.ratio_h = 9;
 		break;
 	case 0x08:
-		width = 8 * (((height * 16) / 10) / 8);
-		ratio = "16:10";
+		cvt_t.ratio_w = 16;
+		cvt_t.ratio_h = 10;
 		break;
 	case 0x0c:
-		width = 8 * (((height * 15) / 9) / 8);
-		ratio = "15:9";
+		cvt_t.ratio_w = 15;
+		cvt_t.ratio_h = 9;
 		break;
 	}
+	cvt_t.x = 8 * (((cvt_t.y * cvt_t.ratio_w) / cvt_t.ratio_h) / 8);
 
 	if (x[1] & 0x03)
-		valid = 0;
+		fail("Reserved bits of CVT byte 1 are non-zero\n");
 	if (x[2] & 0x80)
-		valid = 0;
+		fail("Reserved bit of CVT byte 2 is non-zero\n");
 	if (!(x[2] & 0x1f))
-		valid = 0;
+		fail("CVT byte 2 does not support any vertical rates\n");
+	preferred = (x[2] & 0x60) >> 5;
+	if (preferred == 1 && (x[2] & 0x01))
+		preferred = 4;
+	if (!(x[2] & (1 << (4 - preferred))))
+		fail("The preferred CVT Vertical Rate is not supported\n");
 
-	fifty	= (x[2] & 0x10);
-	sixty	= (x[2] & 0x08);
-	seventyfive = (x[2] & 0x04);
-	eightyfive  = (x[2] & 0x02);
-	reduced	= (x[2] & 0x01);
-
-	min_refresh = (fifty ? 50 : (sixty ? 60 : (seventyfive ? 75 : (eightyfive ? 85 : min_refresh))));
-	max_refresh = (eightyfive ? 85 : (seventyfive ? 75 : (sixty ? 60 : (fifty ? 50 : max_refresh))));
-
-	if (!valid) {
-		printf("    (broken)\n");
-	} else {
-		unsigned min_hfreq = ~0;
-		unsigned max_hfreq = 0;
-		unsigned max_clock = 0;
-
-		min_vert_freq_hz = min(min_vert_freq_hz, min_refresh);
-		max_vert_freq_hz = max(max_vert_freq_hz, max_refresh);
-
-		if (fifty)
-			edid_cvt_mode(width, height, 50, 0,
-				      &min_hfreq, &max_hfreq, &max_clock);
-		if (sixty)
-			edid_cvt_mode(width, height, 60, 0,
-				      &min_hfreq, &max_hfreq, &max_clock);
-		if (seventyfive)
-			edid_cvt_mode(width, height, 75, 0,
-				      &min_hfreq, &max_hfreq, &max_clock);
-		if (eightyfive)
-			edid_cvt_mode(width, height, 75, 0,
-				      &min_hfreq, &max_hfreq, &max_clock);
-		if (reduced)
-			edid_cvt_mode(width, height, 60, 1,
-				      &min_hfreq, &max_hfreq, &max_clock);
-
-		printf("    %ux%u @ ( %s%s%s%s%s) Hz %s (%s%s preferred) HorFreq: %.3f-%.3f kHz MaxClock: %.3f MHz\n",
-		       width, height,
-		       fifty ? "50 " : "",
-		       sixty ? "60 " : "",
-		       seventyfive ? "75 " : "",
-		       eightyfive ? "85 " : "",
-		       reduced ? "60RB " : "",
-		       ratio,
-		       names[(x[2] & 0x60) >> 5],
-		       (((x[2] & 0x60) == 0x20) && reduced) ? "RB" : "",
-		       min_hfreq / 1000.0, max_hfreq / 1000.0, max_clock / 1000000.0);
+	if (x[2] & 0x10) {
+		cvt_t.refresh = 50;
+		edid_cvt_mode(&cvt_t, preferred == 0);
 	}
-
-	return valid;
+	if (x[2] & 0x08) {
+		cvt_t.refresh = 60;
+		edid_cvt_mode(&cvt_t, preferred == 1);
+	}
+	if (x[2] & 0x04) {
+		cvt_t.refresh = 75;
+		edid_cvt_mode(&cvt_t, preferred == 2);
+	}
+	if (x[2] & 0x02) {
+		cvt_t.refresh = 85;
+		edid_cvt_mode(&cvt_t, preferred == 3);
+	}
+	if (x[2] & 0x01) {
+		cvt_t.refresh = 60;
+		cvt_t.rb = 1;
+		edid_cvt_mode(&cvt_t, preferred == 4);
+	}
 }
 
 /* extract a string from a detailed subblock, checking for termination */
-static char *extract_string(const char *name, const unsigned char *x,
-			    unsigned len)
+static char *extract_string(const unsigned char *x, unsigned len)
 {
 	static char s[EDID_PAGE_SIZE];
 	int seen_newline = 0;
@@ -518,121 +664,122 @@ static char *extract_string(const char *name, const unsigned char *x,
 			if (x[i] == 0x0a) {
 				seen_newline = 1;
 				if (!i)
-					fail("%s: empty string\n", name);
+					fail("%s: empty string\n", cur_block);
 				else if (s[i - 1] == 0x20)
-					fail("%s: one or more trailing spaces\n", name);
+					fail("%s: one or more trailing spaces\n", cur_block);
 			} else if (x[i] == 0x20) {
 				s[i] = x[i];
 			} else {
-				fail("%s: non-printable character\n", name);
+				fail("%s: non-printable character\n", cur_block);
 				return s;
 			}
 		} else if (x[i] != 0x20) {
-			fail("%s: non-space after newline\n", name);
+			fail("%s: non-space after newline\n", cur_block);
 			return s;
 		}
 	}
 	/* Does the string end with a space? */
 	if (!seen_newline && s[len - 1] == 0x20)
-		fail("%s: one or more trailing spaces\n", name);
+		fail("%s: one or more trailing spaces\n", cur_block);
 
 	return s;
 }
 
-static const struct {
-	unsigned x, y, refresh, ratio_w, ratio_h;
-	unsigned hor_freq_hz, pixclk_khz, interlaced;
-} established_timings[] = {
+static const struct short_timings established_timings12[] = {
 	/* 0x23 bit 7 - 0 */
-	{720, 400, 70, 9, 5, 31469, 28320},
-	{720, 400, 88, 9, 5, 39500, 35500},
-	{640, 480, 60, 4, 3, 31469, 25175},
-	{640, 480, 67, 4, 3, 35000, 30240},
-	{640, 480, 72, 4, 3, 37900, 31500},
-	{640, 480, 75, 4, 3, 37500, 31500},
-	{800, 600, 56, 4, 3, 35200, 36000},
-	{800, 600, 60, 4, 3, 37900, 40000},
+	{ 720, 400, 70, 9, 5, 31469, 28320 },
+	{ 720, 400, 88, 9, 5, 39500, 35500 },
+	{ 640, 480, 60, 4, 3, 31469, 25175 },
+	{ 640, 480, 67, 4, 3, 35000, 30240 },
+	{ 640, 480, 72, 4, 3, 37900, 31500 },
+	{ 640, 480, 75, 4, 3, 37500, 31500 },
+	{ 800, 600, 56, 4, 3, 35200, 36000 },
+	{ 800, 600, 60, 4, 3, 37900, 40000 },
 	/* 0x24 bit 7 - 0 */
-	{800, 600, 72, 4, 3, 48100, 50000},
-	{800, 600, 75, 4, 3, 46900, 49500},
-	{832, 624, 75, 4, 3, 49726, 57284},
-	{1024, 768, 87, 4, 3, 35522, 44900, 1},
-	{1024, 768, 60, 4, 3, 48400, 65000},
-	{1024, 768, 70, 4, 3, 56500, 75000},
-	{1024, 768, 75, 4, 3, 60000, 78750},
-	{1280, 1024, 75, 5, 4, 80000, 135000},
-	/* 0x25 bit 7*/
-	{1152, 870, 75, 192, 145, 67500, 108000},
+	{ 800, 600, 72, 4, 3, 48100, 50000 },
+	{ 800, 600, 75, 4, 3, 46900, 49500 },
+	{ 832, 624, 75, 4, 3, 49726, 57284 },
+	{ 1024, 768, 87, 4, 3, 35522, 44900, 0, 1 },
+	{ 1024, 768, 60, 4, 3, 48400, 65000 },
+	{ 1024, 768, 70, 4, 3, 56500, 75000 },
+	{ 1024, 768, 75, 4, 3, 60000, 78750 },
+	{ 1280, 1024, 75, 5, 4, 80000, 135000 },
+	/* 0x25 bit 7 */
+	{ 1152, 870, 75, 192, 145, 67500, 108000 },
 };
 
-static const struct {
-	unsigned x, y, refresh, ratio_w, ratio_h;
-	unsigned hor_freq_hz, pixclk_khz, rb;
-} established_timings3[] = {
+// The bits in the Established Timings III map to DMT timings,
+// this array has the DMT IDs.
+static const unsigned char established_timings3_dmt_ids[] = {
 	/* 0x06 bit 7 - 0 */
-	{640, 350, 85, 64, 35, 37900, 31500},
-	{640, 400, 85, 16, 10, 37900, 31500},
-	{720, 400, 85, 9, 5, 37900, 35500},
-	{640, 480, 85, 4, 3, 43300, 36000},
-	{848, 480, 60, 53, 30, 31000, 33750},
-	{800, 600, 85, 4, 3, 53700, 56250},
-	{1024, 768, 85, 4, 3, 68700, 94500},
-	{1152, 864, 75, 4, 3, 67500, 108000},
+	0x01, // 640x350@85
+	0x02, // 640x400@85
+	0x03, // 720x400@85
+	0x07, // 640x480@85
+	0x0e, // 848x480@60
+	0x0c, // 800x600@85
+	0x13, // 1024x768@85
+	0x15, // 1152x864@75
 	/* 0x07 bit 7 - 0 */
-	{1280, 768, 60, 5, 3, 47400, 68250, 1},
-	{1280, 768, 60, 5, 3, 47800, 79500},
-	{1280, 768, 75, 5, 3, 60300, 102250},
-	{1280, 768, 85, 5, 3, 68600, 117500},
-	{1280, 960, 60, 4, 3, 60000, 108000},
-	{1280, 960, 85, 4, 3, 85900, 148500},
-	{1280, 1024, 60, 5, 4, 64000, 108000},
-	{1280, 1024, 85, 5, 4, 91100, 157500},
+	0x16, // 1280x768@60 RB
+	0x17, // 1280x768@60
+	0x18, // 1280x768@75
+	0x19, // 1280x768@85
+	0x20, // 1280x960@60
+	0x21, // 1280x960@85
+	0x23, // 1280x1024@60
+	0x25, // 1280x1024@85
 	/* 0x08 bit 7 - 0 */
-	{1360, 768, 60, 85, 48, 47700, 85500},
-	{1440, 900, 60, 16, 10, 55500, 88750, 1},
-	{1440, 900, 60, 16, 10, 65300, 121750},
-	{1440, 900, 75, 16, 10, 82300, 156000},
-	{1440, 900, 85, 16, 10, 93900, 179500},
-	{1400, 1050, 60, 4, 3, 64700, 101000, 1},
-	{1400, 1050, 60, 4, 3, 65300, 121750},
-	{1400, 1050, 75, 4, 3, 82300, 156000},
+	0x27, // 1360x768@60
+	0x2e, // 1440x900@60 RB
+	0x2f, // 1440x900@60
+	0x30, // 1440x900@75
+	0x31, // 1440x900@85
+	0x29, // 1400x1050@60 RB
+	0x2a, // 1400x1050@60
+	0x2b, // 1400x1050@75
 	/* 0x09 bit 7 - 0 */
-	{1400, 1050, 85, 4, 3, 93900, 179500},
-	{1680, 1050, 60, 16, 10, 64700, 119000, 1},
-	{1680, 1050, 60, 16, 10, 65300, 146250},
-	{1680, 1050, 75, 16, 10, 82300, 187000},
-	{1680, 1050, 85, 16, 10, 93900, 214750},
-	{1600, 1200, 60, 4, 3, 75000, 162000},
-	{1600, 1200, 65, 4, 3, 81300, 175500},
-	{1600, 1200, 70, 4, 3, 87500, 189000},
+	0x2c, // 1400x1050@85
+	0x39, // 1680x1050@60 RB
+	0x3a, // 1680x1050@60
+	0x3b, // 1680x1050@75
+	0x3c, // 1680x1050@85
+	0x33, // 1600x1200@60
+	0x34, // 1600x1200@65
+	0x35, // 1600x1200@70
 	/* 0x0a bit 7 - 0 */
-	{1600, 1200, 75, 4, 3, 93800, 202500},
-	{1600, 1200, 85, 4, 3, 106300, 229500},
-	{1792, 1344, 60, 4, 3, 83600, 204750},
-	{1792, 1344, 75, 4, 3, 106300, 261000},
-	{1856, 1392, 60, 4, 3, 86300, 218250},
-	{1856, 1392, 75, 4, 3, 112500, 288000},
-	{1920, 1200, 60, 16, 10, 74000, 154000, 1},
-	{1920, 1200, 60, 16, 10, 74600, 193250},
+	0x36, // 1600x1200@75
+	0x37, // 1600x1200@85
+	0x3e, // 1792x1344@60
+	0x3f, // 1792x1344@75
+	0x41, // 1856x1392@60
+	0x42, // 1856x1392@75
+	0x44, // 1920x1200@60 RB
+	0x45, // 1920x1200@60
 	/* 0x0b bit 7 - 4 */
-	{1920, 1200, 75, 16, 10, 94000, 245250},
-	{1920, 1200, 85, 16, 10, 107200, 281250},
-	{1920, 1440, 60, 4, 3, 90000, 234000},
-	{1920, 1440, 75, 4, 3, 112500, 297000},
+	0x46, // 1920x1200@75
+	0x47, // 1920x1200@85
+	0x49, // 1920x1440@60
+	0x4a, // 1920x1440@75
 };
 
 static void print_standard_timing(uint8_t b1, uint8_t b2)
 {
+	const struct short_timings *t;
 	unsigned ratio_w, ratio_h;
 	unsigned x, y, refresh;
-	unsigned pixclk_khz = 0, hor_freq_hz = 0;
 	unsigned i;
 
 	if (b1 == 0x01 && b2 == 0x01)
 		return;
 
 	if (b1 == 0) {
-		printf("non-conformant standard timing (0 horiz)\n");
+		fail("non-conformant standard timing (0 horiz)\n");
+		return;
+	}
+	t = find_std_id((b1 << 8) | b2);
+	if (t) {
+		print_short_timings("  ", t, "");
 		return;
 	}
 	x = (b1 + 31) * 8;
@@ -668,42 +815,31 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 
 	min_vert_freq_hz = min(min_vert_freq_hz, refresh);
 	max_vert_freq_hz = max(max_vert_freq_hz, refresh);
-	for (i = 0; i < ARRAY_SIZE(established_timings); i++) {
-		if (established_timings[i].x == x &&
-		    established_timings[i].y == y &&
-		    established_timings[i].refresh == refresh &&
-		    established_timings[i].ratio_w == ratio_w &&
-		    established_timings[i].ratio_h == ratio_h) {
-			pixclk_khz = established_timings[i].pixclk_khz;
-			hor_freq_hz = established_timings[i].hor_freq_hz;
-			break;
+	for (i = 0; i < ARRAY_SIZE(established_timings12); i++) {
+		if (established_timings12[i].x == x &&
+		    established_timings12[i].y == y &&
+		    established_timings12[i].refresh == refresh &&
+		    established_timings12[i].ratio_w == ratio_w &&
+		    established_timings12[i].ratio_h == ratio_h) {
+			t = &established_timings12[i];
+			print_short_timings("  ", t, "");
+			return;
 		}
 	}
-	if (pixclk_khz == 0) {
-		for (i = 0; i < ARRAY_SIZE(established_timings3); i++) {
-			if (established_timings3[i].x == x &&
-			    established_timings3[i].y == y &&
-			    established_timings3[i].refresh == refresh &&
-			    established_timings3[i].ratio_w == ratio_w &&
-			    established_timings3[i].ratio_h == ratio_h) {
-				pixclk_khz = established_timings3[i].pixclk_khz;
-				hor_freq_hz = established_timings3[i].hor_freq_hz;
-				break;
-			}
+	for (i = 0; i < ARRAY_SIZE(dmt_timings); i++) {
+		t = &dmt_timings[i].t;
+
+		if (t->x == x && t->y == y &&
+		    t->refresh == refresh &&
+		    t->ratio_w == ratio_w && t->ratio_h == ratio_h) {
+			print_short_timings("  ", t, "");
+			return;
 		}
 	}
+
 	/* TODO: this should also check DMT timings and GTF/CVT */
-	if (pixclk_khz) {
-		min_hor_freq_hz = min(min_hor_freq_hz, hor_freq_hz);
-		max_hor_freq_hz = max(max_hor_freq_hz, hor_freq_hz);
-		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
-		printf("  %ux%u@%uHz %u:%u HorFreq: %.3f kHz Clock: %.3f MHz\n",
-		       x, y, refresh, ratio_w, ratio_h,
-		       hor_freq_hz / 1000.0, pixclk_khz / 1000.0);
-	} else {
-		printf("  %ux%u@%uHz %u:%u\n",
-		       x, y, refresh, ratio_w, ratio_h);
-	}
+	printf("  %ux%u@%uHz %u:%u\n",
+	       x, y, refresh, ratio_w, ratio_h);
 }
 
 /* 1 means valid data */
@@ -718,6 +854,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 	char *syncmethod = NULL, *syncmethod_details = "", *stereo;
 
 	if (x[0] == 0 && x[1] == 0) {
+		cur_block = "Display Descriptor";
 		/* Monitor descriptor block, not detailed timing descriptor. */
 		if (x[2] != 0) {
 			/* 1.3, 3.10.3 */
@@ -740,7 +877,8 @@ static int detailed_block(const unsigned char *x, int in_extension)
 		}
 		switch (x[3]) {
 		case 0x10:
-			printf("Dummy block\n");
+			cur_block = "Display Descriptor";
+			printf("%s\n", cur_block);
 			for (i = 5; i < 18; i++) {
 				if (x[i]) {
 					fail("dummy block filled with garbage\n");
@@ -749,38 +887,25 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			}
 			return 1;
 		case 0xf7:
-			printf("Established timings III:\n");
-			for (i = 0; i < 44; i++) {
-				if (x[6 + i / 8] & (1 << (7 - i % 8))) {
-					printf("  %dx%d@%dHz %s%u:%u HorFreq: %.3f kHz Clock: %.3f MHz\n",
-					       established_timings3[i].x,
-					       established_timings3[i].y, established_timings3[i].refresh,
-					       established_timings3[i].rb ? "RB " : "",
-					       established_timings3[i].ratio_w, established_timings3[i].ratio_h,
-					       established_timings3[i].hor_freq_hz / 1000.0,
-					       established_timings3[i].pixclk_khz / 1000.0);
-					min_vert_freq_hz = min(min_vert_freq_hz, established_timings3[i].refresh);
-					max_vert_freq_hz = max(max_vert_freq_hz, established_timings3[i].refresh);
-					min_hor_freq_hz = min(min_hor_freq_hz, established_timings3[i].hor_freq_hz);
-					max_hor_freq_hz = max(max_hor_freq_hz, established_timings3[i].hor_freq_hz);
-					max_pixclk_khz = max(max_pixclk_khz, established_timings3[i].pixclk_khz);
-				}
-			}
+			cur_block = "Established timings III";
+			printf("%s\n", cur_block);
+			for (i = 0; i < 44; i++)
+				if (x[6 + i / 8] & (1 << (7 - i % 8)))
+					print_short_timings("  ", find_dmt_id(established_timings3_dmt_ids[i]), "");
 			return 1;
-		case 0xf8: {
-			int valid_cvt = 1; /* just this block */
-			printf("CVT 3-byte code descriptor:\n");
+		case 0xf8:
+			cur_block = "CVT 3 Byte Timing Codes";
+			printf("%s\n", cur_block);
 			if (x[5] != 0x01) {
-				has_valid_cvt = 0;
+				fail("Invalid version number\n");
 				return 0;
 			}
 			for (i = 0; i < 4; i++)
-				valid_cvt &= detailed_cvt_descriptor(x + 6 + (i * 3), (i == 0));
-			has_valid_cvt &= valid_cvt;
-			return valid_cvt;
-		}
+				detailed_cvt_descriptor(x + 6 + (i * 3), (i == 0));
+			return 1;
 		case 0xf9:
-			printf("Color management data:\n");
+			cur_block = "Display Color Management Data";
+			printf("%s\n", cur_block);
 			printf("  Version:  %d\n", x[5]);
 			printf("  Red a3:   %.2f\n", (short)(x[6] | (x[7] << 8)) / 100.0);
 			printf("  Red a2:   %.2f\n", (short)(x[8] | (x[9] << 8)) / 100.0);
@@ -790,7 +915,8 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			printf("  Blue a2:  %.2f\n", (short)(x[16] | (x[17] << 8)) / 100.0);
 			return 1;
 		case 0xfa:
-			printf("More standard timings:\n");
+			cur_block = "Standard Timing Identifications";
+			printf("%s\n", cur_block);
 			for (i = 0; i < 6; i++)
 				print_standard_timing(x[5 + i * 2], x[5 + i * 2 + 1]);
 			return 1;
@@ -798,7 +924,8 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			unsigned w_x, w_y;
 			unsigned gamma;
 
-			printf("Color point:\n");
+			cur_block = "Color Point Data";
+			printf("%s\n", cur_block);
 			w_x = (x[7] << 2) | ((x[6] >> 2) & 3);
 			w_y = (x[8] << 2) | (x[6] & 3);
 			gamma = x[9];
@@ -824,9 +951,9 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			return 1;
 		}
 		case 0xfc:
+			cur_block = "Display Product Name";
 			has_name_descriptor = 1;
-			printf("Monitor name: %s\n",
-			       extract_string("Display Product Name", x + 5, 13));
+			printf("%s: %s\n", cur_block, extract_string(x + 5, 13));
 			return 1;
 		case 0xfd: {
 			int h_max_offset = 0, h_min_offset = 0;
@@ -834,6 +961,8 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			int is_cvt = 0;
 			char *range_class = "";
 
+			cur_block = "Display Range Limits";
+			printf("%s\n", cur_block);
 			has_range_descriptor = 1;
 			/* 
 			 * XXX todo: implement feature flags, vtd blocks
@@ -889,7 +1018,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				fail("min horizontal freq > max horizontal freq\n");
 			mon_min_hor_freq_hz = (x[7] + h_min_offset) * 1000;
 			mon_max_hor_freq_hz = (x[8] + h_max_offset) * 1000;
-			printf("Monitor ranges (%s): %d-%dHz V, %d-%dkHz H",
+			printf("  Monitor ranges (%s): %d-%dHz V, %d-%dkHz H",
 			       range_class,
 			       x[5] + v_min_offset, x[6] + v_max_offset,
 			       x[7] + h_min_offset, x[8] + h_max_offset);
@@ -905,12 +1034,12 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			if (is_cvt) {
 				int max_h_pixels = 0;
 
-				printf("CVT version %d.%d\n", (x[11] & 0xf0) >> 4, x[11] & 0x0f);
+				printf("  CVT version %d.%d\n", (x[11] & 0xf0) >> 4, x[11] & 0x0f);
 
 				if (x[12] & 0xfc) {
 					unsigned raw_offset = (x[12] & 0xfc) >> 2;
 
-					printf("Real max dotclock: %.2fMHz\n",
+					printf("  Real max dotclock: %.2fMHz\n",
 					       (x[9] * 10) - (raw_offset * 0.25));
 					if (raw_offset >= 40)
 						warn("CVT block corrects dotclock by more than 9.75MHz\n");
@@ -921,9 +1050,9 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				max_h_pixels |= x[13];
 				max_h_pixels *= 8;
 				if (max_h_pixels)
-					printf("Max active pixels per line: %d\n", max_h_pixels);
+					printf("  Max active pixels per line: %d\n", max_h_pixels);
 
-				printf("Supported aspect ratios: %s %s %s %s %s\n",
+				printf("  Supported aspect ratios: %s %s %s %s %s\n",
 				       x[14] & 0x80 ? "4:3" : "",
 				       x[14] & 0x40 ? "16:9" : "",
 				       x[14] & 0x20 ? "16:10" : "",
@@ -932,7 +1061,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				if (x[14] & 0x07)
 					fail("Reserved bits of byte 14 are non-zero\n");
 
-				printf("Preferred aspect ratio: ");
+				printf("  Preferred aspect ratio: ");
 				switch((x[15] & 0xe0) >> 5) {
 				case 0x00:
 					printf("4:3");
@@ -957,15 +1086,15 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				printf("\n");
 
 				if (x[15] & 0x08)
-					printf("Supports CVT standard blanking\n");
+					printf("  Supports CVT standard blanking\n");
 				if (x[15] & 0x10)
-					printf("Supports CVT reduced blanking\n");
+					printf("  Supports CVT reduced blanking\n");
 
 				if (x[15] & 0x07)
 					fail("Reserved bits of byte 15 are non-zero\n");
 
 				if (x[16] & 0xf0) {
-					printf("Supported display scaling:\n");
+					printf("  Supported display scaling:\n");
 					if (x[16] & 0x80)
 						printf("    Horizontal shrink\n");
 					if (x[16] & 0x40)
@@ -980,7 +1109,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 					fail("Reserved bits of byte 16 are non-zero\n");
 
 				if (x[17])
-					printf("Preferred vertical refresh: %d Hz\n", x[17]);
+					printf("  Preferred vertical refresh: %d Hz\n", x[17]);
 				else
 					warn("CVT block does not set preferred refresh rate\n");
 			}
@@ -996,12 +1125,14 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			 * TODO: Two of these in a row, in the third and fourth slots,
 			 * seems to be specified by SPWG: http://www.spwg.org/
 			 */
-			printf("ASCII string: %s\n",
-			       extract_string("Alphanumeric Data String", x + 5, 13));
+			cur_block = "Alphanumeric Data String";
+			printf("%s: %s\n", cur_block,
+			       extract_string(x + 5, 13));
 			return 1;
 		case 0xff:
-			printf("Serial number: %s\n",
-			       extract_string("Display Product Serial Number", x + 5, 13));
+			cur_block = "Display Product Serial Number";
+			printf("%s: %s\n", cur_block,
+			       extract_string(x + 5, 13));
 			has_serial_string = 1;
 			return 1;
 		default:
@@ -1014,6 +1145,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 		has_valid_descriptor_ordering = 0;
 	}
 
+	cur_block = "Detailed Timings";
 	did_detailed_timing = 1;
 	ha = (x[2] + ((x[4] & 0xf0) << 4));
 	hbl = (x[3] + ((x[4] & 0x0f) << 8));
@@ -1027,35 +1159,35 @@ static int detailed_block(const unsigned char *x, int in_extension)
 	vborder = x[16];
 	switch ((x[17] & 0x18) >> 3) {
 	case 0x00:
-		syncmethod = " analog composite";
+		syncmethod = "analog composite";
 		/* fall-through */
 	case 0x01:
 		if (!syncmethod)
-			syncmethod = " bipolar analog composite";
+			syncmethod = "bipolar analog composite";
 		switch ((x[17] & 0x06) >> 1) {
 		case 0x00:
-			syncmethod_details = " sync-on-green";
+			syncmethod_details = ", sync-on-green";
 			break;
 		case 0x01:
 			break;
 		case 0x02:
-			syncmethod_details = " serrate, sync-on-green";
+			syncmethod_details = ", serrate, sync-on-green";
 			break;
 		case 0x03:
-			syncmethod_details = " serrate";
+			syncmethod_details = ", serrate";
 			break;
 		}
 		break;
 	case 0x02:
-		syncmethod = " digital composite";
-		phsync = (x[17] & (1 << 1)) ? "+" : "-";
+		syncmethod = "digital composite";
+		phsync = (x[17] & (1 << 1)) ? "+hsync " : "-hsync ";
 		if (x[17] & (1 << 2))
-		    syncmethod_details = " serrate";
+		    syncmethod_details = ", serrate";
 		break;
 	case 0x03:
 		syncmethod = "";
-		pvsync = (x[17] & (1 << 2)) ? "+" : "-";
-		phsync = (x[17] & (1 << 1)) ? "+" : "-";
+		pvsync = (x[17] & (1 << 2)) ? "+vsync " : "-vsync ";
+		phsync = (x[17] & (1 << 1)) ? "+hsync " : "-hsync ";
 		break;
 	}
 	switch (x[17] & 0x61) {
@@ -1083,7 +1215,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 	}
 
 	if (!ha || !hbl || !hso || !hspw || !va || !vbl || !vso || !vspw)
-		fail("Invalid Detailed Timings:\n"
+		fail("0 values in the detailed timings:\n"
 		     "  Horizontal Active/Blanking %u/%u\n"
 		     "  Horizontal Sync Offset/Width %u/%u\n"
 		     "  Vertical Active/Blanking %u/%u\n"
@@ -1102,14 +1234,15 @@ static int detailed_block(const unsigned char *x, int in_extension)
 	printf("Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
 	       "               %4u %4u %4u %4u (%3u %3u %3d) hborder %u\n"
 	       "               %4u %4u %4u %4u (%3u %3u %3d) vborder %u\n"
-	       "               %shsync %svsync%s%s%s %s\n"
+	       "               %s%s%s%s%s%s%s\n"
 	       "               VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       pixclk_khz / 1000.0,
 	       hor_mm, vert_mm,
 	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw, hborder,
 	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw, vborder,
 	       phsync, pvsync, syncmethod, syncmethod_details,
-	       x[17] & 0x80 ? " interlaced" : "", stereo,
+	       syncmethod && ((x[17] & 0x80) || *stereo) ? ", " : "",
+	       x[17] & 0x80 ? "interlaced " : "", stereo,
 	       refresh, ha + hbl ? (double)pixclk_khz / (ha + hbl) : 0.0);
 	if (hso + hspw >= hbl)
 		fail("0 or negative horizontal back porch\n");
@@ -1295,178 +1428,178 @@ struct edid_cta_mode {
 
 static struct edid_cta_mode edid_cta_modes1[] = {
 	/* VIC 1 */
-	{"640x480@60Hz 4:3", 60, 31469, 25175},
-	{"720x480@60Hz 4:3", 60, 31469, 27000},
-	{"720x480@60Hz 16:9", 60, 31469, 27000},
-	{"1280x720@60Hz 16:9", 60, 45000, 74250},
-	{"1920x1080i@60Hz 16:9", 60, 33750, 74250},
-	{"1440x480i@60Hz 4:3", 60, 15734, 27000},
-	{"1440x480i@60Hz 16:9", 60, 15734, 27000},
-	{"1440x240@60Hz 4:3", 60, 15734, 27000},
-	{"1440x240@60Hz 16:9", 60, 15734, 27000},
-	{"2880x480i@60Hz 4:3", 60, 15734, 54000},
+	{ "640x480@60Hz 4:3", 60, 31469, 25175 },
+	{ "720x480@60Hz 4:3", 60, 31469, 27000 },
+	{ "720x480@60Hz 16:9", 60, 31469, 27000 },
+	{ "1280x720@60Hz 16:9", 60, 45000, 74250 },
+	{ "1920x1080i@60Hz 16:9", 60, 33750, 74250 },
+	{ "1440x480i@60Hz 4:3", 60, 15734, 27000 },
+	{ "1440x480i@60Hz 16:9", 60, 15734, 27000 },
+	{ "1440x240@60Hz 4:3", 60, 15734, 27000 },
+	{ "1440x240@60Hz 16:9", 60, 15734, 27000 },
+	{ "2880x480i@60Hz 4:3", 60, 15734, 54000 },
 	/* VIC 11 */
-	{"2880x480i@60Hz 16:9", 60, 15734, 54000},
-	{"2880x240@60Hz 4:3", 60, 15734, 54000},
-	{"2880x240@60Hz 16:9", 60, 15734, 54000},
-	{"1440x480@60Hz 4:3", 60, 31469, 54000},
-	{"1440x480@60Hz 16:9", 60, 31469, 54000},
-	{"1920x1080@60Hz 16:9", 60, 67500, 148500},
-	{"720x576@50Hz 4:3", 50, 31250, 27000},
-	{"720x576@50Hz 16:9", 50, 31250, 27000},
-	{"1280x720@50Hz 16:9", 50, 37500, 74250},
-	{"1920x1080i@50Hz 16:9", 50, 28125, 74250},
+	{ "2880x480i@60Hz 16:9", 60, 15734, 54000 },
+	{ "2880x240@60Hz 4:3", 60, 15734, 54000 },
+	{ "2880x240@60Hz 16:9", 60, 15734, 54000 },
+	{ "1440x480@60Hz 4:3", 60, 31469, 54000 },
+	{ "1440x480@60Hz 16:9", 60, 31469, 54000 },
+	{ "1920x1080@60Hz 16:9", 60, 67500, 148500 },
+	{ "720x576@50Hz 4:3", 50, 31250, 27000 },
+	{ "720x576@50Hz 16:9", 50, 31250, 27000 },
+	{ "1280x720@50Hz 16:9", 50, 37500, 74250 },
+	{ "1920x1080i@50Hz 16:9", 50, 28125, 74250 },
 	/* VIC 21 */
-	{"1440x576i@50Hz 4:3", 50, 15625, 27000},
-	{"1440x576i@50Hz 16:9", 50, 15625, 27000},
-	{"1440x288@50Hz 4:3", 50, 15625, 27000},
-	{"1440x288@50Hz 16:9", 50, 15625, 27000},
-	{"2880x576i@50Hz 4:3", 50, 15625, 54000},
-	{"2880x576i@50Hz 16:9", 50, 15625, 54000},
-	{"2880x288@50Hz 4:3", 50, 15625, 54000},
-	{"2880x288@50Hz 16:9", 50, 15625, 54000},
-	{"1440x576@50Hz 4:3", 50, 31250, 54000},
-	{"1440x576@50Hz 16:9", 50, 31250, 54000},
+	{ "1440x576i@50Hz 4:3", 50, 15625, 27000 },
+	{ "1440x576i@50Hz 16:9", 50, 15625, 27000 },
+	{ "1440x288@50Hz 4:3", 50, 15625, 27000 },
+	{ "1440x288@50Hz 16:9", 50, 15625, 27000 },
+	{ "2880x576i@50Hz 4:3", 50, 15625, 54000 },
+	{ "2880x576i@50Hz 16:9", 50, 15625, 54000 },
+	{ "2880x288@50Hz 4:3", 50, 15625, 54000 },
+	{ "2880x288@50Hz 16:9", 50, 15625, 54000 },
+	{ "1440x576@50Hz 4:3", 50, 31250, 54000 },
+	{ "1440x576@50Hz 16:9", 50, 31250, 54000 },
 	/* VIC 31 */
-	{"1920x1080@50Hz 16:9", 50, 56250, 148500},
-	{"1920x1080@24Hz 16:9", 24, 27000, 74250},
-	{"1920x1080@25Hz 16:9", 25, 28125, 74250},
-	{"1920x1080@30Hz 16:9", 30, 33750, 74250},
-	{"2880x480@60Hz 4:3", 60, 31469, 108000},
-	{"2880x480@60Hz 16:9", 60, 31469, 108000},
-	{"2880x576@50Hz 4:3", 50, 31250, 108000},
-	{"2880x576@50Hz 16:9", 50, 31250, 108000},
-	{"1920x1080i@50Hz 16:9", 50, 31250, 72000},
-	{"1920x1080i@100Hz 16:9", 100, 56250, 148500},
+	{ "1920x1080@50Hz 16:9", 50, 56250, 148500 },
+	{ "1920x1080@24Hz 16:9", 24, 27000, 74250 },
+	{ "1920x1080@25Hz 16:9", 25, 28125, 74250 },
+	{ "1920x1080@30Hz 16:9", 30, 33750, 74250 },
+	{ "2880x480@60Hz 4:3", 60, 31469, 108000 },
+	{ "2880x480@60Hz 16:9", 60, 31469, 108000 },
+	{ "2880x576@50Hz 4:3", 50, 31250, 108000 },
+	{ "2880x576@50Hz 16:9", 50, 31250, 108000 },
+	{ "1920x1080i@50Hz 16:9", 50, 31250, 72000 },
+	{ "1920x1080i@100Hz 16:9", 100, 56250, 148500 },
 	/* VIC 41 */
-	{"1280x720@100Hz 16:9", 100, 75000, 148500},
-	{"720x576@100Hz 4:3", 100, 62500, 54000},
-	{"720x576@100Hz 16:9", 100, 62500, 54000},
-	{"1440x576i@100Hz 4:3", 100, 31250, 54000},
-	{"1440x576i@100Hz 16:9", 100, 31250, 54000},
-	{"1920x1080i@120Hz 16:9", 120, 67500, 148500},
-	{"1280x720@120Hz 16:9", 120, 90000, 148500},
-	{"720x480@120Hz 4:3", 120, 62937, 54000},
-	{"720x480@120Hz 16:9", 120, 62937, 54000},
-	{"1440x480i@120Hz 4:3", 120, 31469, 54000},
+	{ "1280x720@100Hz 16:9", 100, 75000, 148500 },
+	{ "720x576@100Hz 4:3", 100, 62500, 54000 },
+	{ "720x576@100Hz 16:9", 100, 62500, 54000 },
+	{ "1440x576i@100Hz 4:3", 100, 31250, 54000 },
+	{ "1440x576i@100Hz 16:9", 100, 31250, 54000 },
+	{ "1920x1080i@120Hz 16:9", 120, 67500, 148500 },
+	{ "1280x720@120Hz 16:9", 120, 90000, 148500 },
+	{ "720x480@120Hz 4:3", 120, 62937, 54000 },
+	{ "720x480@120Hz 16:9", 120, 62937, 54000 },
+	{ "1440x480i@120Hz 4:3", 120, 31469, 54000 },
 	/* VIC 51 */
-	{"1440x480i@120Hz 16:9", 120, 31469, 54000},
-	{"720x576@200Hz 4:3", 200, 125000, 108000},
-	{"720x576@200Hz 16:9", 200, 125000, 108000},
-	{"1440x576i@200Hz 4:3", 200, 62500, 108000},
-	{"1440x576i@200Hz 16:9", 200, 62500, 108000},
-	{"720x480@240Hz 4:3", 240, 125874, 108000},
-	{"720x480@240Hz 16:9", 240, 125874, 108000},
-	{"1440x480i@240Hz 4:3", 240, 62937, 108000},
-	{"1440x480i@240Hz 16:9", 240, 62937, 108000},
-	{"1280x720@24Hz 16:9", 24, 18000, 59400},
+	{ "1440x480i@120Hz 16:9", 120, 31469, 54000 },
+	{ "720x576@200Hz 4:3", 200, 125000, 108000 },
+	{ "720x576@200Hz 16:9", 200, 125000, 108000 },
+	{ "1440x576i@200Hz 4:3", 200, 62500, 108000 },
+	{ "1440x576i@200Hz 16:9", 200, 62500, 108000 },
+	{ "720x480@240Hz 4:3", 240, 125874, 108000 },
+	{ "720x480@240Hz 16:9", 240, 125874, 108000 },
+	{ "1440x480i@240Hz 4:3", 240, 62937, 108000 },
+	{ "1440x480i@240Hz 16:9", 240, 62937, 108000 },
+	{ "1280x720@24Hz 16:9", 24, 18000, 59400 },
 	/* VIC 61 */
-	{"1280x720@25Hz 16:9", 25, 18750, 74250},
-	{"1280x720@30Hz 16:9", 30, 22500, 74250},
-	{"1920x1080@120Hz 16:9", 120, 135000, 297000},
-	{"1920x1080@100Hz 16:9", 100, 112500, 297000},
-	{"1280x720@24Hz 64:27", 24, 18000, 59400},
-	{"1280x720@25Hz 64:27", 25, 18750, 74250},
-	{"1280x720@30Hz 64:27", 30, 22500, 74250},
-	{"1280x720@50Hz 64:27", 50, 37500, 74250},
-	{"1280x720@60Hz 64:27", 60, 45000, 74250},
-	{"1280x720@100Hz 64:27", 100, 75000, 148500},
+	{ "1280x720@25Hz 16:9", 25, 18750, 74250 },
+	{ "1280x720@30Hz 16:9", 30, 22500, 74250 },
+	{ "1920x1080@120Hz 16:9", 120, 135000, 297000 },
+	{ "1920x1080@100Hz 16:9", 100, 112500, 297000 },
+	{ "1280x720@24Hz 64:27", 24, 18000, 59400 },
+	{ "1280x720@25Hz 64:27", 25, 18750, 74250 },
+	{ "1280x720@30Hz 64:27", 30, 22500, 74250 },
+	{ "1280x720@50Hz 64:27", 50, 37500, 74250 },
+	{ "1280x720@60Hz 64:27", 60, 45000, 74250 },
+	{ "1280x720@100Hz 64:27", 100, 75000, 148500 },
 	/* VIC 71 */
-	{"1280x720@120Hz 64:27", 120, 91000, 148500},
-	{"1920x1080@24Hz 64:27", 24, 27000, 74250},
-	{"1920x1080@25Hz 64:27", 25, 28125, 74250},
-	{"1920x1080@30Hz 64:27", 30, 33750, 74250},
-	{"1920x1080@50Hz 64:27", 50, 56250, 148500},
-	{"1920x1080@60Hz 64:27", 60, 67500, 148500},
-	{"1920x1080@100Hz 64:27", 100, 112500, 297000},
-	{"1920x1080@120Hz 64:27", 120, 135000, 297000},
-	{"1680x720@24Hz 64:27", 24, 18000, 59400},
-	{"1680x720@25Hz 64:27", 25, 18750, 59400},
+	{ "1280x720@120Hz 64:27", 120, 91000, 148500 },
+	{ "1920x1080@24Hz 64:27", 24, 27000, 74250 },
+	{ "1920x1080@25Hz 64:27", 25, 28125, 74250 },
+	{ "1920x1080@30Hz 64:27", 30, 33750, 74250 },
+	{ "1920x1080@50Hz 64:27", 50, 56250, 148500 },
+	{ "1920x1080@60Hz 64:27", 60, 67500, 148500 },
+	{ "1920x1080@100Hz 64:27", 100, 112500, 297000 },
+	{ "1920x1080@120Hz 64:27", 120, 135000, 297000 },
+	{ "1680x720@24Hz 64:27", 24, 18000, 59400 },
+	{ "1680x720@25Hz 64:27", 25, 18750, 59400 },
 	/* VIC 81 */
-	{"1680x720@30Hz 64:27", 30, 22500, 59400},
-	{"1680x720@50Hz 64:27", 50, 37500, 82500},
-	{"1680x720@60Hz 64:27", 60, 45000, 99000},
-	{"1680x720@100Hz 64:27", 100, 82500, 165000},
-	{"1680x720@120Hz 64:27", 120, 99000, 198000},
-	{"2560x1080@24Hz 64:27", 24, 26400, 99000},
-	{"2560x1080@25Hz 64:27", 25, 28125, 90000},
-	{"2560x1080@30Hz 64:27", 30, 33750, 118800},
-	{"2560x1080@50Hz 64:27", 50, 56250, 185625},
-	{"2560x1080@60Hz 64:27", 60, 66000, 198000},
+	{ "1680x720@30Hz 64:27", 30, 22500, 59400 },
+	{ "1680x720@50Hz 64:27", 50, 37500, 82500 },
+	{ "1680x720@60Hz 64:27", 60, 45000, 99000 },
+	{ "1680x720@100Hz 64:27", 100, 82500, 165000 },
+	{ "1680x720@120Hz 64:27", 120, 99000, 198000 },
+	{ "2560x1080@24Hz 64:27", 24, 26400, 99000 },
+	{ "2560x1080@25Hz 64:27", 25, 28125, 90000 },
+	{ "2560x1080@30Hz 64:27", 30, 33750, 118800 },
+	{ "2560x1080@50Hz 64:27", 50, 56250, 185625 },
+	{ "2560x1080@60Hz 64:27", 60, 66000, 198000 },
 	/* VIC 91 */
-	{"2560x1080@100Hz 64:27", 100, 125000, 371250},
-	{"2560x1080@120Hz 64:27", 120, 150000, 495000},
-	{"3840x2160@24Hz 16:9", 24, 54000, 297000},
-	{"3840x2160@25Hz 16:9", 25, 56250, 297000},
-	{"3840x2160@30Hz 16:9", 30, 67500, 297000},
-	{"3840x2160@50Hz 16:9", 50, 112500, 594000},
-	{"3840x2160@60Hz 16:9", 60, 135000, 594000},
-	{"4096x2160@24Hz 256:135", 24, 54000, 297000},
-	{"4096x2160@25Hz 256:135", 25, 56250, 297000},
-	{"4096x2160@30Hz 256:135", 30, 67500, 297000},
+	{ "2560x1080@100Hz 64:27", 100, 125000, 371250 },
+	{ "2560x1080@120Hz 64:27", 120, 150000, 495000 },
+	{ "3840x2160@24Hz 16:9", 24, 54000, 297000 },
+	{ "3840x2160@25Hz 16:9", 25, 56250, 297000 },
+	{ "3840x2160@30Hz 16:9", 30, 67500, 297000 },
+	{ "3840x2160@50Hz 16:9", 50, 112500, 594000 },
+	{ "3840x2160@60Hz 16:9", 60, 135000, 594000 },
+	{ "4096x2160@24Hz 256:135", 24, 54000, 297000 },
+	{ "4096x2160@25Hz 256:135", 25, 56250, 297000 },
+	{ "4096x2160@30Hz 256:135", 30, 67500, 297000 },
 	/* VIC 101 */
-	{"4096x2160@50Hz 256:135", 50, 112500, 594000},
-	{"4096x2160@60Hz 256:135", 60, 135000, 594000},
-	{"3840x2160@24Hz 64:27", 24, 54000, 297000},
-	{"3840x2160@25Hz 64:27", 25, 56250, 297000},
-	{"3840x2160@30Hz 64:27", 30, 67500, 297000},
-	{"3840x2160@50Hz 64:27", 50, 112500, 594000},
-	{"3840x2160@60Hz 64:27", 60, 135000, 594000},
-	{"1280x720@48Hz 16:9", 48, 36000, 90000},
-	{"1280x720@48Hz 64:27", 48, 36000, 90000},
-	{"1680x720@48Hz 64:27", 48, 36000, 99000},
+	{ "4096x2160@50Hz 256:135", 50, 112500, 594000 },
+	{ "4096x2160@60Hz 256:135", 60, 135000, 594000 },
+	{ "3840x2160@24Hz 64:27", 24, 54000, 297000 },
+	{ "3840x2160@25Hz 64:27", 25, 56250, 297000 },
+	{ "3840x2160@30Hz 64:27", 30, 67500, 297000 },
+	{ "3840x2160@50Hz 64:27", 50, 112500, 594000 },
+	{ "3840x2160@60Hz 64:27", 60, 135000, 594000 },
+	{ "1280x720@48Hz 16:9", 48, 36000, 90000 },
+	{ "1280x720@48Hz 64:27", 48, 36000, 90000 },
+	{ "1680x720@48Hz 64:27", 48, 36000, 99000 },
 	/* VIC 111 */
-	{"1920x1080@48Hz 16:9", 48, 54000, 148500},
-	{"1920x1080@48Hz 64:27", 48, 54000, 148500},
-	{"2560x1080@48Hz 64:27", 48, 52800, 198000},
-	{"3840x2160@48Hz 16:9", 48, 108000, 594000},
-	{"4096x2160@48Hz 256:135", 48, 108000, 594000},
-	{"3840x2160@48Hz 64:27", 48, 108000, 594000},
-	{"3840x2160@100Hz 16:9", 100, 225000, 1188000},
-	{"3840x2160@120Hz 16:9", 120, 270000, 1188000},
-	{"3840x2160@100Hz 64:27", 100, 225000, 1188000},
-	{"3840x2160@120Hz 64:27", 120, 270000, 1188000},
+	{ "1920x1080@48Hz 16:9", 48, 54000, 148500 },
+	{ "1920x1080@48Hz 64:27", 48, 54000, 148500 },
+	{ "2560x1080@48Hz 64:27", 48, 52800, 198000 },
+	{ "3840x2160@48Hz 16:9", 48, 108000, 594000 },
+	{ "4096x2160@48Hz 256:135", 48, 108000, 594000 },
+	{ "3840x2160@48Hz 64:27", 48, 108000, 594000 },
+	{ "3840x2160@100Hz 16:9", 100, 225000, 1188000 },
+	{ "3840x2160@120Hz 16:9", 120, 270000, 1188000 },
+	{ "3840x2160@100Hz 64:27", 100, 225000, 1188000 },
+	{ "3840x2160@120Hz 64:27", 120, 270000, 1188000 },
 	/* VIC 121 */
-	{"5120x2160@24Hz 64:27", 24, 52800, 396000},
-	{"5120x2160@25Hz 64:27", 25, 55000, 396000},
-	{"5120x2160@30Hz 64:27", 30, 66000, 396000},
-	{"5120x2160@48Hz 64:27", 48, 118800, 742500},
-	{"5120x2160@50Hz 64:27", 50, 112500, 742500},
-	{"5120x2160@60Hz 64:27", 60, 135000, 742500},
-	{"5120x2160@100Hz 64:27", 100, 225000, 1485000},
+	{ "5120x2160@24Hz 64:27", 24, 52800, 396000 },
+	{ "5120x2160@25Hz 64:27", 25, 55000, 396000 },
+	{ "5120x2160@30Hz 64:27", 30, 66000, 396000 },
+	{ "5120x2160@48Hz 64:27", 48, 118800, 742500 },
+	{ "5120x2160@50Hz 64:27", 50, 112500, 742500 },
+	{ "5120x2160@60Hz 64:27", 60, 135000, 742500 },
+	{ "5120x2160@100Hz 64:27", 100, 225000, 1485000 },
 };
 
 static struct edid_cta_mode edid_cta_modes2[] = {
 	/* VIC 193 */
-	{"5120x2160@120Hz 64:27", 120, 270000, 1485000},
-	{"7680x4320@24Hz 16:9", 24, 108000, 1188000},
-	{"7680x4320@25Hz 16:9", 25, 110000, 1188000},
-	{"7680x4320@30Hz 16:9", 30, 132000, 1188000},
-	{"7680x4320@48Hz 16:9", 48, 216000, 2376000},
-	{"7680x4320@50Hz 16:9", 50, 220000, 2376000},
-	{"7680x4320@60Hz 16:9", 60, 264000, 2376000},
-	{"7680x4320@100Hz 16:9", 100, 450000, 4752000},
+	{ "5120x2160@120Hz 64:27", 120, 270000, 1485000 },
+	{ "7680x4320@24Hz 16:9", 24, 108000, 1188000 },
+	{ "7680x4320@25Hz 16:9", 25, 110000, 1188000 },
+	{ "7680x4320@30Hz 16:9", 30, 132000, 1188000 },
+	{ "7680x4320@48Hz 16:9", 48, 216000, 2376000 },
+	{ "7680x4320@50Hz 16:9", 50, 220000, 2376000 },
+	{ "7680x4320@60Hz 16:9", 60, 264000, 2376000 },
+	{ "7680x4320@100Hz 16:9", 100, 450000, 4752000 },
 	/* VIC 201 */
-	{"7680x4320@120Hz 16:9", 120, 540000, 4752000},
-	{"7680x4320@24Hz 64:27", 24, 108000, 1188000},
-	{"7680x4320@25Hz 64:27", 25, 110000, 1188000},
-	{"7680x4320@30Hz 64:27", 30, 132000, 1188000},
-	{"7680x4320@48Hz 64:27", 48, 216000, 2376000},
-	{"7680x4320@50Hz 64:27", 50, 220000, 2376000},
-	{"7680x4320@60Hz 64:27", 60, 264000, 2376000},
-	{"7680x4320@100Hz 64:27", 100, 450000, 4752000},
-	{"7680x4320@120Hz 64:27", 120, 540000, 4752000},
-	{"10240x4320@24Hz 64:27", 24, 118800, 1485000},
+	{ "7680x4320@120Hz 16:9", 120, 540000, 4752000 },
+	{ "7680x4320@24Hz 64:27", 24, 108000, 1188000 },
+	{ "7680x4320@25Hz 64:27", 25, 110000, 1188000 },
+	{ "7680x4320@30Hz 64:27", 30, 132000, 1188000 },
+	{ "7680x4320@48Hz 64:27", 48, 216000, 2376000 },
+	{ "7680x4320@50Hz 64:27", 50, 220000, 2376000 },
+	{ "7680x4320@60Hz 64:27", 60, 264000, 2376000 },
+	{ "7680x4320@100Hz 64:27", 100, 450000, 4752000 },
+	{ "7680x4320@120Hz 64:27", 120, 540000, 4752000 },
+	{ "10240x4320@24Hz 64:27", 24, 118800, 1485000 },
 	/* VIC 211 */
-	{"10240x4320@25Hz 64:27", 25, 110000, 1485000},
-	{"10240x4320@30Hz 64:27", 30, 135000, 1485000},
-	{"10240x4320@48Hz 64:27", 48, 237600, 2970000},
-	{"10240x4320@50Hz 64:27", 50, 220000, 2970000},
-	{"10240x4320@60Hz 64:27", 60, 270000, 2970000},
-	{"10240x4320@100Hz 64:27", 100, 450000, 5940000},
-	{"10240x4320@120Hz 64:27", 120, 540000, 5940000},
-	{"4096x2160@100Hz 256:135", 100, 225000, 1188000},
-	{"4096x2160@120Hz 256:135", 120, 270000, 1188000},
+	{ "10240x4320@25Hz 64:27", 25, 110000, 1485000 },
+	{ "10240x4320@30Hz 64:27", 30, 135000, 1485000 },
+	{ "10240x4320@48Hz 64:27", 48, 237600, 2970000 },
+	{ "10240x4320@50Hz 64:27", 50, 220000, 2970000 },
+	{ "10240x4320@60Hz 64:27", 60, 270000, 2970000 },
+	{ "10240x4320@100Hz 64:27", 100, 450000, 5940000 },
+	{ "10240x4320@120Hz 64:27", 120, 540000, 5940000 },
+	{ "4096x2160@100Hz 256:135", 100, 225000, 1188000 },
+	{ "4096x2160@120Hz 256:135", 120, 270000, 1188000 },
 };
 
 static const struct edid_cta_mode *vic_to_mode(unsigned char vic)
@@ -2621,102 +2754,6 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	      );
 }
 
-static const struct {
-	unsigned x, y, refresh, ratio_w, ratio_h;
-	unsigned hor_freq_hz, pixclk_khz, rb, interlaced;
-} displayid_vesa_dmt[] = {
-	/* 0x03 bit 7 - 0 */
-	{640, 350, 85, 64, 35, 37900, 31500},
-	{640, 400, 85, 16, 10, 37900, 31500},
-	{720, 400, 85, 9, 5, 37900, 35500},
-	{640, 480, 60, 4, 3, 31469, 25175},
-	{640, 480, 72, 4, 3, 37900, 31500},
-	{640, 480, 75, 4, 3, 37500, 31500},
-	{640, 480, 85, 4, 3, 43300, 36000},
-	{800, 600, 56, 4, 3, 35200, 36000},
-	/* 0x04 bit 7 - 0 */
-	{800, 600, 60, 4, 3, 37900, 40000},
-	{800, 600, 72, 4, 3, 48100, 50000},
-	{800, 600, 75, 4, 3, 46900, 49500},
-	{800, 600, 85, 4, 3, 53700, 56250},
-	{800, 600, 120, 4, 3, 76302, 73250, 1},
-	{848, 480, 60, 16, 9, 31020, 33750},
-	{1024, 768, 43, 4, 3, 35522, 44900, 0, 1},
-	{1024, 768, 60, 4, 3, 48400, 65000},
-	/* 0x05 bit 7 - 0 */
-	{1024, 768, 70, 4, 3, 56500, 75000},
-	{1024, 768, 75, 4, 3, 60000, 78750},
-	{1024, 768, 85, 4, 3, 68700, 94500},
-	{1024, 768, 120, 4, 3, 97551, 115500, 1},
-	{1152, 864, 75, 4, 3, 67500, 108000},
-	{1280, 768, 60, 5, 3, 47400, 68250, 1},
-	{1280, 768, 60, 5, 3, 47800, 79500},
-	{1280, 768, 75, 5, 3, 60300, 102250},
-	/* 0x06 bit 7 - 0 */
-	{1280, 768, 85, 5, 3, 68600, 117500},
-	{1280, 768, 120, 5, 3, 97396, 140250, 1},
-	{1280, 800, 60, 16, 10, 49306, 710000, 1},
-	{1280, 800, 60, 16, 10, 49702, 83500},
-	{1280, 800, 75, 16, 10, 62795, 106500},
-	{1280, 800, 85, 16, 10, 71554, 122500},
-	{1280, 800, 120, 16, 10, 101563, 146250, 1},
-	{1280, 960, 60, 4, 3, 60000, 108000},
-	/* 0x07 bit 7 - 0 */
-	{1280, 960, 85, 4, 3, 85900, 148500},
-	{1280, 960, 120, 4, 3, 121875, 175500, 1},
-	{1280, 1024, 60, 5, 4, 64000, 108000},
-	{1280, 1024, 75, 5, 4, 80000, 135000},
-	{1280, 1024, 85, 5, 4, 91100, 157500},
-	{1280, 1024, 120, 5, 4, 130035, 187250, 1},
-	{1360, 768, 60, 85, 48, 47700, 85500},
-	{1360, 768, 120, 85, 48, 97533, 148250, 1},
-	/* 0x08 bit 7 - 0 */
-	{1400, 1050, 60, 4, 3, 64700, 101000, 1},
-	{1400, 1050, 60, 4, 3, 65300, 121750},
-	{1400, 1050, 75, 4, 3, 82300, 156000},
-	{1400, 1050, 85, 4, 3, 93900, 179500},
-	{1400, 1050, 120, 4, 3, 133333, 208000, 1},
-	{1440, 900, 60, 16, 10, 55500, 88750, 1},
-	{1440, 900, 60, 16, 10, 65300, 121750},
-	{1440, 900, 75, 16, 10, 82300, 156000},
-	/* 0x09 bit 7 - 0 */
-	{1440, 900, 85, 16, 10, 93900, 179500},
-	{1440, 900, 120, 16, 10, 114219, 182750, 1},
-	{1600, 1200, 60, 4, 3, 75000, 162000},
-	{1600, 1200, 65, 4, 3, 81300, 175500},
-	{1600, 1200, 70, 4, 3, 87500, 189000},
-	{1600, 1200, 75, 4, 3, 93800, 202500},
-	{1600, 1200, 85, 4, 3, 106300, 229500},
-	{1600, 1200, 120, 4, 3, 152415, 268250, 1},
-	/* 0x0a bit 7 - 0 */
-	{1680, 1050, 60, 16, 10, 64700, 119000, 1},
-	{1680, 1050, 60, 16, 10, 65300, 146250},
-	{1680, 1050, 75, 16, 10, 82300, 187000},
-	{1680, 1050, 85, 16, 10, 93900, 214750},
-	{1680, 1050, 120, 16, 10, 133424, 245500, 1},
-	{1792, 1344, 60, 4, 3, 83600, 204750},
-	{1792, 1344, 75, 4, 3, 106300, 261000},
-	{1792, 1344, 120, 4, 3, 170722, 333250, 1},
-	/* 0x0b bit 7 - 4 */
-	{1856, 1392, 60, 4, 3, 86300, 218250},
-	{1856, 1392, 75, 4, 3, 112500, 288000},
-	{1856, 1392, 120, 4, 3, 176835, 356500, 1},
-	{1920, 1200, 60, 16, 10, 74000, 154000, 1},
-	{1920, 1200, 60, 16, 10, 74600, 193250},
-	{1920, 1200, 75, 16, 10, 94000, 245250},
-	{1920, 1200, 85, 16, 10, 107200, 281250},
-	{1920, 1200, 120, 16, 10, 152404, 317000, 1},
-	/* 0x0c bit 7 - 4 */
-	{1920, 1440, 60, 4, 3, 90000, 234000},
-	{1920, 1440, 75, 4, 3, 112500, 297000},
-	{1920, 1440, 120, 4, 3, 182933, 380500, 1},
-	{2560, 1600, 60, 16, 10, 98713, 268500, 1},
-	{2560, 1600, 60, 16, 10, 99458, 348500},
-	{2560, 1600, 75, 16, 10, 125354, 443250},
-	{2560, 1600, 85, 16, 10, 142887, 505250},
-	{2560, 1600, 120, 16, 10, 203217, 552750, 1},
-};
-
 static int parse_displayid(const unsigned char *x)
 {
 	const unsigned char *orig = x;
@@ -2771,25 +2808,9 @@ static int parse_displayid(const unsigned char *x)
 			break;
 		case 7:
 			printf("  Type 1 VESA DMT Timings Block\n");
-			for (i = 0; i < min(len, 10) * 8; i++) {
-				if (!(x[offset + 3 + i / 8] & (1 << (i % 8))))
-					continue;
-
-				printf("    %ux%u%s@%uHz %s%u:%u HorFreq: %.3f kHz Clock: %.3f MHz\n",
-				       displayid_vesa_dmt[i].x,
-				       displayid_vesa_dmt[i].y,
-				       displayid_vesa_dmt[i].interlaced ? "i" : "",
-				       displayid_vesa_dmt[i].refresh,
-				       displayid_vesa_dmt[i].rb ? "RB " : "",
-				       displayid_vesa_dmt[i].ratio_w, displayid_vesa_dmt[i].ratio_h,
-				       displayid_vesa_dmt[i].hor_freq_hz / 1000.0,
-				       displayid_vesa_dmt[i].pixclk_khz / 1000.0);
-				min_vert_freq_hz = min(min_vert_freq_hz, displayid_vesa_dmt[i].refresh);
-				max_vert_freq_hz = max(max_vert_freq_hz, displayid_vesa_dmt[i].refresh);
-				min_hor_freq_hz = min(min_hor_freq_hz, displayid_vesa_dmt[i].hor_freq_hz);
-				max_hor_freq_hz = max(max_hor_freq_hz, displayid_vesa_dmt[i].hor_freq_hz);
-				max_pixclk_khz = max(max_pixclk_khz, displayid_vesa_dmt[i].pixclk_khz);
-			}
+			for (i = 0; i < min(len, 10) * 8; i++)
+				if (x[offset + 3 + i / 8] & (1 << (i % 8)))
+					print_short_timings("    ", find_dmt_id(i + 1), "");
 			break;
 		case 8:
 			printf("  CTA Timings Block\n");
@@ -3430,9 +3451,10 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		if (!nonconformant_digital_display)
 			nonconformant_digital_display = edid[0x14] & conformance_mask;
 	} else {
-		analog = 1;
 		unsigned voltage = (edid[0x14] & 0x60) >> 5;
 		unsigned sync = (edid[0x14] & 0x0f);
+
+		analog = 1;
 		printf("Analog display, Input voltage level: %s V\n",
 		       voltage == 3 ? "0.7/0.7" :
 		       voltage == 2 ? "1.0/0.4" :
@@ -3545,7 +3567,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	}
 
 	cur_block = "Color Characteristics";
-	printf("Display x,y Chromaticity:\n");
+	printf("%s\n", cur_block);
 	col_x = (edid[0x1b] << 2) | (edid[0x19] >> 6);
 	col_y = (edid[0x1c] << 2) | ((edid[0x19] >> 4) & 3);
 	printf("  Red:   0.%04u, 0.%04u\n",
@@ -3563,33 +3585,19 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	printf("  White: 0.%04u, 0.%04u\n",
 	       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
 
-	cur_block = "Established Timings";
-	printf("Established timings supported:\n");
-	for (i = 0; i < 17; i++) {
-		if (edid[0x23 + i / 8] & (1 << (7 - i % 8))) {
-			min_vert_freq_hz = min(min_vert_freq_hz, established_timings[i].refresh);
-			max_vert_freq_hz = max(max_vert_freq_hz, established_timings[i].refresh);
-			min_hor_freq_hz = min(min_hor_freq_hz, established_timings[i].hor_freq_hz);
-			max_hor_freq_hz = max(max_hor_freq_hz, established_timings[i].hor_freq_hz);
-			max_pixclk_khz = max(max_pixclk_khz, established_timings[i].pixclk_khz);
-			printf("  %ux%u%s@%uHz %u:%u HorFreq: %.3f kHz Clock: %.3f MHz\n",
-			       established_timings[i].x, established_timings[i].y,
-			       established_timings[i].interlaced ? "i" : "",
-			       established_timings[i].refresh,
-			       established_timings[i].ratio_w, established_timings[i].ratio_h,
-			       established_timings[i].hor_freq_hz / 1000.0,
-			       established_timings[i].pixclk_khz / 1000.0);
-		}
-	}
+	cur_block = "Established Timings I & II";
+	printf("%s\n", cur_block);
+	for (i = 0; i < 17; i++)
+		if (edid[0x23 + i / 8] & (1 << (7 - i % 8)))
+			print_short_timings("  ", &established_timings12[i], "");
 	has_640x480p60_est_timing = edid[0x23] & 0x20;
 
 	cur_block = "Standard Timings";
-	printf("Standard timings supported:\n");
+	printf("%s\n", cur_block);
 	for (i = 0; i < 8; i++)
 		print_standard_timing(edid[0x26 + i * 2], edid[0x26 + i * 2 + 1]);
 
 	/* detailed timings */
-	cur_block = "Detailed Timings";
 	has_valid_detailed_blocks = detailed_block(edid + 0x36, 0);
 	if (has_preferred_timing && !did_detailed_timing)
 		has_preferred_timing = 0; /* not really accurate... */
@@ -3598,7 +3606,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	has_valid_detailed_blocks &= detailed_block(edid + 0x6c, 0);
 
 	if (edid[0x7e])
-		printf("Has %u extension blocks\n", edid[0x7e]);
+		printf("Has %u extension block%s\n", edid[0x7e], edid[0x7e] > 1 ? "s" : "");
 
 	has_valid_checksum = do_checksum(edid, EDID_PAGE_SIZE);
 
@@ -3696,7 +3704,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	if (nonconformant_extension ||
 	    !has_valid_checksum ||
-	    !has_valid_cvt ||
 	    !has_valid_detailed_blocks ||
 	    !has_valid_descriptor_ordering ||
 	    (has_name_descriptor && !has_valid_name_descriptor)) {
@@ -3707,8 +3714,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			       nonconformant_extension);
 		if (!has_valid_checksum)
 			printf("\tBlock has broken checksum\n");
-		if (!has_valid_cvt)
-			printf("\tBroken 3-byte CVT blocks\n");
 		if (!has_valid_detailed_blocks)
 			printf("\tDetailed blocks filled with garbage\n");
 		if (!has_valid_descriptor_ordering)
