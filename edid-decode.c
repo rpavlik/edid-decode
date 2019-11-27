@@ -63,7 +63,6 @@ static int has_serial_string = 0;
 static int has_cta861 = 0;
 static int has_640x480p60_est_timing = 0;
 static int has_cta861_vic_1 = 0;
-static int seen_non_detailed_descriptor = 0;
 
 static int nonconformant_cta861_640x480 = 0;
 
@@ -834,303 +833,181 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 	       x, y, refresh, ratio_w, ratio_h);
 }
 
-static void detailed_block(const unsigned char *x, int in_extension)
+static void detailed_display_range_limits(const unsigned char *x)
+{
+	int h_max_offset = 0, h_min_offset = 0;
+	int v_max_offset = 0, v_min_offset = 0;
+	int is_cvt = 0;
+	char *range_class = "";
+
+	cur_block = "Display Range Limits";
+	printf("%s\n", cur_block);
+	has_range_descriptor = 1;
+	/* 
+	 * XXX todo: implement feature flags, vtd blocks
+	 * XXX check: ranges are well-formed; block termination if no vtd
+	 */
+	if (claims_one_point_four) {
+		if (x[4] & 0x02) {
+			v_max_offset = 255;
+			if (x[4] & 0x01) {
+				v_min_offset = 255;
+			}
+		}
+		if (x[4] & 0x08) {
+			h_max_offset = 255;
+			if (x[4] & 0x04) {
+				h_min_offset = 255;
+			}
+		}
+	}
+
+	/*
+	 * despite the values, this is not a bitfield.
+	 */
+	switch (x[10]) {
+	case 0x00: /* default gtf */
+		range_class = "GTF";
+		break;
+	case 0x01: /* range limits only */
+		range_class = "bare limits";
+		if (!claims_one_point_four)
+			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
+		break;
+	case 0x02: /* secondary gtf curve */
+		range_class = "GTF with icing";
+		break;
+	case 0x04: /* cvt */
+		range_class = "CVT";
+		is_cvt = 1;
+		if (!claims_one_point_four)
+			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
+		break;
+	default: /* invalid */
+		fail("invalid range class 0x%02x\n", x[10]);
+		range_class = "invalid";
+		break;
+	}
+
+	if (x[5] + v_min_offset > x[6] + v_max_offset)
+		fail("min vertical rate > max vertical rate\n");
+	mon_min_vert_freq_hz = x[5] + v_min_offset;
+	mon_max_vert_freq_hz = x[6] + v_max_offset;
+	if (x[7] + h_min_offset > x[8] + h_max_offset)
+		fail("min horizontal freq > max horizontal freq\n");
+	mon_min_hor_freq_hz = (x[7] + h_min_offset) * 1000;
+	mon_max_hor_freq_hz = (x[8] + h_max_offset) * 1000;
+	printf("  Monitor ranges (%s): %d-%dHz V, %d-%dkHz H",
+	       range_class,
+	       x[5] + v_min_offset, x[6] + v_max_offset,
+	       x[7] + h_min_offset, x[8] + h_max_offset);
+	if (x[9]) {
+		mon_max_pixclk_khz = x[9] * 10000;
+		printf(", max dotclock %dMHz\n", x[9] * 10);
+	} else {
+		if (claims_one_point_four)
+			fail("EDID 1.4 block does not set max dotclock\n");
+		printf("\n");
+	}
+
+	if (is_cvt) {
+		int max_h_pixels = 0;
+
+		printf("  CVT version %d.%d\n", (x[11] & 0xf0) >> 4, x[11] & 0x0f);
+
+		if (x[12] & 0xfc) {
+			unsigned raw_offset = (x[12] & 0xfc) >> 2;
+
+			printf("  Real max dotclock: %.2fMHz\n",
+			       (x[9] * 10) - (raw_offset * 0.25));
+			if (raw_offset >= 40)
+				warn("CVT block corrects dotclock by more than 9.75MHz\n");
+		}
+
+		max_h_pixels = x[12] & 0x03;
+		max_h_pixels <<= 8;
+		max_h_pixels |= x[13];
+		max_h_pixels *= 8;
+		if (max_h_pixels)
+			printf("  Max active pixels per line: %d\n", max_h_pixels);
+
+		printf("  Supported aspect ratios: %s %s %s %s %s\n",
+		       x[14] & 0x80 ? "4:3" : "",
+		       x[14] & 0x40 ? "16:9" : "",
+		       x[14] & 0x20 ? "16:10" : "",
+		       x[14] & 0x10 ? "5:4" : "",
+		       x[14] & 0x08 ? "15:9" : "");
+		if (x[14] & 0x07)
+			fail("Reserved bits of byte 14 are non-zero\n");
+
+		printf("  Preferred aspect ratio: ");
+		switch((x[15] & 0xe0) >> 5) {
+		case 0x00:
+			printf("4:3");
+			break;
+		case 0x01:
+			printf("16:9");
+			break;
+		case 0x02:
+			printf("16:10");
+			break;
+		case 0x03:
+			printf("5:4");
+			break;
+		case 0x04:
+			printf("15:9");
+			break;
+		default:
+			printf("(broken)");
+			fail("invalid preferred aspect ratio\n");
+			break;
+		}
+		printf("\n");
+
+		if (x[15] & 0x08)
+			printf("  Supports CVT standard blanking\n");
+		if (x[15] & 0x10)
+			printf("  Supports CVT reduced blanking\n");
+
+		if (x[15] & 0x07)
+			fail("Reserved bits of byte 15 are non-zero\n");
+
+		if (x[16] & 0xf0) {
+			printf("  Supported display scaling:\n");
+			if (x[16] & 0x80)
+				printf("    Horizontal shrink\n");
+			if (x[16] & 0x40)
+				printf("    Horizontal stretch\n");
+			if (x[16] & 0x20)
+				printf("    Vertical shrink\n");
+			if (x[16] & 0x10)
+				printf("    Vertical stretch\n");
+		}
+
+		if (x[16] & 0x0f)
+			fail("Reserved bits of byte 16 are non-zero\n");
+
+		if (x[17])
+			printf("  Preferred vertical refresh: %d Hz\n", x[17]);
+		else
+			warn("CVT block does not set preferred refresh rate\n");
+	}
+}
+
+static void detailed_timings(const unsigned char *x)
 {
 	unsigned ha, hbl, hso, hspw, hborder, va, vbl, vso, vspw, vborder;
 	unsigned hor_mm, vert_mm;
 	unsigned pixclk_khz;
 	double refresh;
-	unsigned i;
 	char *phsync = "", *pvsync = "";
 	char *syncmethod = NULL, *syncmethod_details = "", *stereo;
 
-	if (x[0] == 0 && x[1] == 0) {
-		cur_block = "Display Descriptor";
-		/* Monitor descriptor block, not detailed timing descriptor. */
-		if (x[2] != 0) {
-			/* 1.3, 3.10.3 */
-			fail("monitor descriptor block has byte 2 nonzero (0x%02x)\n", x[2]);
-		}
-		if ((!claims_one_point_four || x[3] != 0xfd) && x[4] != 0x00) {
-			/* 1.3, 3.10.3 */
-			fail("monitor descriptor block has byte 4 nonzero (0x%02x)\n", x[4]);
-		}
-
-		seen_non_detailed_descriptor = 1;
-		if (x[3] <= 0xf) {
-			/*
-			 * in principle we can decode these, if we know what they are.
-			 * 0x0f seems to be common in laptop panels.
-			 * 0x0e is used by EPI: http://www.epi-standard.org/
-			 */
-			printf("Manufacturer-specified data, tag %d\n", x[3]);
-			return;
-		}
-		switch (x[3]) {
-		case 0x10:
-			cur_block = "Display Descriptor";
-			printf("%s\n", cur_block);
-			for (i = 5; i < 18; i++) {
-				if (x[i]) {
-					fail("dummy block filled with garbage\n");
-					break;
-				}
-			}
-			return;
-		case 0xf7:
-			cur_block = "Established timings III";
-			printf("%s\n", cur_block);
-			for (i = 0; i < 44; i++)
-				if (x[6 + i / 8] & (1 << (7 - i % 8)))
-					print_timings("  ", find_dmt_id(established_timings3_dmt_ids[i]), "");
-			return;
-		case 0xf8:
-			cur_block = "CVT 3 Byte Timing Codes";
-			printf("%s\n", cur_block);
-			if (x[5] != 0x01) {
-				fail("Invalid version number\n");
-				return;
-			}
-			for (i = 0; i < 4; i++)
-				detailed_cvt_descriptor(x + 6 + (i * 3), (i == 0));
-			return;
-		case 0xf9:
-			cur_block = "Display Color Management Data";
-			printf("%s\n", cur_block);
-			printf("  Version:  %d\n", x[5]);
-			printf("  Red a3:   %.2f\n", (short)(x[6] | (x[7] << 8)) / 100.0);
-			printf("  Red a2:   %.2f\n", (short)(x[8] | (x[9] << 8)) / 100.0);
-			printf("  Green a3: %.2f\n", (short)(x[10] | (x[11] << 8)) / 100.0);
-			printf("  Green a2: %.2f\n", (short)(x[12] | (x[13] << 8)) / 100.0);
-			printf("  Blue a3:  %.2f\n", (short)(x[14] | (x[15] << 8)) / 100.0);
-			printf("  Blue a2:  %.2f\n", (short)(x[16] | (x[17] << 8)) / 100.0);
-			return;
-		case 0xfa:
-			cur_block = "Standard Timing Identifications";
-			printf("%s\n", cur_block);
-			for (i = 0; i < 6; i++)
-				print_standard_timing(x[5 + i * 2], x[5 + i * 2 + 1]);
-			return;
-		case 0xfb: {
-			unsigned w_x, w_y;
-			unsigned gamma;
-
-			cur_block = "Color Point Data";
-			printf("%s\n", cur_block);
-			w_x = (x[7] << 2) | ((x[6] >> 2) & 3);
-			w_y = (x[8] << 2) | (x[6] & 3);
-			gamma = x[9];
-			printf("  Index: %u White: 0.%04u, 0.%04u", x[5],
-			       (w_x * 10000) / 1024, (w_y * 10000) / 1024);
-			if (gamma == 0xff)
-				printf(" Gamma: is defined in an extension block");
-			else
-				printf(" Gamma: %.2f", ((gamma + 100.0) / 100.0));
-			printf("\n");
-			if (x[10] == 0)
-				return;
-			w_x = (x[12] << 2) | ((x[11] >> 2) & 3);
-			w_y = (x[13] << 2) | (x[11] & 3);
-			gamma = x[14];
-			printf("  Index: %u White: 0.%04u, 0.%04u", x[10],
-			       (w_x * 10000) / 1024, (w_y * 10000) / 1024);
-			if (gamma == 0xff)
-				printf(" Gamma: is defined in an extension block");
-			else
-				printf(" Gamma: %.2f", ((gamma + 100.0) / 100.0));
-			printf("\n");
-			return;
-		}
-		case 0xfc:
-			cur_block = "Display Product Name";
-			has_name_descriptor = 1;
-			printf("%s: %s\n", cur_block, extract_string(x + 5, 13));
-			return;
-		case 0xfd: {
-			int h_max_offset = 0, h_min_offset = 0;
-			int v_max_offset = 0, v_min_offset = 0;
-			int is_cvt = 0;
-			char *range_class = "";
-
-			cur_block = "Display Range Limits";
-			printf("%s\n", cur_block);
-			has_range_descriptor = 1;
-			/* 
-			 * XXX todo: implement feature flags, vtd blocks
-			 * XXX check: ranges are well-formed; block termination if no vtd
-			 */
-			if (claims_one_point_four) {
-				if (x[4] & 0x02) {
-					v_max_offset = 255;
-					if (x[4] & 0x01) {
-						v_min_offset = 255;
-					}
-				}
-				if (x[4] & 0x08) {
-					h_max_offset = 255;
-					if (x[4] & 0x04) {
-						h_min_offset = 255;
-					}
-				}
-			}
-
-			/*
-			 * despite the values, this is not a bitfield.
-			 */
-			switch (x[10]) {
-			case 0x00: /* default gtf */
-				range_class = "GTF";
-				break;
-			case 0x01: /* range limits only */
-				range_class = "bare limits";
-				if (!claims_one_point_four)
-					fail("'%s' is not allowed for EDID < 1.4\n", range_class);
-				break;
-			case 0x02: /* secondary gtf curve */
-				range_class = "GTF with icing";
-				break;
-			case 0x04: /* cvt */
-				range_class = "CVT";
-				is_cvt = 1;
-				if (!claims_one_point_four)
-					fail("'%s' is not allowed for EDID < 1.4\n", range_class);
-				break;
-			default: /* invalid */
-				fail("invalid range class 0x%02x\n", x[10]);
-				range_class = "invalid";
-				break;
-			}
-
-			if (x[5] + v_min_offset > x[6] + v_max_offset)
-				fail("min vertical rate > max vertical rate\n");
-			mon_min_vert_freq_hz = x[5] + v_min_offset;
-			mon_max_vert_freq_hz = x[6] + v_max_offset;
-			if (x[7] + h_min_offset > x[8] + h_max_offset)
-				fail("min horizontal freq > max horizontal freq\n");
-			mon_min_hor_freq_hz = (x[7] + h_min_offset) * 1000;
-			mon_max_hor_freq_hz = (x[8] + h_max_offset) * 1000;
-			printf("  Monitor ranges (%s): %d-%dHz V, %d-%dkHz H",
-			       range_class,
-			       x[5] + v_min_offset, x[6] + v_max_offset,
-			       x[7] + h_min_offset, x[8] + h_max_offset);
-			if (x[9]) {
-				mon_max_pixclk_khz = x[9] * 10000;
-				printf(", max dotclock %dMHz\n", x[9] * 10);
-			} else {
-				if (claims_one_point_four)
-					fail("EDID 1.4 block does not set max dotclock\n");
-				printf("\n");
-			}
-
-			if (is_cvt) {
-				int max_h_pixels = 0;
-
-				printf("  CVT version %d.%d\n", (x[11] & 0xf0) >> 4, x[11] & 0x0f);
-
-				if (x[12] & 0xfc) {
-					unsigned raw_offset = (x[12] & 0xfc) >> 2;
-
-					printf("  Real max dotclock: %.2fMHz\n",
-					       (x[9] * 10) - (raw_offset * 0.25));
-					if (raw_offset >= 40)
-						warn("CVT block corrects dotclock by more than 9.75MHz\n");
-				}
-
-				max_h_pixels = x[12] & 0x03;
-				max_h_pixels <<= 8;
-				max_h_pixels |= x[13];
-				max_h_pixels *= 8;
-				if (max_h_pixels)
-					printf("  Max active pixels per line: %d\n", max_h_pixels);
-
-				printf("  Supported aspect ratios: %s %s %s %s %s\n",
-				       x[14] & 0x80 ? "4:3" : "",
-				       x[14] & 0x40 ? "16:9" : "",
-				       x[14] & 0x20 ? "16:10" : "",
-				       x[14] & 0x10 ? "5:4" : "",
-				       x[14] & 0x08 ? "15:9" : "");
-				if (x[14] & 0x07)
-					fail("Reserved bits of byte 14 are non-zero\n");
-
-				printf("  Preferred aspect ratio: ");
-				switch((x[15] & 0xe0) >> 5) {
-				case 0x00:
-					printf("4:3");
-					break;
-				case 0x01:
-					printf("16:9");
-					break;
-				case 0x02:
-					printf("16:10");
-					break;
-				case 0x03:
-					printf("5:4");
-					break;
-				case 0x04:
-					printf("15:9");
-					break;
-				default:
-					printf("(broken)");
-					fail("invalid preferred aspect ratio\n");
-					break;
-				}
-				printf("\n");
-
-				if (x[15] & 0x08)
-					printf("  Supports CVT standard blanking\n");
-				if (x[15] & 0x10)
-					printf("  Supports CVT reduced blanking\n");
-
-				if (x[15] & 0x07)
-					fail("Reserved bits of byte 15 are non-zero\n");
-
-				if (x[16] & 0xf0) {
-					printf("  Supported display scaling:\n");
-					if (x[16] & 0x80)
-						printf("    Horizontal shrink\n");
-					if (x[16] & 0x40)
-						printf("    Horizontal stretch\n");
-					if (x[16] & 0x20)
-						printf("    Vertical shrink\n");
-					if (x[16] & 0x10)
-						printf("    Vertical stretch\n");
-				}
-
-				if (x[16] & 0x0f)
-					fail("Reserved bits of byte 16 are non-zero\n");
-
-				if (x[17])
-					printf("  Preferred vertical refresh: %d Hz\n", x[17]);
-				else
-					warn("CVT block does not set preferred refresh rate\n");
-			}
-			return;
-		}
-		case 0xfe:
-			/*
-			 * TODO: Two of these in a row, in the third and fourth slots,
-			 * seems to be specified by SPWG: http://www.spwg.org/
-			 */
-			cur_block = "Alphanumeric Data String";
-			printf("%s: %s\n", cur_block,
-			       extract_string(x + 5, 13));
-			return;
-		case 0xff:
-			cur_block = "Display Product Serial Number";
-			printf("%s: %s\n", cur_block,
-			       extract_string(x + 5, 13));
-			has_serial_string = 1;
-			return;
-		default:
-			warn("Unknown monitor description type %d\n", x[3]);
-			return;
-		}
-	}
-
-	if (seen_non_detailed_descriptor && !in_extension)
-		fail("Invalid detailed timing descriptor ordering\n");
-
 	cur_block = "Detailed Timings";
+	if (x[0] == 0 && x[1] == 0) {
+		fail("First two bytes are 0, invalid data\n");
+		return;
+	}
 	did_detailed_timing = 1;
 	ha = (x[2] + ((x[4] & 0xf0) << 4));
 	hbl = (x[3] + ((x[4] & 0x0f) << 8));
@@ -1258,6 +1135,146 @@ static void detailed_block(const unsigned char *x, int in_extension)
 		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
 		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
 		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
+	}
+}
+
+static void detailed_block(const unsigned char *x)
+{
+	static int seen_non_detailed_descriptor;
+	unsigned i;
+
+	if (x[0] || x[1]) {
+		detailed_timings(x);
+		if (seen_non_detailed_descriptor)
+			fail("Invalid detailed timing descriptor ordering\n");
+		return;
+	}
+
+	cur_block = "Display Descriptor";
+	/* Monitor descriptor block, not detailed timing descriptor. */
+	if (x[2] != 0) {
+		/* 1.3, 3.10.3 */
+		fail("monitor descriptor block has byte 2 nonzero (0x%02x)\n", x[2]);
+	}
+	if ((!claims_one_point_four || x[3] != 0xfd) && x[4] != 0x00) {
+		/* 1.3, 3.10.3 */
+		fail("monitor descriptor block has byte 4 nonzero (0x%02x)\n", x[4]);
+	}
+
+	seen_non_detailed_descriptor = 1;
+	if (claims_one_point_oh)
+		fail("Has descriptor blocks other than detailed timings\n");
+
+	if (x[3] <= 0xf) {
+		/*
+		 * in principle we can decode these, if we know what they are.
+		 * 0x0f seems to be common in laptop panels.
+		 * 0x0e is used by EPI: http://www.epi-standard.org/
+		 */
+		printf("Manufacturer-specified data, tag %d\n", x[3]);
+		return;
+	}
+	switch (x[3]) {
+	case 0x10:
+		cur_block = "Dummy Descriptor";
+		printf("%s\n", cur_block);
+		for (i = 5; i < 18; i++) {
+			if (x[i]) {
+				fail("dummy block filled with garbage\n");
+				break;
+			}
+		}
+		return;
+	case 0xf7:
+		cur_block = "Established timings III";
+		printf("%s\n", cur_block);
+		for (i = 0; i < 44; i++)
+			if (x[6 + i / 8] & (1 << (7 - i % 8)))
+				print_timings("  ", find_dmt_id(established_timings3_dmt_ids[i]), "");
+		return;
+	case 0xf8:
+		cur_block = "CVT 3 Byte Timing Codes";
+		printf("%s\n", cur_block);
+		if (x[5] != 0x01) {
+			fail("Invalid version number\n");
+			return;
+		}
+		for (i = 0; i < 4; i++)
+			detailed_cvt_descriptor(x + 6 + (i * 3), (i == 0));
+		return;
+	case 0xf9:
+		cur_block = "Display Color Management Data";
+		printf("%s\n", cur_block);
+		printf("  Version:  %d\n", x[5]);
+		printf("  Red a3:   %.2f\n", (short)(x[6] | (x[7] << 8)) / 100.0);
+		printf("  Red a2:   %.2f\n", (short)(x[8] | (x[9] << 8)) / 100.0);
+		printf("  Green a3: %.2f\n", (short)(x[10] | (x[11] << 8)) / 100.0);
+		printf("  Green a2: %.2f\n", (short)(x[12] | (x[13] << 8)) / 100.0);
+		printf("  Blue a3:  %.2f\n", (short)(x[14] | (x[15] << 8)) / 100.0);
+		printf("  Blue a2:  %.2f\n", (short)(x[16] | (x[17] << 8)) / 100.0);
+		return;
+	case 0xfa:
+		cur_block = "Standard Timing Identifications";
+		printf("%s\n", cur_block);
+		for (i = 0; i < 6; i++)
+			print_standard_timing(x[5 + i * 2], x[5 + i * 2 + 1]);
+		return;
+	case 0xfb: {
+		unsigned w_x, w_y;
+		unsigned gamma;
+
+		cur_block = "Color Point Data";
+		printf("%s\n", cur_block);
+		w_x = (x[7] << 2) | ((x[6] >> 2) & 3);
+		w_y = (x[8] << 2) | (x[6] & 3);
+		gamma = x[9];
+		printf("  Index: %u White: 0.%04u, 0.%04u", x[5],
+		       (w_x * 10000) / 1024, (w_y * 10000) / 1024);
+		if (gamma == 0xff)
+			printf(" Gamma: is defined in an extension block");
+		else
+			printf(" Gamma: %.2f", ((gamma + 100.0) / 100.0));
+		printf("\n");
+		if (x[10] == 0)
+			return;
+		w_x = (x[12] << 2) | ((x[11] >> 2) & 3);
+		w_y = (x[13] << 2) | (x[11] & 3);
+		gamma = x[14];
+		printf("  Index: %u White: 0.%04u, 0.%04u", x[10],
+		       (w_x * 10000) / 1024, (w_y * 10000) / 1024);
+		if (gamma == 0xff)
+			printf(" Gamma: is defined in an extension block");
+		else
+			printf(" Gamma: %.2f", ((gamma + 100.0) / 100.0));
+		printf("\n");
+		return;
+	}
+	case 0xfc:
+		cur_block = "Display Product Name";
+		has_name_descriptor = 1;
+		printf("%s: %s\n", cur_block, extract_string(x + 5, 13));
+		return;
+	case 0xfd:
+		detailed_display_range_limits(x);
+		return;
+	case 0xfe:
+		/*
+		 * TODO: Two of these in a row, in the third and fourth slots,
+		 * seems to be specified by SPWG: http://www.spwg.org/
+		 */
+		cur_block = "Alphanumeric Data String";
+		printf("%s: %s\n", cur_block,
+		       extract_string(x + 5, 13));
+		return;
+	case 0xff:
+		cur_block = "Display Product Serial Number";
+		printf("%s: %s\n", cur_block,
+		       extract_string(x + 5, 13));
+		has_serial_string = 1;
+		return;
+	default:
+		warn("Unknown monitor description type %d\n", x[3]);
+		return;
 	}
 }
 
@@ -2621,7 +2638,7 @@ static int parse_cta(const unsigned char *x)
 		cur_block = "CTA-861 Detailed Timings";
 		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18)
 			if (detailed[0])
-				detailed_block(detailed, 1);
+				detailed_timings(detailed);
 	} while (0);
 
 	has_valid_cta_checksum = do_checksum(x, EDID_PAGE_SIZE);
@@ -3553,12 +3570,12 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		print_standard_timing(edid[0x26 + i * 2], edid[0x26 + i * 2 + 1]);
 
 	/* detailed timings */
-	detailed_block(edid + 0x36, 0);
+	detailed_block(edid + 0x36);
 	if (has_preferred_timing && !did_detailed_timing)
 		has_preferred_timing = 0; /* not really accurate... */
-	detailed_block(edid + 0x48, 0);
-	detailed_block(edid + 0x5a, 0);
-	detailed_block(edid + 0x6c, 0);
+	detailed_block(edid + 0x48);
+	detailed_block(edid + 0x5a);
+	detailed_block(edid + 0x6c);
 
 	if (edid[0x7e])
 		printf("Has %u extension block%s\n", edid[0x7e], edid[0x7e] > 1 ? "s" : "");
@@ -3611,13 +3628,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		if (nonconformant_digital_display)
 			printf("\tDigital display field contains garbage: %x\n",
 			       nonconformant_digital_display);
-	} else if (claims_one_point_oh) {
-		if (seen_non_detailed_descriptor)
-			conformant = 0;
-		if (!conformant)
-			printf("EDID block does NOT conform to EDID 1.0!\n");
-		if (seen_non_detailed_descriptor)
-			printf("\tHas descriptor blocks other than detailed timings\n");
 	}
 
 	if (has_range_descriptor &&
