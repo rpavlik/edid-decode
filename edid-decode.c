@@ -102,8 +102,8 @@ enum output_format {
 	OUT_FMT_CARRAY
 };
 
-// Short Timings (for DMT and Established Timings I && II)
-struct short_timings {
+// Video Timings
+struct timings {
 	unsigned x, y;
 	unsigned refresh;
 	unsigned ratio_w, ratio_h;
@@ -286,7 +286,7 @@ static const struct {
 	unsigned dmt_id;
 	unsigned std_id;
 	unsigned cvt_id;
-	struct short_timings t;
+	struct timings t;
 } dmt_timings[] = {
 	{ 0x01, 0x0000, 0x000000, { 640, 350, 85, 64, 35, 37900, 31500 } },
 
@@ -405,7 +405,7 @@ static const struct {
 	{ 0x58, 0x0000, 0x000000, { 4096, 2160, 59, 256, 135, 133187, 556188, 1 } },
 };
 
-static const struct short_timings *find_dmt_id(unsigned char dmt_id)
+static const struct timings *find_dmt_id(unsigned char dmt_id)
 {
 	unsigned i;
 
@@ -415,7 +415,7 @@ static const struct short_timings *find_dmt_id(unsigned char dmt_id)
 	return NULL;
 }
 
-static const struct short_timings *find_std_id(unsigned short std_id)
+static const struct timings *find_std_id(unsigned short std_id)
 {
 	unsigned i;
 
@@ -425,7 +425,7 @@ static const struct short_timings *find_std_id(unsigned short std_id)
 	return NULL;
 }
 
-static void print_short_timings(const char *prefix, const struct short_timings *t, const char *suffix)
+static void print_timings(const char *prefix, const struct timings *t, const char *suffix)
 {
 	if (!t) {
 		// Should not happen
@@ -453,7 +453,7 @@ static void print_short_timings(const char *prefix, const struct short_timings *
 /*
  * Copied from xserver/hw/xfree86/modes/xf86cvt.c
  */
-static void edid_cvt_mode(struct short_timings *t, int preferred)
+static void edid_cvt_mode(struct timings *t, int preferred)
 {
 	int HDisplay = t->x;
 	int VDisplay = t->y;
@@ -573,13 +573,13 @@ static void edid_cvt_mode(struct short_timings *t, int preferred)
 	t->pixclk_khz -= t->pixclk_khz % CVT_CLOCK_STEP;
 	t->hor_freq_hz = (t->pixclk_khz * 1000) / HTotal;
 
-	print_short_timings("    ", t, preferred ? " (preferred vertical rate)" : "");
+	print_timings("    ", t, preferred ? " (preferred vertical rate)" : "");
 }
 
 static void detailed_cvt_descriptor(const unsigned char *x, int first)
 {
 	static const unsigned char empty[3] = { 0, 0, 0 };
-	struct short_timings cvt_t = {};
+	struct timings cvt_t = {};
 	unsigned char preferred;
 
 	if (!first && !memcmp(x, empty, 3))
@@ -685,7 +685,7 @@ static char *extract_string(const unsigned char *x, unsigned len)
 	return s;
 }
 
-static const struct short_timings established_timings12[] = {
+static const struct timings established_timings12[] = {
 	/* 0x23 bit 7 - 0 */
 	{ 720, 400, 70, 9, 5, 31469, 28320 },
 	{ 720, 400, 88, 9, 5, 39500, 35500 },
@@ -765,7 +765,7 @@ static const unsigned char established_timings3_dmt_ids[] = {
 
 static void print_standard_timing(uint8_t b1, uint8_t b2)
 {
-	const struct short_timings *t;
+	const struct timings *t;
 	unsigned ratio_w, ratio_h;
 	unsigned x, y, refresh;
 	unsigned i;
@@ -779,7 +779,7 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 	}
 	t = find_std_id((b1 << 8) | b2);
 	if (t) {
-		print_short_timings("  ", t, "");
+		print_timings("  ", t, "");
 		return;
 	}
 	x = (b1 + 31) * 8;
@@ -822,7 +822,7 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 		    established_timings12[i].ratio_w == ratio_w &&
 		    established_timings12[i].ratio_h == ratio_h) {
 			t = &established_timings12[i];
-			print_short_timings("  ", t, "");
+			print_timings("  ", t, "");
 			return;
 		}
 	}
@@ -832,7 +832,7 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 		if (t->x == x && t->y == y &&
 		    t->refresh == refresh &&
 		    t->ratio_w == ratio_w && t->ratio_h == ratio_h) {
-			print_short_timings("  ", t, "");
+			print_timings("  ", t, "");
 			return;
 		}
 	}
@@ -891,7 +891,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			printf("%s\n", cur_block);
 			for (i = 0; i < 44; i++)
 				if (x[6 + i / 8] & (1 << (7 - i % 8)))
-					print_short_timings("  ", find_dmt_id(established_timings3_dmt_ids[i]), "");
+					print_timings("  ", find_dmt_id(established_timings3_dmt_ids[i]), "");
 			return 1;
 		case 0xf8:
 			cur_block = "CVT 3 Byte Timing Codes";
@@ -1421,7 +1421,7 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 	}
 }
 
-static const struct short_timings edid_cta_modes1[] = {
+static const struct timings edid_cta_modes1[] = {
 	/* VIC 1 */
 	{ 640, 480, 60, 4, 3, 31469, 25175 },
 	{ 720, 480, 60, 4, 3, 31469, 27000 },
@@ -1564,7 +1564,7 @@ static const struct short_timings edid_cta_modes1[] = {
 	{ 5120, 2160, 100, 64, 27, 225000, 1485000 },
 };
 
-static const struct short_timings edid_cta_modes2[] = {
+static const struct timings edid_cta_modes2[] = {
 	/* VIC 193 */
 	{ 5120, 2160, 120, 64, 27, 270000, 1485000 },
 	{ 7680, 4320, 24, 16, 9, 108000, 1188000 },
@@ -1597,7 +1597,7 @@ static const struct short_timings edid_cta_modes2[] = {
 	{ 4096, 2160, 120, 256, 135, 270000, 1188000 },
 };
 
-static const struct short_timings *vic_to_mode(unsigned char vic)
+static const struct timings *vic_to_mode(unsigned char vic)
 {
 	if (vic > 0 && vic <= ARRAY_SIZE(edid_cta_modes1))
 		return edid_cta_modes1 + vic - 1;
@@ -1611,7 +1611,7 @@ static void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 	unsigned i;
 
 	for (i = 0; i < n; i++)  {
-		const struct short_timings *t = NULL;
+		const struct timings *t = NULL;
 		unsigned char svd = x[i];
 		unsigned char native;
 		unsigned char vic;
@@ -1644,7 +1644,7 @@ static void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 				break;
 			}
 			printf("    VIC %3u ", vic);
-			print_short_timings("", t, native ? " native" : "");
+			print_timings("", t, native ? " native" : "");
 		} else {
 			printf("    VIC %3u (Unknown)\n", vic);
 			fail("unknown VIC %u\n", vic);
@@ -1687,7 +1687,7 @@ static void cta_vfpdb(const unsigned char *x, unsigned length)
 		unsigned char svr = x[i];
 
 		if ((svr > 0 && svr < 128) || (svr > 192 && svr < 254)) {
-			const struct short_timings *t;
+			const struct timings *t;
 			unsigned char vic = svr;
 
 			t = vic_to_mode(vic);
@@ -1707,7 +1707,7 @@ static void cta_vfpdb(const unsigned char *x, unsigned length)
 	}
 }
 
-static const struct short_timings edid_hdmi_modes[] = {
+static const struct timings edid_hdmi_modes[] = {
 	{ 3840, 2160, 30, 16, 9, 67500, 297000 },
 	{ 3840, 2160, 25, 16, 9, 56250, 297000 },
 	{ 3840, 2160, 24, 16, 9, 54000, 297000 },
@@ -1812,13 +1812,13 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 
 		for (i = 0; i < len_vic; i++) {
 			unsigned char vic = x[8 + b + i];
-			const struct short_timings *t;
+			const struct timings *t;
 
 			if (vic && vic <= ARRAY_SIZE(edid_hdmi_modes)) {
 				supported_hdmi_vic_codes |= 1 << (vic - 1);
 				t = &edid_hdmi_modes[vic - 1];
 				printf("      HDMI VIC %u ", vic);
-				print_short_timings("", t, "");
+				print_timings("", t, "");
 			} else {
 				printf("      HDMI VIC %u (Unknown)\n", vic);
 			}
@@ -2782,7 +2782,7 @@ static int parse_displayid(const unsigned char *x)
 			printf("  Type 1 VESA DMT Timings Block\n");
 			for (i = 0; i < min(len, 10) * 8; i++)
 				if (x[offset + 3 + i / 8] & (1 << (i % 8)))
-					print_short_timings("    ", find_dmt_id(i + 1), "");
+					print_timings("    ", find_dmt_id(i + 1), "");
 			break;
 		case 8:
 			printf("  CTA Timings Block\n");
@@ -3561,7 +3561,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	printf("%s\n", cur_block);
 	for (i = 0; i < 17; i++)
 		if (edid[0x23 + i / 8] & (1 << (7 - i % 8)))
-			print_short_timings("  ", &established_timings12[i], "");
+			print_timings("  ", &established_timings12[i], "");
 	has_640x480p60_est_timing = edid[0x23] & 0x20;
 
 	cur_block = "Standard Timings";
