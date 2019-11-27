@@ -53,17 +53,14 @@ static int nonconformant_digital_display = 0;
 static int nonconformant_extension = 0;
 static int did_detailed_timing = 0;
 static int has_name_descriptor = 0;
-static int has_serial_string = 0;
-static int has_ascii_string = 0;
 static int has_range_descriptor = 0;
 static int has_preferred_timing = 0;
 static int has_valid_checksum = 1;
 static int has_valid_cta_checksum = 1;
 static int has_valid_displayid_checksum = 1;
 static int has_valid_cvt = 1;
-static int has_valid_serial_number = 0;
-static int has_valid_serial_string = 0;
-static int has_valid_ascii_string = 0;
+static int has_serial_number = 0;
+static int has_serial_string = 0;
 static int has_valid_name_descriptor = 0;
 static int has_valid_detailed_blocks = 0;
 static int has_valid_descriptor_ordering = 1;
@@ -507,48 +504,40 @@ static int detailed_cvt_descriptor(const unsigned char *x, int first)
 
 /* extract a string from a detailed subblock, checking for termination */
 static char *extract_string(const char *name, const unsigned char *x,
-			    int *valid, unsigned len)
+			    unsigned len)
 {
-	static char ret[EDID_PAGE_SIZE];
+	static char s[EDID_PAGE_SIZE];
 	int seen_newline = 0;
 	unsigned i;
 
-	memset(ret, 0, sizeof(ret));
-	*valid = 1;
+	memset(s, 0, sizeof(s));
 
 	for (i = 0; i < len; i++) {
 		if (isgraph(x[i])) {
-			ret[i] = x[i];
+			s[i] = x[i];
 		} else if (!seen_newline) {
 			if (x[i] == 0x0a) {
 				seen_newline = 1;
-				if (!i) {
+				if (!i)
 					fail("%s: empty string\n", name);
-					*valid = 0;
-				} else if (ret[i - 1] == 0x20) {
+				else if (s[i - 1] == 0x20)
 					fail("%s: one or more trailing spaces\n", name);
-					*valid = 0;
-				}
 			} else if (x[i] == 0x20) {
-				ret[i] = x[i];
+				s[i] = x[i];
 			} else {
 				fail("%s: non-printable character\n", name);
-				*valid = 0;
-				return ret;
+				return s;
 			}
 		} else if (x[i] != 0x20) {
 			fail("%s: non-space after newline\n", name);
-			*valid = 0;
-			return ret;
+			return s;
 		}
 	}
 	/* Does the string end with a space? */
-	if (!seen_newline && ret[len - 1] == 0x20) {
+	if (!seen_newline && s[len - 1] == 0x20)
 		fail("%s: one or more trailing spaces\n", name);
-		*valid = 0;
-	}
 
-	return ret;
+	return s;
 }
 
 static const struct {
@@ -838,7 +827,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 		case 0xfc:
 			has_name_descriptor = 1;
 			printf("Monitor name: %s\n",
-			       extract_string("Display Product Name", x + 5, &has_valid_name_descriptor, 13));
+			       extract_string("Display Product Name", x + 5, 13));
 			return 1;
 		case 0xfd: {
 			int h_max_offset = 0, h_min_offset = 0;
@@ -994,14 +983,13 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			 * TODO: Two of these in a row, in the third and fourth slots,
 			 * seems to be specified by SPWG: http://www.spwg.org/
 			 */
-			has_ascii_string = 1;
 			printf("ASCII string: %s\n",
-			       extract_string("Alphanumeric Data String", x + 5, &has_valid_ascii_string, 13));
+			       extract_string("Alphanumeric Data String", x + 5, 13));
 			return 1;
 		case 0xff:
-			has_serial_string = 1;
 			printf("Serial number: %s\n",
-			       extract_string("Display Product Serial Number", x + 5, &has_valid_serial_string, 13));
+			       extract_string("Display Product Serial Number", x + 5, 13));
+			has_serial_string = 1;
 			return 1;
 		default:
 			printf("Unknown monitor description type %d\n", x[3]);
@@ -2492,6 +2480,9 @@ static int parse_cta(const unsigned char *x)
 
 	cur_block = "CTA-861";
 
+	if (has_serial_number && has_serial_string)
+		fail("Both the serial number and the serial string are set\n");
+
 	if (version >= 1) do {
 		if (version == 1 && x[3] != 0)
 			ret = 1; // 1 = nonconformant
@@ -3368,7 +3359,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	       (unsigned short)(edid[0x0a] + (edid[0x0b] << 8)),
 	       (unsigned)(edid[0x0c] + (edid[0x0d] << 8) +
 			  (edid[0x0e] << 16) + (edid[0x0f] << 24)));
-	has_valid_serial_number = edid[0x0c] || edid[0x0d] || edid[0x0e] || edid[0x0f];
+	has_serial_number = edid[0x0c] || edid[0x0d] || edid[0x0e] || edid[0x0f];
 	/* XXX need manufacturer ID table */
 
 	time(&the_time);
@@ -3693,13 +3684,10 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	if (nonconformant_extension ||
 	    !has_valid_checksum ||
 	    !has_valid_cvt ||
-	    (has_cta861 && has_valid_serial_number && has_valid_serial_string) ||
 	    !has_valid_detailed_blocks ||
 	    !has_valid_descriptor_ordering ||
 	    !has_valid_range_descriptor ||
-	    (has_name_descriptor && !has_valid_name_descriptor) ||
-	    (has_serial_string && !has_valid_serial_string) ||
-	    (has_ascii_string && !has_valid_ascii_string)) {
+	    (has_name_descriptor && !has_valid_name_descriptor)) {
 		conformant = 0;
 		printf("EDID block does not conform:\n");
 		if (nonconformant_extension)
@@ -3709,8 +3697,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			printf("\tBlock has broken checksum\n");
 		if (!has_valid_cvt)
 			printf("\tBroken 3-byte CVT blocks\n");
-		if (has_cta861 && has_valid_serial_number && has_valid_serial_string)
-			printf("\tBoth the serial number and the serial string are set\n");
 		if (!has_valid_detailed_blocks)
 			printf("\tDetailed blocks filled with garbage\n");
 		if (!has_valid_descriptor_ordering)
@@ -3719,10 +3705,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			printf("\tRange descriptor contains garbage\n");
 		if (has_name_descriptor && !has_valid_name_descriptor)
 			printf("\tInvalid Monitor Name descriptor\n");
-		if (has_ascii_string && !has_valid_ascii_string)
-			printf("\tInvalid ASCII string\n");
-		if (has_serial_string && !has_valid_serial_string)
-			printf("\tInvalid serial string\n");
 	}
 
 	if (!has_valid_cta_checksum) {
