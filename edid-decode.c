@@ -50,14 +50,10 @@ static int claims_one_point_two = 0;
 static int claims_one_point_three = 0;
 static int claims_one_point_four = 0;
 static int nonconformant_digital_display = 0;
-static int nonconformant_extension = 0;
 static int did_detailed_timing = 0;
 static int has_name_descriptor = 0;
 static int has_range_descriptor = 0;
 static int has_preferred_timing = 0;
-static int has_valid_checksum = 1;
-static int has_valid_cta_checksum = 1;
-static int has_valid_displayid_checksum = 1;
 static int has_serial_number = 0;
 static int has_serial_string = 0;
 static int has_cta861 = 0;
@@ -994,7 +990,7 @@ static void detailed_display_range_limits(const unsigned char *x)
 	}
 }
 
-static void detailed_timings(const unsigned char *x)
+static void detailed_timings(const char *prefix, const unsigned char *x)
 {
 	unsigned ha, hbl, hso, hspw, hborder, va, vbl, vso, vspw, vborder;
 	unsigned hor_mm, vert_mm;
@@ -1093,18 +1089,23 @@ static void detailed_timings(const unsigned char *x)
 		refresh = 0.0;
 	hor_mm = x[12] + ((x[14] & 0xf0) << 4);
 	vert_mm = x[13] + ((x[14] & 0x0f) << 8);
-	printf("Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
-	       "               %4u %4u %4u %4u (%3u %3u %3d) hborder %u\n"
-	       "               %4u %4u %4u %4u (%3u %3u %3d) vborder %u\n"
-	       "               %s%s%s%s%s%s%s\n"
-	       "               VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
+	printf("%sDetailed mode: Clock %.3f MHz, %u mm x %u mm\n"
+	       "%s               %4u %4u %4u %4u (%3u %3u %3d) hborder %u\n"
+	       "%s               %4u %4u %4u %4u (%3u %3u %3d) vborder %u\n"
+	       "%s               %s%s%s%s%s%s%s\n"
+	       "%s               VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
+	       prefix,
 	       pixclk_khz / 1000.0,
 	       hor_mm, vert_mm,
+	       prefix,
 	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw, hborder,
+	       prefix,
 	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw, vborder,
+	       prefix,
 	       phsync, pvsync, syncmethod, syncmethod_details,
 	       syncmethod && ((x[17] & 0x80) || *stereo) ? ", " : "",
 	       x[17] & 0x80 ? "interlaced " : "", stereo,
+	       prefix,
 	       refresh, ha + hbl ? (double)pixclk_khz / (ha + hbl) : 0.0);
 	if (hso + hspw >= hbl)
 		fail("0 or negative horizontal back porch\n");
@@ -1144,7 +1145,7 @@ static void detailed_block(const unsigned char *x)
 	unsigned i;
 
 	if (x[0] || x[1]) {
-		detailed_timings(x);
+		detailed_timings("", x);
 		if (seen_non_detailed_descriptor)
 			fail("Invalid detailed timing descriptor ordering\n");
 		return;
@@ -1278,24 +1279,24 @@ static void detailed_block(const unsigned char *x)
 	}
 }
 
-static int do_checksum(const unsigned char *x, size_t len)
+static void do_checksum(const char *prefix, const unsigned char *x, size_t len)
 {
 	unsigned char check = x[len - 1];
 	unsigned char sum = 0;
 	unsigned i;
 
-	printf("Checksum: 0x%hhx", check);
+	printf("%sChecksum: 0x%hhx", prefix, check);
 
 	for (i = 0; i < len-1; i++)
 		sum += x[i];
 
 	if ((unsigned char)(check + sum) != 0) {
 		printf(" (should be 0x%x)\n", -sum & 0xff);
-		return 0;
+		fail("Invalid checksum\n");
+		return;
 	}
 
 	printf(" (valid)\n");
-	return 1;
 }
 
 /* CTA extension */
@@ -2589,21 +2590,18 @@ static void cta_block(const unsigned char *x)
 	last_block_was_hdmi_vsdb = 0;
 }
 
-static int parse_cta(const unsigned char *x)
+static void parse_cta(const unsigned char *x)
 {
-	int ret = 0; // 0 = conformant
 	unsigned version = x[1];
 	unsigned offset = x[2];
 	const unsigned char *detailed;
-
-	cur_block = "CTA-861";
 
 	if (has_serial_number && has_serial_string)
 		fail("Both the serial number and the serial string are set\n");
 
 	if (version >= 1) do {
 		if (version == 1 && x[3] != 0)
-			ret = 1; // 1 = nonconformant
+			fail("Non-zero byte 3\n");
 
 		if (offset < 4)
 			break;
@@ -2638,14 +2636,11 @@ static int parse_cta(const unsigned char *x)
 		cur_block = "CTA-861 Detailed Timings";
 		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18)
 			if (detailed[0])
-				detailed_timings(detailed);
+				detailed_timings("  ", detailed);
 	} while (0);
 
-	has_valid_cta_checksum = do_checksum(x, EDID_PAGE_SIZE);
 	has_cta861 = 1;
 	nonconformant_cta861_640x480 = !has_cta861_vic_1 && !has_640x480p60_est_timing;
-
-	return ret;
 }
 
 static void parse_displayid_detailed_timing(const unsigned char *x)
@@ -2726,15 +2721,13 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	      );
 }
 
-static int parse_displayid(const unsigned char *x)
+static void parse_displayid(const unsigned char *x)
 {
 	const unsigned char *orig = x;
 	unsigned version = x[1];
 	unsigned length = x[2];
 	unsigned ext_count = x[4];
 	unsigned i;
-
-	cur_block = "DisplayID";
 
 	printf("Length %u, version %u.%u, extension count %u\n",
 	       length, version >> 4, version & 0xf, ext_count);
@@ -2863,13 +2856,13 @@ static int parse_displayid(const unsigned char *x)
 		offset += len + 3;
 	}
 
-	/* DisplayID length field is number of following bytes
+	/*
+	 * DisplayID length field is number of following bytes
 	 * but checksum is calculated over the entire structure
 	 * (excluding DisplayID-in-EDID magic byte)
 	 */
-	printf("  ");
-	has_valid_displayid_checksum = do_checksum(orig+1, orig[2] + 5);
-	return 0;
+	cur_block = "DisplayID";
+	do_checksum("  ", orig+1, orig[2] + 5);
 }
 
 /* generic extension code */
@@ -2879,68 +2872,75 @@ static void extension_version(const unsigned char *x)
 	printf("Extension version: %u\n", x[1]);
 }
 
-static int parse_extension(const unsigned char *x)
+static void parse_extension(const unsigned char *x)
 {
-	int nonconformant_extension = 0;
-
 	printf("\n");
 
 	switch (x[0]) {
 	case 0x02:
-		printf("CTA Extension Block\n");
+		cur_block = "CTA-861 Extension Block";
+		printf("%s\n", cur_block);
 		extension_version(x);
-		nonconformant_extension = parse_cta(x);
+		parse_cta(x);
+		cur_block = "CTA-861 Extension Block";
+		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0x10:
-		printf("VTB Extension Block\n");
+		cur_block = "VTB Extension Block";
+		printf("%s\n", cur_block);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
-		do_checksum(x, EDID_PAGE_SIZE);
+		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0x40:
-		printf("DI Extension Block\n");
+		cur_block = "DI Extension Block";
+		printf("%s\n", cur_block);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
-		do_checksum(x, EDID_PAGE_SIZE);
+		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0x50:
-		printf("LS Extension Block\n");
+		cur_block = "LS Extension Block";
+		printf("%s\n", cur_block);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
-		do_checksum(x, EDID_PAGE_SIZE);
+		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0x60:
-		printf("DPVL Extension Block\n");
+		cur_block = "DPVL Extension Block";
+		printf("%s\n", cur_block);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
-		do_checksum(x, EDID_PAGE_SIZE);
+		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0x70:
-		printf("DisplayID Extension Block\n");
-		nonconformant_extension = parse_displayid(x);
-		do_checksum(x, EDID_PAGE_SIZE);
+		cur_block = "DisplayID Extension Block";
+		printf("%s\n", cur_block);
+		parse_displayid(x);
+		cur_block = "DisplayID Extension Block";
+		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0xf0:
-		printf("Block map\n");
+		cur_block = "Block map";
+		printf("%s\n", cur_block);
 		hex_block("  ", x + 1, 126);
-		do_checksum(x, EDID_PAGE_SIZE);
+		do_checksum("  ", x, EDID_PAGE_SIZE);
 		break;
 	case 0xff:
-		printf("Manufacturer-specific Extension Block\n");
+		cur_block = "Manufacturer-specific Extension Block";
+		printf("%s\n", cur_block);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
-		do_checksum(x, EDID_PAGE_SIZE);
+		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	default:
-		printf("Unknown Extension Block (0x%02x)\n", x[0]);
+		cur_block = "Unknown Extension Block";
+		printf("%s (0x%02x)\n", cur_block, x[0]);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
-		printf("  ");
-		do_checksum(x, EDID_PAGE_SIZE);
+		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	}
-
-	return nonconformant_extension;
 }
 
 static int edid_lines = 0;
@@ -3580,9 +3580,8 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	if (edid[0x7e])
 		printf("Has %u extension block%s\n", edid[0x7e], edid[0x7e] > 1 ? "s" : "");
 
-	has_valid_checksum = do_checksum(edid, EDID_PAGE_SIZE);
-
 	cur_block = "Base Block";
+	do_checksum("", edid, EDID_PAGE_SIZE);
 	if (claims_one_point_three) {
 		if (!has_name_descriptor)
 			fail("Missing Display Product Name\n");
@@ -3592,7 +3591,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	for (edid_lines /= 8; edid_lines > 1; edid_lines--) {
 		x += EDID_PAGE_SIZE;
 		printf("\n----------------\n");
-		nonconformant_extension += parse_extension(x);
+		parse_extension(x);
 	}
 
 	if (!options[OptCheck]) {
@@ -3653,26 +3652,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		       mon_min_hor_freq_hz, mon_max_hor_freq_hz);
 		printf("  Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
 		       max_pixclk_khz / 1000.0, mon_max_pixclk_khz / 1000.0);
-	}
-
-	if (nonconformant_extension ||
-	    !has_valid_checksum) {
-		conformant = 0;
-		printf("EDID block does not conform:\n");
-		if (nonconformant_extension)
-			printf("\tHas %d nonconformant extension block(s)\n",
-			       nonconformant_extension);
-		if (!has_valid_checksum)
-			printf("\tBlock has broken checksum\n");
-	}
-
-	if (!has_valid_cta_checksum) {
-		printf("CTA extension block does not conform\n");
-		printf("\tBlock has broken checksum\n");
-	}
-	if (!has_valid_displayid_checksum) {
-		printf("DisplayID extension block does not conform\n");
-		printf("\tBlock has broken checksum\n");
 	}
 
 	if ((supported_hdmi_vic_vsb_codes & supported_hdmi_vic_codes) != supported_hdmi_vic_codes)
