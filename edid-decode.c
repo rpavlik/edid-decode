@@ -60,20 +60,12 @@ static int has_valid_cta_checksum = 1;
 static int has_valid_displayid_checksum = 1;
 static int has_serial_number = 0;
 static int has_serial_string = 0;
-static int has_valid_name_descriptor = 0;
-static int has_valid_detailed_blocks = 0;
-static int has_valid_descriptor_ordering = 1;
 static int has_cta861 = 0;
 static int has_640x480p60_est_timing = 0;
 static int has_cta861_vic_1 = 0;
 static int seen_non_detailed_descriptor = 0;
 
-static int nonconformant_hf_vsdb_position = 0;
-static int duplicate_scdb = 0;
 static int nonconformant_cta861_640x480 = 0;
-static int nonconformant_hdmi_vsdb_tmds_rate = 0;
-static int nonconformant_hf_vsdb_tmds_rate = 0;
-static int nonconformant_hf_eeodb = 0;
 
 static unsigned min_hor_freq_hz = 0xfffffff;
 static unsigned max_hor_freq_hz = 0;
@@ -842,8 +834,7 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 	       x, y, refresh, ratio_w, ratio_h);
 }
 
-/* 1 means valid data */
-static int detailed_block(const unsigned char *x, int in_extension)
+static void detailed_block(const unsigned char *x, int in_extension)
 {
 	unsigned ha, hbl, hso, hspw, hborder, va, vbl, vso, vspw, vborder;
 	unsigned hor_mm, vert_mm;
@@ -873,7 +864,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			 * 0x0e is used by EPI: http://www.epi-standard.org/
 			 */
 			printf("Manufacturer-specified data, tag %d\n", x[3]);
-			return 1;
+			return;
 		}
 		switch (x[3]) {
 		case 0x10:
@@ -885,24 +876,24 @@ static int detailed_block(const unsigned char *x, int in_extension)
 					break;
 				}
 			}
-			return 1;
+			return;
 		case 0xf7:
 			cur_block = "Established timings III";
 			printf("%s\n", cur_block);
 			for (i = 0; i < 44; i++)
 				if (x[6 + i / 8] & (1 << (7 - i % 8)))
 					print_timings("  ", find_dmt_id(established_timings3_dmt_ids[i]), "");
-			return 1;
+			return;
 		case 0xf8:
 			cur_block = "CVT 3 Byte Timing Codes";
 			printf("%s\n", cur_block);
 			if (x[5] != 0x01) {
 				fail("Invalid version number\n");
-				return 0;
+				return;
 			}
 			for (i = 0; i < 4; i++)
 				detailed_cvt_descriptor(x + 6 + (i * 3), (i == 0));
-			return 1;
+			return;
 		case 0xf9:
 			cur_block = "Display Color Management Data";
 			printf("%s\n", cur_block);
@@ -913,13 +904,13 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			printf("  Green a2: %.2f\n", (short)(x[12] | (x[13] << 8)) / 100.0);
 			printf("  Blue a3:  %.2f\n", (short)(x[14] | (x[15] << 8)) / 100.0);
 			printf("  Blue a2:  %.2f\n", (short)(x[16] | (x[17] << 8)) / 100.0);
-			return 1;
+			return;
 		case 0xfa:
 			cur_block = "Standard Timing Identifications";
 			printf("%s\n", cur_block);
 			for (i = 0; i < 6; i++)
 				print_standard_timing(x[5 + i * 2], x[5 + i * 2 + 1]);
-			return 1;
+			return;
 		case 0xfb: {
 			unsigned w_x, w_y;
 			unsigned gamma;
@@ -937,7 +928,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				printf(" Gamma: %.2f", ((gamma + 100.0) / 100.0));
 			printf("\n");
 			if (x[10] == 0)
-				return 1;
+				return;
 			w_x = (x[12] << 2) | ((x[11] >> 2) & 3);
 			w_y = (x[13] << 2) | (x[11] & 3);
 			gamma = x[14];
@@ -948,13 +939,13 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			else
 				printf(" Gamma: %.2f", ((gamma + 100.0) / 100.0));
 			printf("\n");
-			return 1;
+			return;
 		}
 		case 0xfc:
 			cur_block = "Display Product Name";
 			has_name_descriptor = 1;
 			printf("%s: %s\n", cur_block, extract_string(x + 5, 13));
-			return 1;
+			return;
 		case 0xfd: {
 			int h_max_offset = 0, h_min_offset = 0;
 			int v_max_offset = 0, v_min_offset = 0;
@@ -1113,12 +1104,7 @@ static int detailed_block(const unsigned char *x, int in_extension)
 				else
 					warn("CVT block does not set preferred refresh rate\n");
 			}
-
-			/*
-			 * Slightly weird to return a global, but I've never seen any
-			 * EDID block wth two range descriptors, so it's harmless.
-			 */
-			return 0;
+			return;
 		}
 		case 0xfe:
 			/*
@@ -1128,22 +1114,21 @@ static int detailed_block(const unsigned char *x, int in_extension)
 			cur_block = "Alphanumeric Data String";
 			printf("%s: %s\n", cur_block,
 			       extract_string(x + 5, 13));
-			return 1;
+			return;
 		case 0xff:
 			cur_block = "Display Product Serial Number";
 			printf("%s: %s\n", cur_block,
 			       extract_string(x + 5, 13));
 			has_serial_string = 1;
-			return 1;
+			return;
 		default:
-			printf("Unknown monitor description type %d\n", x[3]);
-			return 0;
+			warn("Unknown monitor description type %d\n", x[3]);
+			return;
 		}
 	}
 
-	if (seen_non_detailed_descriptor && !in_extension) {
-		has_valid_descriptor_ordering = 0;
-	}
+	if (seen_non_detailed_descriptor && !in_extension)
+		fail("Invalid detailed timing descriptor ordering\n");
 
 	cur_block = "Detailed Timings";
 	did_detailed_timing = 1;
@@ -1274,8 +1259,6 @@ static int detailed_block(const unsigned char *x, int in_extension)
 		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
 		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
 	}
-
-	return 1;
 }
 
 static int do_checksum(const unsigned char *x, size_t len)
@@ -1746,7 +1729,7 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 
 	printf("    Maximum TMDS clock: %uMHz\n", x[6] * 5);
 	if (x[6] * 5 > 340)
-		nonconformant_hdmi_vsdb_tmds_rate = 1;
+		fail("HDMI VSDB Max TMDS rate is > 340\n");
 
 	/* XXX the walk here is really ugly, and needs to be length-checked */
 	if (length < 8)
@@ -1926,7 +1909,7 @@ static void cta_hf_eeodb(const unsigned char *x, unsigned length)
 {
 	printf("    EDID Extension Block Count: %u\n", x[0]);
 	if (length != 1 || x[0] == 0)
-		nonconformant_hf_eeodb = 1;
+		fail("Block is too long or reports a 0 block count\n");
 }
 
 static void cta_hf_scdb(const unsigned char *x, unsigned length)
@@ -1937,7 +1920,7 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 	if (rate) {
 		printf("    Maximum TMDS Character Rate: %uMHz\n", rate);
 		if ((rate && rate <= 340) || rate > 600)
-			nonconformant_hf_vsdb_tmds_rate = 1;
+			fail("Max TMDS rate is > 0 and <= 340 or > 600\n");
 	}
 	if (x[2] & 0x80)
 		printf("    SCDC Present\n");
@@ -1962,9 +1945,9 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 		else
 			printf("%s\n", max_frl_rates[max_frl_rate]);
 		if (max_frl_rate == 1 && rate < 300)
-			nonconformant_hf_vsdb_tmds_rate = 1;
+			fail("Max Fixed Rate Link is 1, but Max TMDS rate < 300\n");
 		else if (max_frl_rate >= 2 && rate < 600)
-			nonconformant_hf_vsdb_tmds_rate = 1;
+			fail("Max Fixed Rate Link is >= 2, but Max TMDS rate < 600\n");
 	}
 	if (x[3] & 0x08)
 		printf("    Supports UHD VIC\n");
@@ -2437,9 +2420,9 @@ static void cta_block(const unsigned char *x)
 		if (oui == 0xc45dd8) {
 			cur_block = "Vendor-Specific Data Block (HDMI Forum)";
 			if (!last_block_was_hdmi_vsdb)
-				nonconformant_hf_vsdb_position = 1;
+				fail("HDMI Forum VSDB did not immediately follow the HDMI VSDB\n");
 			if (have_hf_scdb || have_hf_vsdb)
-				duplicate_scdb = 1;
+				fail("Duplicate HDMI Forum VSDB/SCDB\n");
 			printf(" (HDMI Forum)\n");
 			cta_hf_scdb(x + 4, length - 3);
 			have_hf_vsdb = 1;
@@ -2553,15 +2536,15 @@ static void cta_block(const unsigned char *x)
 			cta_hf_eeodb(x + 2, length - 1);
 			// This must be the first CTA block
 			if (!first_block)
-				nonconformant_hf_eeodb = 1;
+				fail("Block starts at a wrong offset\n");
 			break;
 		case 0x79:
 			cur_block = "HDMI Forum Sink Capability Data Block";
 			printf("HDMI Forum Sink Capability Data Block\n");
 			if (!last_block_was_hdmi_vsdb)
-				nonconformant_hf_vsdb_position = 1;
+				fail("HDMI Forum SCDB did not immediately follow the HDMI VSDB\n");
 			if (have_hf_scdb || have_hf_vsdb)
-				duplicate_scdb = 1;
+				fail("Duplicate HDMI Forum VSDB/SCDB\n");
 			if (x[2] || x[3])
 				printf("  Non-zero SCDB reserved fields!\n");
 			cta_hf_scdb(x + 4, length - 3);
@@ -3570,17 +3553,23 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		print_standard_timing(edid[0x26 + i * 2], edid[0x26 + i * 2 + 1]);
 
 	/* detailed timings */
-	has_valid_detailed_blocks = detailed_block(edid + 0x36, 0);
+	detailed_block(edid + 0x36, 0);
 	if (has_preferred_timing && !did_detailed_timing)
 		has_preferred_timing = 0; /* not really accurate... */
-	has_valid_detailed_blocks &= detailed_block(edid + 0x48, 0);
-	has_valid_detailed_blocks &= detailed_block(edid + 0x5a, 0);
-	has_valid_detailed_blocks &= detailed_block(edid + 0x6c, 0);
+	detailed_block(edid + 0x48, 0);
+	detailed_block(edid + 0x5a, 0);
+	detailed_block(edid + 0x6c, 0);
 
 	if (edid[0x7e])
 		printf("Has %u extension block%s\n", edid[0x7e], edid[0x7e] > 1 ? "s" : "");
 
 	has_valid_checksum = do_checksum(edid, EDID_PAGE_SIZE);
+
+	cur_block = "Base Block";
+	if (claims_one_point_three) {
+		if (!has_name_descriptor)
+			fail("Missing Display Product Name\n");
+	}
 
 	x = edid;
 	for (edid_lines /= 8; edid_lines > 1; edid_lines--) {
@@ -3598,13 +3587,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	if (claims_one_point_three) {
 		if (nonconformant_digital_display ||
-		    nonconformant_hf_vsdb_position ||
-		    duplicate_scdb ||
-		    nonconformant_hdmi_vsdb_tmds_rate ||
-		    nonconformant_hf_vsdb_tmds_rate ||
-		    nonconformant_hf_eeodb ||
 		    nonconformant_cta861_640x480 ||
-		    !has_name_descriptor ||
 		    !has_preferred_timing ||
 		    (!claims_one_point_four && !has_range_descriptor))
 			conformant = 0;
@@ -3616,18 +3599,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		if (nonconformant_cta861_640x480)
 			printf("\tRequired 640x480p60 timings are missing in the established timings\n"
 			       "\tand/or in the SVD list (VIC 1)\n");
-		if (nonconformant_hf_vsdb_position)
-			printf("\tHDMI Forum VSDB or SCDB did not immediately follow the HDMI VSDB\n");
-		if (duplicate_scdb)
-			printf("\tDuplicate HDMI Forum VSDB/SCDB\n");
-		if (nonconformant_hdmi_vsdb_tmds_rate)
-			printf("\tHDMI VSDB Max TMDS rate is > 340\n");
-		if (nonconformant_hf_vsdb_tmds_rate)
-			printf("\tHDMI Forum VSDB Max TMDS rate is > 0 and <= 340 or > 600\n");
-		if (nonconformant_hf_eeodb)
-			printf("\tHDMI Forum EDID Extension Override Data Block starts at a wrong offset or is too long or reports a 0 block count\n");
-		if (!has_name_descriptor)
-			printf("\tMissing name descriptor\n");
 		if (!has_preferred_timing)
 			printf("\tMissing preferred timing\n");
 		if (!has_range_descriptor)
@@ -3675,10 +3646,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	}
 
 	if (nonconformant_extension ||
-	    !has_valid_checksum ||
-	    !has_valid_detailed_blocks ||
-	    !has_valid_descriptor_ordering ||
-	    (has_name_descriptor && !has_valid_name_descriptor)) {
+	    !has_valid_checksum) {
 		conformant = 0;
 		printf("EDID block does not conform:\n");
 		if (nonconformant_extension)
@@ -3686,12 +3654,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			       nonconformant_extension);
 		if (!has_valid_checksum)
 			printf("\tBlock has broken checksum\n");
-		if (!has_valid_detailed_blocks)
-			printf("\tDetailed blocks filled with garbage\n");
-		if (!has_valid_descriptor_ordering)
-			printf("\tInvalid detailed timing descriptor ordering\n");
-		if (has_name_descriptor && !has_valid_name_descriptor)
-			printf("\tInvalid Monitor Name descriptor\n");
 	}
 
 	if (!has_valid_cta_checksum) {
