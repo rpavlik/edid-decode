@@ -1259,7 +1259,7 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 		if (state.edid_minor > 4)
 			warn("Unknown EDID minor version %u, assuming 1.4 conformance\n", state.edid_minor);
 		if (state.edid_minor < 3)
-			fail("EDID 1.%u is deprecated, do not use\n", state.edid_minor);
+			warn("EDID 1.%u is deprecated, do not use\n", state.edid_minor);
 	} else {
 		fail("Unknown EDID major version\n");
 	}
