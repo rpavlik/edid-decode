@@ -322,6 +322,8 @@ static unsigned char *extract_edid(int fd)
 
 			/* Read a %02x from the log */
 			if (!isxdigit(c[0]) || !isxdigit(c[1])) {
+				if (out_index && out_index % 128 == 0)
+					break;
 				free(ret);
 				free(out);
 				return NULL;
