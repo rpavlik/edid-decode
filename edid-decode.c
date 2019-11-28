@@ -3278,58 +3278,13 @@ static void write_edid(FILE *f, const unsigned char *edid, unsigned size,
 	}
 }
 
-static int edid_from_file(const char *from_file, const char *to_file,
-			  enum output_format out_fmt)
+static void parse_base_block(const unsigned char *edid)
 {
-	int fd;
-	FILE *out = NULL;
-	unsigned char *edid;
-	unsigned char *x;
 	time_t the_time;
 	struct tm *ptm;
 	int analog, i;
 	unsigned col_x, col_y;
 	int has_preferred_timing = 0;
-
-	if (!from_file || !strcmp(from_file, "-")) {
-		fd = 0;
-	} else if ((fd = open(from_file, O_RDONLY)) == -1) {
-		perror(from_file);
-		return -1;
-	}
-	if (to_file) {
-		if (!strcmp(to_file, "-")) {
-			out = stdout;
-		} else if ((out = fopen(to_file, "w")) == NULL) {
-			perror(to_file);
-			return -1;
-		}
-		if (out_fmt == OUT_FMT_DEFAULT)
-			out_fmt = out == stdout ? OUT_FMT_HEX : OUT_FMT_RAW;
-	}
-
-	edid = extract_edid(fd);
-	if (!edid) {
-		fprintf(stderr, "edid extract failed\n");
-		return -1;
-	}
-	if (fd != 0)
-		close(fd);
-
-	if (out) {
-		write_edid(out, edid, edid_lines * 16, out_fmt);
-		if (out == stdout)
-			return 0;
-		fclose(out);
-	}
-
-	if (options[OptExtract])
-		dump_breakdown(edid);
-
-	if (!edid || memcmp(edid, "\x00\xFF\xFF\xFF\xFF\xFF\xFF\x00", 8)) {
-		fprintf(stderr, "No header found\n");
-		return -1;
-	}
 
 	cur_block = "EDID Structure Version & Revision";
 	printf("EDID version: %hhu.%hhu\n", edid[0x12], edid[0x13]);
@@ -3572,6 +3527,57 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		if (edid_minor == 3 && !has_display_range_descriptor)
 			fail("Missing Display Range Limits Descriptor\n");
 	}
+}
+
+static int edid_from_file(const char *from_file, const char *to_file,
+			  enum output_format out_fmt)
+{
+	int fd;
+	FILE *out = NULL;
+	unsigned char *edid;
+	unsigned char *x;
+
+	if (!from_file || !strcmp(from_file, "-")) {
+		fd = 0;
+	} else if ((fd = open(from_file, O_RDONLY)) == -1) {
+		perror(from_file);
+		return -1;
+	}
+	if (to_file) {
+		if (!strcmp(to_file, "-")) {
+			out = stdout;
+		} else if ((out = fopen(to_file, "w")) == NULL) {
+			perror(to_file);
+			return -1;
+		}
+		if (out_fmt == OUT_FMT_DEFAULT)
+			out_fmt = out == stdout ? OUT_FMT_HEX : OUT_FMT_RAW;
+	}
+
+	edid = extract_edid(fd);
+	if (!edid) {
+		fprintf(stderr, "edid extract failed\n");
+		return -1;
+	}
+	if (fd != 0)
+		close(fd);
+
+	if (out) {
+		write_edid(out, edid, edid_lines * 16, out_fmt);
+		if (out == stdout)
+			return 0;
+		fclose(out);
+	}
+
+	if (options[OptExtract])
+		dump_breakdown(edid);
+
+	if (!edid || memcmp(edid, "\x00\xFF\xFF\xFF\xFF\xFF\xFF\x00", 8)) {
+		fprintf(stderr, "No header found\n");
+		return -1;
+	}
+
+	parse_base_block(edid);
 
 	x = edid;
 	for (edid_lines /= 8; edid_lines > 1; edid_lines--) {
