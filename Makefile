@@ -1,8 +1,8 @@
 bindir ?= /usr/bin
 mandir ?= /usr/share/man
 
-edid-decode: edid-decode.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -g -Wall -o $@ $< -lm
+edid-decode: edid-decode.cpp
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -g -Wall -o $@ $< -lm
 
 clean:
 	rm -f edid-decode

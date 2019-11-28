@@ -36,6 +36,8 @@
 #include <ctype.h>
 #include <math.h>
 
+#include <string>
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
@@ -68,7 +70,6 @@ static unsigned max_display_height_mm = 0;
 static unsigned supported_hdmi_vic_codes = 0;
 static unsigned supported_hdmi_vic_vsb_codes = 0;
 
-static int conformant = 1;
 static unsigned warnings;
 static unsigned fails;
 
@@ -143,50 +144,30 @@ struct field {
 };
 
 static const char *cur_block;
-static char *s_warn;
-static unsigned s_warn_len = 1;
-static char *s_fail;
-static unsigned s_fail_len = 1;
+static std::string s_warn, s_fail;
 
 static void warn(const char *fmt, ...)
 {
-	unsigned length;
-	char buf[256];
+	char buf[256] = "";
 	va_list ap;
 
 	va_start(ap, fmt);
 	vsprintf(buf, fmt, ap);
 	va_end(ap);
 	warnings++;
-	length = strlen(buf);
-	s_warn = realloc(s_warn, s_warn_len + length + strlen(cur_block) + 2);
-	strcpy(s_warn + s_warn_len - 1, cur_block);
-	s_warn_len += strlen(cur_block);
-	strcpy(s_warn + s_warn_len - 1, ": ");
-	s_warn_len += 2;
-	strcpy(s_warn + s_warn_len - 1, buf);
-	s_warn_len += length;
+	s_warn += std::string(cur_block) + ": " + buf;
 }
 
 static void fail(const char *fmt, ...)
 {
-	unsigned length;
-	char buf[256];
+	char buf[256] = "";
 	va_list ap;
 
 	va_start(ap, fmt);
 	vsprintf(buf, fmt, ap);
 	va_end(ap);
 	fails++;
-	conformant = 0;
-	length = strlen(buf);
-	s_fail = realloc(s_fail, s_fail_len + length + strlen(cur_block) + 2);
-	strcpy(s_fail + s_fail_len - 1, cur_block);
-	s_fail_len += strlen(cur_block);
-	strcpy(s_fail + s_fail_len - 1, ": ");
-	s_fail_len += 2;
-	strcpy(s_fail + s_fail_len - 1, buf);
-	s_fail_len += length;
+	s_fail += std::string(cur_block) + ": " + buf;
 }
 
 #define DEFINE_FIELD(n, var, s, e, ...)				\
@@ -824,7 +805,7 @@ static void detailed_display_range_limits(const unsigned char *x)
 	int h_max_offset = 0, h_min_offset = 0;
 	int v_max_offset = 0, v_min_offset = 0;
 	int is_cvt = 0;
-	char *range_class = "";
+	const char *range_class = "";
 
 	cur_block = "Display Range Limits";
 	printf("%s\n", cur_block);
@@ -986,8 +967,8 @@ static void detailed_timings(const char *prefix, const unsigned char *x)
 	unsigned hor_mm, vert_mm;
 	unsigned pixclk_khz;
 	double refresh;
-	char *phsync = "", *pvsync = "";
-	char *syncmethod = NULL, *syncmethod_details = "", *stereo;
+	const char *phsync = "", *pvsync = "";
+	const char *syncmethod = NULL, *syncmethod_details = "", *stereo;
 
 	cur_block = "Detailed Timings";
 	if (x[0] == 0 && x[1] == 0) {
@@ -1350,8 +1331,7 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 	unsigned i, format, ext_format = 0;
 
 	if (length % 3) {
-		printf("Broken CTA audio block length %d\n", length);
-		/* XXX non-conformant */
+		fail("Broken CTA audio block length %d\n", length);
 		return;
 	}
 
@@ -1706,9 +1686,9 @@ static const struct timings edid_hdmi_modes[] = {
 
 static void cta_hdmi_block(const unsigned char *x, unsigned length)
 {
-	int mask = 0, formats = 0;
-	int len_vic, len_3d;
-	int b = 0;
+	unsigned mask = 0, formats = 0;
+	unsigned len_vic, len_3d;
+	unsigned b = 0;
 
 	printf(" (HDMI)\n");
 	printf("    Source physical address %u.%u.%u.%u\n", x[3] >> 4, x[3] & 0x0f,
@@ -2225,7 +2205,7 @@ static const char *colorimetry_map[] = {
 
 static void cta_colorimetry_block(const unsigned char *x, unsigned length)
 {
-	int i;
+	unsigned i;
 
 	if (length >= 2) {
 		for (i = 0; i < ARRAY_SIZE(colorimetry_map); i++) {
@@ -2613,7 +2593,7 @@ static void parse_cta(const unsigned char *x)
 			printf("%u native detailed modes\n\n", x[3] & 0x0f);
 		}
 		if (version == 3) {
-			int i;
+			unsigned i;
 
 			printf("%u bytes of CTA data\n", offset - 4);
 			for (i = 4; i < offset; i += (x[i] & 0x1f) + 1) {
@@ -2639,9 +2619,10 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 {
 	unsigned ha, hbl, hso, hspw;
 	unsigned va, vbl, vso, vspw;
-	char phsync, pvsync, *stereo;
+	char phsync, pvsync;
+	const char *stereo;
 	unsigned pix_clock;
-	char *aspect;
+	const char *aspect;
 
 	switch (x[3] & 0xf) {
 	case 0:
@@ -2939,7 +2920,7 @@ static int edid_lines = 0;
 
 static unsigned char *extract_edid(int fd)
 {
-	char *ret = NULL;
+	char *ret;
 	char *start, *c;
 	unsigned char *out = NULL;
 	unsigned state = 0;
@@ -2949,11 +2930,8 @@ static unsigned char *extract_edid(int fd)
 	unsigned len, size;
 
 	size = 1 << 10;
-	ret = malloc(size);
+	ret = (char *)malloc(size);
 	len = 0;
-
-	if (ret == NULL)
-		return NULL;
 
 	for (;;) {
 		i = read(fd, ret + len, size - len);
@@ -2966,8 +2944,9 @@ static unsigned char *extract_edid(int fd)
 		len += i;
 		if (len == size) {
 			char *t;
+
 			size <<= 1;
-			t = realloc(ret, size);
+			t = (char *)realloc(ret, size);
 			if (t == NULL) {
 				free(ret);
 				return NULL;
@@ -3013,7 +2992,7 @@ static unsigned char *extract_edid(int fd)
 			lines++;
 			start = s + strlen(indentation);
 
-			s = realloc(out, lines * 16);
+			s = (char *)realloc(out, lines * 16);
 			if (!s) {
 				free(ret);
 				free(out);
@@ -3053,7 +3032,7 @@ static unsigned char *extract_edid(int fd)
 		do {
 			start = strstr(start, ">");
 			if (start)
-				out = realloc(out, out_index + 128);
+				out = (unsigned char *)realloc(out, out_index + 128);
 			if (!start || !out) {
 				free(ret);
 				free(out);
@@ -3078,7 +3057,7 @@ static unsigned char *extract_edid(int fd)
 	for (i = 0; i < 32 && (isspace(ret[i]) || ret[i] == ',' ||
 			       tolower(ret[i]) == 'x' || isxdigit(ret[i])); i++);
 	if (i == 32) {
-		out = malloc(size >> 1);
+		out = (unsigned char *)malloc(size >> 1);
 		if (out == NULL) {
 			free(ret);
 			return NULL;
@@ -3127,6 +3106,7 @@ static unsigned char *extract_edid(int fd)
 	for (c = start; *c; c++) {
 		if (state == 0) {
 			char *s;
+
 			/* skip ahead to the : */
 			s = strstr(c, ": \t");
 			if (!s)
@@ -3139,7 +3119,7 @@ static unsigned char *extract_edid(int fd)
 				c++;
 			state = 1;
 			lines++;
-			s = realloc(out, lines * 16);
+			s = (char *)realloc(out, lines * 16);
 			if (!s) {
 				free(ret);
 				free(out);
@@ -3168,7 +3148,7 @@ static unsigned char *extract_edid(int fd)
 	return out;
 }
 
-static void print_subsection(char *name, const unsigned char *edid,
+static void print_subsection(const char *name, const unsigned char *edid,
 			     unsigned start, unsigned end)
 {
 	unsigned i;
@@ -3627,12 +3607,12 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	}
 
 	free(edid);
-	if (s_warn)
-		printf("\nWarnings:\n\n%s", s_warn);
-	if (s_fail)
-		printf("\nFailures:\n\n%s", s_fail);
-	printf("\nEDID conformity: %s\n", conformant ? "PASS" : "FAIL");
-	return conformant ? 0 : -2;
+	if (s_warn.length())
+		printf("\nWarnings:\n\n%s", s_warn.c_str());
+	if (s_fail.length())
+		printf("\nFailures:\n\n%s", s_fail.c_str());
+	printf("\nEDID conformity: %s\n", s_fail.empty() ? "PASS" : "FAIL");
+	return s_fail.empty() ? 0 : -2;
 }
 
 int main(int argc, char **argv)
