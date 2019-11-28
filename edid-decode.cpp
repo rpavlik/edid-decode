@@ -168,84 +168,6 @@ void hex_block(const char *prefix, const unsigned char *x, unsigned length)
 	}
 }
 
-/* generic extension code */
-
-static void extension_version(const unsigned char *x)
-{
-	printf("Extension version: %u\n", x[1]);
-}
-
-static void parse_extension(edid_state &state, const unsigned char *x)
-{
-	printf("\n");
-
-	switch (x[0]) {
-	case 0x02:
-		state.cur_block = "CTA-861 Extension Block";
-		printf("%s\n", state.cur_block);
-		extension_version(x);
-		parse_cta_block(state, x);
-		state.cur_block = "CTA-861 Extension Block";
-		do_checksum("", x, EDID_PAGE_SIZE);
-		break;
-	case 0x10:
-		state.cur_block = "VTB Extension Block";
-		printf("%s\n", state.cur_block);
-		extension_version(x);
-		hex_block("  ", x + 2, 125);
-		do_checksum("", x, EDID_PAGE_SIZE);
-		break;
-	case 0x40:
-		state.cur_block = "DI Extension Block";
-		printf("%s\n", state.cur_block);
-		extension_version(x);
-		hex_block("  ", x + 2, 125);
-		do_checksum("", x, EDID_PAGE_SIZE);
-		break;
-	case 0x50:
-		state.cur_block = "LS Extension Block";
-		printf("%s\n", state.cur_block);
-		extension_version(x);
-		hex_block("  ", x + 2, 125);
-		do_checksum("", x, EDID_PAGE_SIZE);
-		break;
-	case 0x60:
-		state.cur_block = "DPVL Extension Block";
-		printf("%s\n", state.cur_block);
-		extension_version(x);
-		hex_block("  ", x + 2, 125);
-		do_checksum("", x, EDID_PAGE_SIZE);
-		break;
-	case 0x70:
-		state.cur_block = "DisplayID Extension Block";
-		printf("%s\n", state.cur_block);
-		parse_displayid_block(state, x);
-		state.cur_block = "DisplayID Extension Block";
-		do_checksum("", x, EDID_PAGE_SIZE);
-		break;
-	case 0xf0:
-		state.cur_block = "Block map";
-		printf("%s\n", state.cur_block);
-		hex_block("  ", x + 1, 126);
-		do_checksum("  ", x, EDID_PAGE_SIZE);
-		break;
-	case 0xff:
-		state.cur_block = "Manufacturer-specific Extension Block";
-		printf("%s\n", state.cur_block);
-		extension_version(x);
-		hex_block("  ", x + 2, 125);
-		do_checksum("", x, EDID_PAGE_SIZE);
-		break;
-	default:
-		state.cur_block = "Unknown Extension Block";
-		printf("%s (0x%02x)\n", state.cur_block, x[0]);
-		extension_version(x);
-		hex_block("  ", x + 2, 125);
-		do_checksum("", x, EDID_PAGE_SIZE);
-		break;
-	}
-}
-
 static int edid_lines = 0;
 
 static unsigned char *extract_edid(int fd)
@@ -585,6 +507,59 @@ static void write_edid(FILE *f, const unsigned char *edid, unsigned size,
 		carraydumpedid(f, edid, size);
 		break;
 	}
+}
+
+/* generic extension code */
+
+std::string block_name(unsigned char block)
+{
+	char buf[10];
+
+	switch (block) {
+	case 0x02:
+		return "CTA-861 Extension Block";
+	case 0x10:
+		return "VTB Extension Block";
+	case 0x40:
+		return "DI Extension Block";
+	case 0x50:
+		return "LS Extension Block";
+	case 0x60:
+		return "DPVL Extension Block";
+	case 0x70:
+		return "DisplayID Extension Block";
+	case 0xf0:
+		return "Block map";
+	case 0xff:
+		return "Manufacturer-specific Extension Block";
+	default:
+		sprintf(buf, " (0x%02x)", block);
+		return std::string("Unknown Extension Block") + buf;
+	}
+}
+
+static void parse_extension(edid_state &state, const unsigned char *x)
+{
+	state.cur_block = block_name(x[0]);
+
+	printf("\n");
+	printf("%s\n", state.cur_block.c_str());
+	printf("Extension version: %u\n", x[1]);
+
+	switch (x[0]) {
+	case 0x02:
+		parse_cta_block(state, x);
+		break;
+	case 0x70:
+		parse_displayid_block(state, x);
+		break;
+	default:
+		hex_block("  ", x + 2, 125);
+		break;
+	}
+
+	state.cur_block = block_name(x[0]);
+	do_checksum("", x, EDID_PAGE_SIZE);
 }
 
 static int edid_from_file(const char *from_file, const char *to_file,

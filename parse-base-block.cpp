@@ -573,7 +573,7 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 	const char *range_class = "";
 
 	state.cur_block = "Display Range Limits";
-	printf("%s\n", state.cur_block);
+	printf("%s\n", state.cur_block.c_str());
 	state.has_display_range_descriptor = 1;
 	/* 
 	 * XXX todo: implement feature flags, vtd blocks
@@ -913,7 +913,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 	switch (x[3]) {
 	case 0x10:
 		state.cur_block = "Dummy Descriptor";
-		printf("%s\n", state.cur_block);
+		printf("%s\n", state.cur_block.c_str());
 		for (i = 5; i < 18; i++) {
 			if (x[i]) {
 				fail("dummy block filled with garbage\n");
@@ -923,14 +923,14 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		return;
 	case 0xf7:
 		state.cur_block = "Established timings III";
-		printf("%s\n", state.cur_block);
+		printf("%s\n", state.cur_block.c_str());
 		for (i = 0; i < 44; i++)
 			if (x[6 + i / 8] & (1 << (7 - i % 8)))
 				print_timings(state, "  ", find_dmt_id(established_timings3_dmt_ids[i]), "");
 		return;
 	case 0xf8:
 		state.cur_block = "CVT 3 Byte Timing Codes";
-		printf("%s\n", state.cur_block);
+		printf("%s\n", state.cur_block.c_str());
 		if (x[5] != 0x01) {
 			fail("Invalid version number\n");
 			return;
@@ -940,7 +940,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		return;
 	case 0xf9:
 		state.cur_block = "Display Color Management Data";
-		printf("%s\n", state.cur_block);
+		printf("%s\n", state.cur_block.c_str());
 		printf("  Version:  %d\n", x[5]);
 		printf("  Red a3:   %.2f\n", (short)(x[6] | (x[7] << 8)) / 100.0);
 		printf("  Red a2:   %.2f\n", (short)(x[8] | (x[9] << 8)) / 100.0);
@@ -951,7 +951,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		return;
 	case 0xfa:
 		state.cur_block = "Standard Timing Identifications";
-		printf("%s\n", state.cur_block);
+		printf("%s\n", state.cur_block.c_str());
 		for (i = 0; i < 6; i++)
 			print_standard_timing(state, x[5 + i * 2], x[5 + i * 2 + 1]);
 		return;
@@ -960,7 +960,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		unsigned gamma;
 
 		state.cur_block = "Color Point Data";
-		printf("%s\n", state.cur_block);
+		printf("%s\n", state.cur_block.c_str());
 		w_x = (x[7] << 2) | ((x[6] >> 2) & 3);
 		w_y = (x[8] << 2) | (x[6] & 3);
 		gamma = x[9];
@@ -988,7 +988,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 	case 0xfc:
 		state.cur_block = "Display Product Name";
 		state.has_name_descriptor = 1;
-		printf("%s: %s\n", state.cur_block, extract_string(x + 5, 13));
+		printf("%s: %s\n", state.cur_block.c_str(), extract_string(x + 5, 13));
 		return;
 	case 0xfd:
 		detailed_display_range_limits(state, x);
@@ -999,12 +999,12 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		 * seems to be specified by SPWG: http://www.spwg.org/
 		 */
 		state.cur_block = "Alphanumeric Data String";
-		printf("%s: %s\n", state.cur_block,
+		printf("%s: %s\n", state.cur_block.c_str(),
 		       extract_string(x + 5, 13));
 		return;
 	case 0xff:
 		state.cur_block = "Display Product Serial Number";
-		printf("%s: %s\n", state.cur_block,
+		printf("%s: %s\n", state.cur_block.c_str(),
 		       extract_string(x + 5, 13));
 		state.has_serial_string = 1;
 		return;
@@ -1214,7 +1214,7 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 	}
 
 	state.cur_block = "Color Characteristics";
-	printf("%s\n", state.cur_block);
+	printf("%s\n", state.cur_block.c_str());
 	col_x = (edid[0x1b] << 2) | (edid[0x19] >> 6);
 	col_y = (edid[0x1c] << 2) | ((edid[0x19] >> 4) & 3);
 	printf("  Red:   0.%04u, 0.%04u\n",
@@ -1233,14 +1233,14 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 	       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
 
 	state.cur_block = "Established Timings I & II";
-	printf("%s\n", state.cur_block);
+	printf("%s\n", state.cur_block.c_str());
 	for (i = 0; i < 17; i++)
 		if (edid[0x23 + i / 8] & (1 << (7 - i % 8)))
 			print_timings(state, "  ", &established_timings12[i], "");
 	state.has_640x480p60_est_timing = edid[0x23] & 0x20;
 
 	state.cur_block = "Standard Timings";
-	printf("%s\n", state.cur_block);
+	printf("%s\n", state.cur_block.c_str());
 	for (i = 0; i < 8; i++)
 		print_standard_timing(state, edid[0x26 + i * 2], edid[0x26 + i * 2 + 1]);
 

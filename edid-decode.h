@@ -54,7 +54,7 @@ struct edid_state {
 	unsigned supported_hdmi_vic_vsb_codes;
 
 	// Global state
-	const char *cur_block;
+	std::string cur_block;
 
 	unsigned min_hor_freq_hz;
 	unsigned max_hor_freq_hz;
@@ -70,6 +70,7 @@ void warn(const char *fmt, ...);
 void fail(const char *fmt, ...);
 void do_checksum(const char *prefix, const unsigned char *x, size_t len);
 void hex_block(const char *prefix, const unsigned char *x, unsigned length);
+std::string block_name(unsigned char block);
 void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
 
 void detailed_timings(edid_state &state, const char *prefix, const unsigned char *x);
