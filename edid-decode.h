@@ -14,6 +14,8 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
+#define EDID_PAGE_SIZE 128U
+
 // Video Timings
 struct timings {
 	unsigned x, y;
@@ -57,5 +59,19 @@ struct edid_state {
 	unsigned warnings;
 	unsigned fails;
 };
+
+void warn(const char *fmt, ...);
+void fail(const char *fmt, ...);
+void do_checksum(const char *prefix, const unsigned char *x, size_t len);
+void hex_block(const char *prefix, const unsigned char *x, unsigned length);
+void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
+
+void detailed_timings(edid_state &state, const char *prefix, const unsigned char *x);
+const struct timings *find_dmt_id(unsigned char dmt_id);
+void parse_base_block(edid_state &state, const unsigned char *edid);
+
+void parse_cta_block(edid_state &state, const unsigned char *x);
+
+void parse_displayid_block(edid_state &state, const unsigned char *x);
 
 #endif

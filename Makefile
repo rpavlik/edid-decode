@@ -1,8 +1,14 @@
 bindir ?= /usr/bin
 mandir ?= /usr/share/man
 
-edid-decode: edid-decode.cpp edid-decode.h
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -g -Wall -o $@ $< -lm
+SOURCES = edid-decode.cpp parse-base-block.cpp parse-cta-block.cpp parse-displayid-block.cpp
+
+all: edid-decode
+
+edid-decode: $(SOURCES)
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -g -Wall -o $@ $^ -lm
+
+$(SOURCES): edid-decode.h
 
 clean:
 	rm -f edid-decode
