@@ -26,6 +26,12 @@ struct timings {
 };
 
 struct edid_state {
+	edid_state()
+	{
+		min_hor_freq_hz = 0xffffff;
+		min_vert_freq_hz = 0xffffffff;
+	}
+
 	// Base block state
 	unsigned edid_minor;
 	bool has_name_descriptor;

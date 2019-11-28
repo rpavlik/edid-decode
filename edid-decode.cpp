@@ -635,9 +635,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		return -1;
 	}
 
-	state.min_hor_freq_hz = 0xfffffff;
-	state.min_vert_freq_hz = 0xfffffff;
-
 	parse_base_block(state, edid);
 
 	x = edid;
