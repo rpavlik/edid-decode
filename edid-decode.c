@@ -423,7 +423,7 @@ static void print_timings(const char *prefix, const struct timings *t, const cha
 	max_hor_freq_hz = max(max_hor_freq_hz, t->hor_freq_hz);
 	max_pixclk_khz = max(max_pixclk_khz, t->pixclk_khz);
 
-	printf("%s%ux%u%s@%uHz %s%u:%u HorFreq: %.3f kHz Clock: %.3f MHz%s\n",
+	printf("%s%ux%u%s@%u %s%u:%u HorFreq: %.3f kHz Clock: %.3f MHz%s\n",
 	       prefix,
 	       t->x, t->y,
 	       t->interlaced ? "i" : "",
@@ -823,7 +823,7 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 	}
 
 	/* TODO: this should also check DMT timings and GTF/CVT */
-	printf("  %ux%u@%uHz %u:%u\n",
+	printf("  %ux%u@%u %u:%u\n",
 	       x, y, refresh, ratio_w, ratio_h);
 }
 
@@ -891,13 +891,13 @@ static void detailed_display_range_limits(const unsigned char *x)
 		fail("min horizontal freq > max horizontal freq\n");
 	mon_min_hor_freq_hz = (x[7] + h_min_offset) * 1000;
 	mon_max_hor_freq_hz = (x[8] + h_max_offset) * 1000;
-	printf("  Monitor ranges (%s): %d-%dHz V, %d-%dkHz H",
+	printf("  Monitor ranges (%s): %d-%d Hz V, %d-%d kHz H",
 	       range_class,
 	       x[5] + v_min_offset, x[6] + v_max_offset,
 	       x[7] + h_min_offset, x[8] + h_max_offset);
 	if (x[9]) {
 		mon_max_pixclk_khz = x[9] * 10000;
-		printf(", max dotclock %dMHz\n", x[9] * 10);
+		printf(", max dotclock %d MHz\n", x[9] * 10);
 	} else {
 		if (claims_one_point_four)
 			fail("EDID 1.4 block does not set max dotclock\n");
@@ -912,10 +912,10 @@ static void detailed_display_range_limits(const unsigned char *x)
 		if (x[12] & 0xfc) {
 			unsigned raw_offset = (x[12] & 0xfc) >> 2;
 
-			printf("  Real max dotclock: %.2fMHz\n",
+			printf("  Real max dotclock: %.2f MHz\n",
 			       (x[9] * 10) - (raw_offset * 0.25));
 			if (raw_offset >= 40)
-				warn("CVT block corrects dotclock by more than 9.75MHz\n");
+				warn("CVT block corrects dotclock by more than 9.75 MHz\n");
 		}
 
 		max_h_pixels = x[12] & 0x03;
@@ -1691,7 +1691,7 @@ static void cta_vfpdb(const unsigned char *x, unsigned length)
 
 			t = vic_to_mode(vic);
 			if (t)
-				printf("    VIC %3u %ux%u%s@%uHz %s%u:%u\n", vic,
+				printf("    VIC %3u %ux%u%s@%u %s%u:%u\n", vic,
 				       t->x, t->y,
 				       t->interlaced ? "i" : "",
 				       t->refresh,
@@ -1743,7 +1743,7 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 	if (length < 7)
 		return;
 
-	printf("    Maximum TMDS clock: %uMHz\n", x[6] * 5);
+	printf("    Maximum TMDS clock: %u MHz\n", x[6] * 5);
 	if (x[6] * 5 > 340)
 		fail("HDMI VSDB Max TMDS rate is > 340\n");
 
@@ -1934,7 +1934,7 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 
 	printf("    Version: %u\n", x[0]);
 	if (rate) {
-		printf("    Maximum TMDS Character Rate: %uMHz\n", rate);
+		printf("    Maximum TMDS Character Rate: %u MHz\n", rate);
 		if ((rate && rate <= 340) || rate > 600)
 			fail("Max TMDS rate is > 0 and <= 340 or > 600\n");
 	}
