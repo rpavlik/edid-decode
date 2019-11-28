@@ -1169,16 +1169,11 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 	if (state.edid_minor == 0)
 		fail("Has descriptor blocks other than detailed timings\n");
 
-	if (x[3] <= 0xf) {
-		/*
-		 * in principle we can decode these, if we know what they are.
-		 * 0x0f seems to be common in laptop panels.
-		 * 0x0e is used by EPI: http://www.epi-standard.org/
-		 */
-		printf("Manufacturer-specified data: tag 0x%02x\n", x[3]);
-		return;
-	}
 	switch (x[3]) {
+	case 0x0e:
+		state.cur_block = "EPI Descriptor";
+		printf("%s\n", state.cur_block.c_str());
+		return;
 	case 0x10:
 		state.cur_block = "Dummy Descriptor";
 		printf("%s\n", state.cur_block.c_str());
@@ -1301,7 +1296,11 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		state.has_serial_string = 1;
 		return;
 	default:
-		warn("Unknown monitor description type %d\n", x[3]);
+		printf("%s Description 0x%02hhx:",
+		       x[3] <= 0x0f ? "Manufacturer-Specified" : "Unknown", x[3]);
+		hex_block(" ", x + 4, 14);
+		if (x[3] > 0x0f)
+			warn("Unknown Description Type 0x%02hhx\n", x[3]);
 		return;
 	}
 }
