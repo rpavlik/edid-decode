@@ -38,6 +38,11 @@ struct edid_state {
 	bool has_display_range_descriptor;
 	bool has_serial_number;
 	bool has_serial_string;
+	bool supports_continuous_freq;
+	bool supports_gtf;
+	bool supports_cvt;
+	bool uses_gtf;
+	bool uses_cvt;
 
 	unsigned min_display_hor_freq_hz;
 	unsigned max_display_hor_freq_hz;

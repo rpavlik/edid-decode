@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include <string>
 
@@ -129,7 +130,7 @@ static const struct {
 	{ 0x42, 0xc94f, 0x000000, { 1856, 1392, 75, 4, 3, 112500, 288000 } },
 	{ 0x43, 0x0000, 0x000000, { 1856, 1392, 120, 4, 3, 176835, 356500, 1 } },
 
-	{ 0x52, 0xd1c0, 0x000000, { 1920, 1080, 60, 16, 9, 675000, 148500 } },
+	{ 0x52, 0xd1c0, 0x000000, { 1920, 1080, 60, 16, 9, 67500, 148500 } },
 
 	{ 0x44, 0x0000, 0x572821, { 1920, 1200, 60, 16, 10, 74000, 154000, 1 } },
 	{ 0x45, 0xd100, 0x572828, { 1920, 1200, 60, 16, 10, 74600, 193250 } },
@@ -174,23 +175,188 @@ static const struct timings *find_std_id(unsigned short std_id)
 }
 
 /*
+ * Copied from xserver/hw/xfree86/modes/xf86gtf.c
+ */
+static void edid_gtf_mode(edid_state &state, const char *prefix, struct timings *t)
+{
+#define CELL_GRAN         8.0   /* assumed character cell granularity        */
+#define MIN_PORCH         1     /* minimum front porch                       */
+#define V_SYNC_RQD        3     /* width of vsync in lines                   */
+#define H_SYNC_PERCENT    8.0   /* width of hsync as % of total line         */
+#define MIN_VSYNC_PLUS_BP 550.0 /* min time of vsync + back porch (microsec) */
+#define M                 600.0 /* blanking formula gradient                 */
+#define C                 40.0  /* blanking formula offset                   */
+#define K                 128.0 /* blanking formula scaling factor           */
+#define J                 20.0  /* blanking formula scaling factor           */
+
+	/* C' and M' are part of the Blanking Duty Cycle computation */
+
+#define C_PRIME           (((C - J) * K/256.0) + J)
+#define M_PRIME           (K/256.0 * M)
+	float h_pixels_rnd;
+	float v_lines_rnd;
+	float v_field_rate_rqd;
+	float interlace;
+	float h_period_est;
+	float vsync_plus_bp;
+	float total_v_lines;
+	float v_field_rate_est;
+	float h_period;
+	float total_active_pixels;
+	float ideal_duty_cycle;
+	float h_blank;
+	float total_pixels;
+
+	/*  1. In order to give correct results, the number of horizontal
+	 *  pixels requested is first processed to ensure that it is divisible
+	 *  by the character size, by rounding it to the nearest character
+	 *  cell boundary:
+	 *
+	 *  [H PIXELS RND] = ((ROUND([H PIXELS]/[CELL GRAN RND],0))*[CELLGRAN RND])
+	 */
+
+	h_pixels_rnd = rint((float)t->x / CELL_GRAN) * CELL_GRAN;
+
+	/*  2. If interlace is requested, the number of vertical lines assumed
+	 *  by the calculation must be halved, as the computation calculates
+	 *  the number of vertical lines per field. In either case, the
+	 *  number of lines is rounded to the nearest integer.
+	 *
+	 *  [V LINES RND] = IF([INT RQD?]="y", ROUND([V LINES]/2,0),
+	 *                                     ROUND([V LINES],0))
+	 */
+
+	v_lines_rnd = t->interlaced ?
+		rint((float)t->y) / 2.0 :
+		rint((float)t->y);
+
+	/*  3. Find the frame rate required:
+	 *
+	 *  [V FIELD RATE RQD] = IF([INT RQD?]="y", [I/P FREQ RQD]*2,
+	 *                                          [I/P FREQ RQD])
+	 */
+
+	v_field_rate_rqd = t->interlaced ? (t->refresh * 2.0) : (t->refresh);
+
+	/*  6. If interlace is required, then set variable [INTERLACE]=0.5:
+	 *
+	 *  [INTERLACE]=(IF([INT RQD?]="y",0.5,0))
+	 */
+
+	interlace = t->interlaced ? 0.5 : 0.0;
+
+	/*  7. Estimate the Horizontal period
+	 *
+	 *  [H PERIOD EST] = ((1/[V FIELD RATE RQD]) - [MIN VSYNC+BP]/1000000) /
+	 *                    ([V LINES RND] +
+	 *                     [MIN PORCH RND]+[INTERLACE]) * 1000000
+	 */
+
+	h_period_est = (((1.0/v_field_rate_rqd) - (MIN_VSYNC_PLUS_BP/1000000.0))
+			/ (v_lines_rnd + MIN_PORCH + interlace)
+			* 1000000.0);
+
+	/*  8. Find the number of lines in V sync + back porch:
+	 *
+	 *  [V SYNC+BP] = ROUND(([MIN VSYNC+BP]/[H PERIOD EST]),0)
+	 */
+
+	vsync_plus_bp = rint(MIN_VSYNC_PLUS_BP/h_period_est);
+
+	/*  10. Find the total number of lines in Vertical field period:
+	 *
+	 *  [TOTAL V LINES] = [V LINES RND] +
+	 *                    [V SYNC+BP] + [INTERLACE] +
+	 *                    [MIN PORCH RND]
+	 */
+
+	total_v_lines = v_lines_rnd + vsync_plus_bp +
+		interlace + MIN_PORCH;
+
+	/*  11. Estimate the Vertical field frequency:
+	 *
+	 *  [V FIELD RATE EST] = 1 / [H PERIOD EST] / [TOTAL V LINES] * 1000000
+	 */
+
+	v_field_rate_est = 1.0 / h_period_est / total_v_lines * 1000000.0;
+
+	/*  12. Find the actual horizontal period:
+	 *
+	 *  [H PERIOD] = [H PERIOD EST] / ([V FIELD RATE RQD] / [V FIELD RATE EST])
+	 */
+
+	h_period = h_period_est / (v_field_rate_rqd / v_field_rate_est);
+
+	/*  17. Find total number of active pixels in image
+	 *
+	 *  [TOTAL ACTIVE PIXELS] = [H PIXELS RND]
+	 */
+
+	total_active_pixels = h_pixels_rnd;
+
+	/*  18. Find the ideal blanking duty cycle from the blanking duty cycle
+	 *  equation:
+	 *
+	 *  [IDEAL DUTY CYCLE] = [C'] - ([M']*[H PERIOD]/1000)
+	 */
+
+	ideal_duty_cycle = C_PRIME - (M_PRIME * h_period / 1000.0);
+
+	/*  19. Find the number of pixels in the blanking time to the nearest
+	 *  double character cell:
+	 *
+	 *  [H BLANK (PIXELS)] = (ROUND(([TOTAL ACTIVE PIXELS] *
+	 *                               [IDEAL DUTY CYCLE] /
+	 *                               (100-[IDEAL DUTY CYCLE]) /
+	 *                               (2*[CELL GRAN RND])), 0))
+	 *                       * (2*[CELL GRAN RND])
+	 */
+
+	h_blank = rint(total_active_pixels *
+		       ideal_duty_cycle /
+		       (100.0 - ideal_duty_cycle) /
+		       (2.0 * CELL_GRAN)) * (2.0 * CELL_GRAN);
+
+	/*  20. Find total number of pixels:
+	 *
+	 *  [TOTAL PIXELS] = [TOTAL ACTIVE PIXELS] + [H BLANK (PIXELS)]
+	 */
+
+	total_pixels = total_active_pixels + h_blank;
+
+	/*  21. Find pixel clock frequency:
+	 *
+	 *  [PIXEL FREQ] = [TOTAL PIXELS] / [H PERIOD]
+	 */
+
+	t->pixclk_khz = (int)(1000.0 * total_pixels / h_period);
+
+	/*  22. Find horizontal frequency:
+	 *
+	 *  [H FREQ] = 1000 / [H PERIOD]
+	 */
+
+	t->hor_freq_hz = 1000000.0 / h_period;
+
+	print_timings(state, prefix, t, " (GTF)");
+}
+
+/*
  * Copied from xserver/hw/xfree86/modes/xf86cvt.c
  */
-static void edid_cvt_mode(edid_state &state, struct timings *t, int preferred)
+static void edid_cvt_mode(edid_state &state, const char *prefix,
+			  struct timings *t, int preferred)
 {
 	int HDisplay = t->x;
 	int VDisplay = t->y;
 
-	/* 1) top/bottom margin size (% of height) - default: 1.8 */
-#define CVT_MARGIN_PERCENTAGE 1.8
-
-	/* 2) character cell horizontal granularity (pixels) - default 8 */
+	/* character cell horizontal granularity (pixels) - default 8 */
 #define CVT_H_GRANULARITY 8
 
-	/* 4) Minimum vertical porch (lines) - default 3 */
+	/* Minimum vertical porch (lines) - default 3 */
 #define CVT_MIN_V_PORCH 3
 
-	/* 4) Minimum number of vertical back porch lines - default 6 */
+	/* Minimum number of vertical back porch lines - default 6 */
 #define CVT_MIN_V_BPORCH 6
 
 	/* Pixel Clock step (kHz) */
@@ -296,7 +462,7 @@ static void edid_cvt_mode(edid_state &state, struct timings *t, int preferred)
 	t->pixclk_khz -= t->pixclk_khz % CVT_CLOCK_STEP;
 	t->hor_freq_hz = (t->pixclk_khz * 1000) / HTotal;
 
-	print_timings(state, "    ", t, preferred ? " (preferred vertical rate)" : "");
+	print_timings(state, prefix, t, preferred ? " (CVT, preferred vertical rate)" : " (CVT)");
 }
 
 static void detailed_cvt_descriptor(edid_state &state, const unsigned char *x, int first)
@@ -308,6 +474,7 @@ static void detailed_cvt_descriptor(edid_state &state, const unsigned char *x, i
 	if (!first && !memcmp(x, empty, 3))
 		return;
 
+	state.uses_cvt = true;
 	cvt_t.y = x[0];
 	if (!cvt_t.y)
 		fail("CVT byte 0 is 0, which is a reserved value\n");
@@ -350,24 +517,24 @@ static void detailed_cvt_descriptor(edid_state &state, const unsigned char *x, i
 
 	if (x[2] & 0x10) {
 		cvt_t.refresh = 50;
-		edid_cvt_mode(state, &cvt_t, preferred == 0);
+		edid_cvt_mode(state, "    ", &cvt_t, preferred == 0);
 	}
 	if (x[2] & 0x08) {
 		cvt_t.refresh = 60;
-		edid_cvt_mode(state, &cvt_t, preferred == 1);
+		edid_cvt_mode(state, "    ", &cvt_t, preferred == 1);
 	}
 	if (x[2] & 0x04) {
 		cvt_t.refresh = 75;
-		edid_cvt_mode(state, &cvt_t, preferred == 2);
+		edid_cvt_mode(state, "    ", &cvt_t, preferred == 2);
 	}
 	if (x[2] & 0x02) {
 		cvt_t.refresh = 85;
-		edid_cvt_mode(state, &cvt_t, preferred == 3);
+		edid_cvt_mode(state, "    ", &cvt_t, preferred == 3);
 	}
 	if (x[2] & 0x01) {
 		cvt_t.refresh = 60;
 		cvt_t.rb = 1;
-		edid_cvt_mode(state, &cvt_t, preferred == 4);
+		edid_cvt_mode(state, "    ", &cvt_t, preferred == 4);
 	}
 }
 
@@ -489,6 +656,7 @@ static const unsigned char established_timings3_dmt_ids[] = {
 static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 {
 	const struct timings *t;
+	struct timings formula = {};
 	unsigned ratio_w, ratio_h;
 	unsigned x, y, refresh;
 	unsigned i;
@@ -560,9 +728,28 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 		}
 	}
 
-	/* TODO: this should also check DMT timings and GTF/CVT */
-	printf("  %ux%u@%u %u:%u\n",
-	       x, y, refresh, ratio_w, ratio_h);
+	formula.x = x;
+	formula.y = y;
+	formula.refresh = refresh;
+	formula.ratio_w = ratio_w;
+	formula.ratio_h = ratio_h;
+
+	if (state.edid_minor >= 4) {
+		state.uses_cvt = true;
+		edid_cvt_mode(state, "  ", &formula, 0);
+		/*
+		 * A EDID 1.3 source will assume GTF, so both GTF and CVT
+		 * have to be supported.
+		 */
+		state.uses_gtf = true;
+		edid_gtf_mode(state, "  ", &formula);
+	} else if (state.edid_minor >= 2) {
+		state.uses_gtf = true;
+		edid_gtf_mode(state, "  ", &formula);
+	} else {
+		printf("  %ux%u@%u %u:%u\n",
+		       x, y, refresh, ratio_w, ratio_h);
+	}
 }
 
 static void detailed_display_range_limits(edid_state &state, const unsigned char *x)
@@ -570,6 +757,7 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 	int h_max_offset = 0, h_min_offset = 0;
 	int v_max_offset = 0, v_min_offset = 0;
 	int is_cvt = 0;
+	bool has_sec_gtf = false;
 	const char *range_class = "";
 
 	state.cur_block = "Display Range Limits";
@@ -600,6 +788,9 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 	switch (x[10]) {
 	case 0x00: /* default gtf */
 		range_class = "GTF";
+		if (state.edid_minor >= 4 && !state.supports_continuous_freq)
+			fail("GTF can't be combined with non-continuous frequencies\n");
+		state.supports_gtf = true;
 		break;
 	case 0x01: /* range limits only */
 		range_class = "bare limits";
@@ -607,13 +798,24 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
 		break;
 	case 0x02: /* secondary gtf curve */
-		range_class = "GTF with icing";
+		range_class = "Secondary GTF";
+		if (state.edid_minor >= 4 && !state.supports_continuous_freq)
+			fail("GTF can't be combined with non-continuous frequencies\n");
+		state.supports_gtf = true;
+		has_sec_gtf = true;
 		break;
 	case 0x04: /* cvt */
 		range_class = "CVT";
 		is_cvt = 1;
 		if (state.edid_minor < 4)
 			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
+		else if (!state.supports_continuous_freq)
+			fail("CVT can't be combined with non-continuous frequencies\n");
+		if (state.edid_minor >= 4) {
+			/* GTF is implied if CVT is signaled */
+			state.supports_gtf = true;
+			state.supports_cvt = true;
+		}
 		break;
 	default: /* invalid */
 		fail("invalid range class 0x%02x\n", x[10]);
@@ -642,7 +844,20 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 		printf("\n");
 	}
 
-	if (is_cvt) {
+	if (has_sec_gtf) {
+		if (x[11])
+			fail("Byte 11 is 0x%02x instead of 0x00\n", x[11]);
+		printf("  GTF Secondary Curve Block\n");
+		printf("    Start frequency: %u kHz\n", x[12] * 2);
+		printf("    C: %f\n", x[13] / 2.0);
+		if (x[13] > 127)
+			fail("Byte 13 is > 127\n");
+		printf("    M: %u\n", (x[15] << 8) | x[14]);
+		printf("    K: %u\n", x[16]);
+		printf("    J: %f\n", x[17] / 2.0);
+		if (x[17] > 127)
+			fail("Byte 17 is > 127\n");
+	} else if (is_cvt) {
 		int max_h_pixels = 0;
 
 		printf("  CVT version %d.%d\n", (x[11] & 0xf0) >> 4, x[11] & 0x0f);
@@ -723,6 +938,15 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 			printf("  Preferred vertical refresh: %d Hz\n", x[17]);
 		else
 			warn("CVT block does not set preferred refresh rate\n");
+	} else {
+		if (x[11] != 0x0a)
+			fail("Byte 11 is 0x%02x instead of 0x0a\n", x[11]);
+		for (unsigned i = 12; i <= 17; i++) {
+			if (x[i] != 0x20) {
+				fail("Byte %u is 0x%02x instead of 0x20\n", i, x[i]);
+				break;
+			}
+		}
 	}
 }
 
@@ -1207,10 +1431,13 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 	}
 
 	if (edid[0x18] & 0x01) {
-		if (state.edid_minor >= 4)
+		if (state.edid_minor >= 4) {
+			state.supports_continuous_freq = true;
 			printf("Display is continuous frequency\n");
-		else
+		} else {
 			printf("Supports GTF timings within operating range\n");
+			state.supports_gtf = true;
+		}
 	}
 
 	state.cur_block = "Color Characteristics";
@@ -1260,7 +1487,8 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 	if (state.edid_minor >= 3) {
 		if (!state.has_name_descriptor)
 			fail("Missing Display Product Name\n");
-		if (state.edid_minor == 3 && !state.has_display_range_descriptor)
+		if ((state.edid_minor == 3 || state.supports_continuous_freq) &&
+		    !state.has_display_range_descriptor)
 			fail("Missing Display Range Limits Descriptor\n");
 	}
 }

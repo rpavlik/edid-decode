@@ -1193,6 +1193,8 @@ static void cta_block(edid_state &state, const unsigned char *x)
 			cta_hdmi_block(state, x + 1, length);
 			last_block_was_hdmi_vsdb = 1;
 			first_block = 0;
+			if (state.edid_minor != 3)
+				fail("The HDMI Specification uses EDID 1.3, not 1.%u\n", state.edid_minor);
 			return;
 		}
 		if (oui == 0xc45dd8) {

@@ -701,6 +701,11 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		parse_extension(state, x);
 	}
 
+	state.cur_block = "EDID";
+	if (state.uses_gtf && !state.supports_gtf)
+		fail("GTF timings are used, but the EDID does not signal GTF support\n");
+	if (state.uses_cvt && !state.supports_cvt)
+		fail("CVT timings are used, but the EDID does not signal CVT support\n");
 	if (state.has_display_range_descriptor &&
 	    (state.min_vert_freq_hz < state.min_display_vert_freq_hz ||
 	     state.max_vert_freq_hz > state.max_display_vert_freq_hz ||
