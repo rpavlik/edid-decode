@@ -5,10 +5,8 @@ SOURCES = edid-decode.cpp parse-base-block.cpp parse-cta-block.cpp parse-display
 
 all: edid-decode
 
-edid-decode: $(SOURCES)
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -g -Wall -o $@ $^ -lm
-
-$(SOURCES): edid-decode.h
+edid-decode: $(SOURCES) edid-decode.h
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -g -Wall -o $@ $(SOURCES) -lm
 
 clean:
 	rm -f edid-decode
