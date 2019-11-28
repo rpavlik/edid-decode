@@ -41,6 +41,7 @@ enum output_format {
  */
 enum Option {
 	OptCheck = 'c',
+	OptCheckInline = 'C',
 	OptExtract = 'e',
 	OptHelp = 'h',
 	OptOutputFormat = 'o',
@@ -55,6 +56,7 @@ static struct option long_options[] = {
 	{ "output-format", required_argument, 0, OptOutputFormat },
 	{ "extract", no_argument, 0, OptExtract },
 	{ "skip-hex-dump", no_argument, 0, OptSkipHexDump },
+	{ "check-inline", no_argument, 0, OptCheckInline },
 	{ "check", no_argument, 0, OptCheck },
 	{ 0, 0, 0, 0 }
 };
@@ -73,7 +75,10 @@ static void usage(void)
 	       "                        hex:    hex numbers in ascii text (default for stdout)\n"
 	       "                        raw:    binary data (default unless writing to stdout)\n"
 	       "                        carray: c-program struct\n"
-	       "  -c, --check           check if the EDID conforms to the standards\n"
+	       "  -c, --check           check if the EDID conforms to the standards, failures and\n"
+	       "                        warnings are reported at the end.\n"
+	       "  -C, --check-inline    check if the EDID conforms to the standards, failures and\n"
+	       "                        warnings are reported inline.\n"
 	       "  -s, --skip-hex-dump   skip the initial hex dump of the EDID\n"
 	       "  -e, --extract         extract the contents of the first block in hex values\n"
 	       "  -h, --help            display this help message\n");
@@ -91,6 +96,8 @@ void warn(const char *fmt, ...)
 	va_end(ap);
 	state.warnings++;
 	s_warn += std::string(state.cur_block) + ": " + buf;
+	if (options[OptCheckInline])
+		printf("WARN: %s", buf);
 }
 
 void fail(const char *fmt, ...)
@@ -101,8 +108,10 @@ void fail(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsprintf(buf, fmt, ap);
 	va_end(ap);
-	state.fails++;
+	state.failures++;
 	s_fail += std::string(state.cur_block) + ": " + buf;
+	if (options[OptCheckInline])
+		printf("FAIL: %s", buf);
 }
 
 void do_checksum(const char *prefix, const unsigned char *x, size_t len)
@@ -692,13 +701,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		parse_extension(state, x);
 	}
 
-	if (!options[OptCheck]) {
-		free(edid);
-		return 0;
-	}
-
-	printf("\n----------------\n\n");
-
 	if (state.has_display_range_descriptor &&
 	    (state.min_vert_freq_hz < state.min_display_vert_freq_hz ||
 	     state.max_vert_freq_hz > state.max_display_vert_freq_hz ||
@@ -733,12 +735,19 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	}
 
 	free(edid);
-	if (s_warn.length())
-		printf("\nWarnings:\n\n%s", s_warn.c_str());
-	if (s_fail.length())
-		printf("\nFailures:\n\n%s", s_fail.c_str());
-	printf("\nEDID conformity: %s\n", s_fail.empty() ? "PASS" : "FAIL");
-	return s_fail.empty() ? 0 : -2;
+	if (!options[OptCheck] && !options[OptCheckInline])
+		return 0;
+
+	printf("\n----------------\n");
+
+	if (options[OptCheck]) {
+		if (state.warnings)
+			printf("\nWarnings:\n\n%s", s_warn.c_str());
+		if (state.failures)
+			printf("\nFailures:\n\n%s", s_fail.c_str());
+	}
+	printf("\nEDID conformity: %s\n", state.failures ? "FAIL" : "PASS");
+	return state.failures ? -2 : 0;
 }
 
 int main(int argc, char **argv)

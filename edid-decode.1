@@ -46,7 +46,12 @@ raw: binary data (default unless writing to stdout)
 carray: c-program struct
 .TP
 \fB\-c\fR, \fB\-\-check\fR
-Check if the EDID conforms to the standards.
+Check if the EDID conforms to the standards. Warnings and failures are
+reported at the end.
+.TP
+\fB\-C\fR, \fB\-\-check\-inline\fR
+Check if the EDID conforms to the standards. Warnings and failures are
+reported as they happen.
 .TP
 \fB\-s\fR, \fB\-\-skip\-hex\-dump\fR
 Skip the initial hex dump of the EDID.

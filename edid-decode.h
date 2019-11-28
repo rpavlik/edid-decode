@@ -65,7 +65,7 @@ struct edid_state {
 	unsigned max_pixclk_khz;
 
 	unsigned warnings;
-	unsigned fails;
+	unsigned failures;
 };
 
 void warn(const char *fmt, ...);
