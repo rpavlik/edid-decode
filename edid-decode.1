@@ -13,9 +13,14 @@ standard input. If [out] is given then the EDID that was read from [in]
 is written to [out] or to standard output if [out] is '-'. By default
 the output is written as a hex dump when writing to standard output or
 a raw EDID if written to a file.
+
+If [out] is given then edid-decode only does the conversion, it will
+skip the decoding step.
 .PP
 Input files may be raw binaries or ASCII text.  ASCII input is scanned for
 hex dumps; heuristics are included to search for hexdumps in
+.B edid-decode(1)
+output (as long as the initial hex dump was included),
 .B xrandr(1)
 property output and
 .B Xorg(1)
@@ -42,6 +47,9 @@ carray: c-program struct
 .TP
 \fB\-c\fR, \fB\-\-check\fR
 Check if the EDID conforms to the standards.
+.TP
+\fB\-s\fR, \fB\-\-skip\-hex\-dump\fR
+Skip the initial hex dump of the EDID.
 .TP
 \fB\-e\fR, \fB\-\-extract\fR
 Extract the contents of the first block in hex values.

@@ -44,6 +44,7 @@ enum Option {
 	OptExtract = 'e',
 	OptHelp = 'h',
 	OptOutputFormat = 'o',
+	OptSkipHexDump = 's',
 	OptLast = 256
 };
 
@@ -53,6 +54,7 @@ static struct option long_options[] = {
 	{ "help", no_argument, 0, OptHelp },
 	{ "output-format", required_argument, 0, OptOutputFormat },
 	{ "extract", no_argument, 0, OptExtract },
+	{ "skip-hex-dump", no_argument, 0, OptSkipHexDump },
 	{ "check", no_argument, 0, OptCheck },
 	{ 0, 0, 0, 0 }
 };
@@ -72,6 +74,7 @@ static void usage(void)
 	       "                        raw:    binary data (default unless writing to stdout)\n"
 	       "                        carray: c-program struct\n"
 	       "  -c, --check           check if the EDID conforms to the standards\n"
+	       "  -s, --skip-hex-dump   skip the initial hex dump of the EDID\n"
 	       "  -e, --extract         extract the contents of the first block in hex values\n"
 	       "  -h, --help            display this help message\n");
 }
@@ -148,7 +151,8 @@ void print_timings(edid_state &state, const char *prefix,
 	       suffix);
 }
 
-void hex_block(const char *prefix, const unsigned char *x, unsigned length)
+void hex_block(const char *prefix, const unsigned char *x,
+	       unsigned length, bool show_ascii)
 {
 	unsigned i, j;
 
@@ -162,8 +166,11 @@ void hex_block(const char *prefix, const unsigned char *x, unsigned length)
 				printf("%02x ", x[i + j]);
 			else if (length > 16)
 				printf("   ");
-		for (j = 0; j < 16 && i + j < length; j++)
-			printf("%c", x[i + j] >= ' ' && x[i + j] <= '~' ? x[i + j] : '.');
+		if (show_ascii) {
+			printf(" ");
+			for (j = 0; j < 16 && i + j < length; j++)
+				printf("%c", x[i + j] >= ' ' && x[i + j] <= '~' ? x[i + j] : '.');
+		}
 		printf("\n");
 	}
 }
@@ -324,8 +331,13 @@ static unsigned char *extract_edid(int fd)
 		for (c = start; *c; c++) {
 			char buf[3];
 
-			if (!isxdigit(*c) || (*c == '0' && tolower(c[1]) == 'x'))
+			if (isspace(*c) || strchr(",:;", *c))
 				continue;
+
+			if (*c == '0' && tolower(c[1]) == 'x') {
+				c++;
+				continue;
+			}
 
 			/* Read a %02x from the log */
 			if (!isxdigit(c[0]) || !isxdigit(c[1])) {
@@ -618,6 +630,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	FILE *out = NULL;
 	unsigned char *edid;
 	unsigned char *x;
+	unsigned i;
 
 	if (!from_file || !strcmp(from_file, "-")) {
 		fd = 0;
@@ -651,20 +664,28 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		return 0;
 	}
 
-	if (options[OptExtract])
-		dump_breakdown(edid);
-
 	if (!edid || memcmp(edid, "\x00\xFF\xFF\xFF\xFF\xFF\xFF\x00", 8)) {
 		fprintf(stderr, "No header found\n");
 		return -1;
 	}
 
 	state.num_blocks = edid_lines / 8;
+	if (!options[OptSkipHexDump]) {
+		printf("EDID (hex):\n\n");
+		for (i = 0; i < state.num_blocks; i++) {
+			hex_block("", edid + i * EDID_PAGE_SIZE, EDID_PAGE_SIZE, false);
+			printf("\n");
+		}
+		printf("----------------\n\n");
+	}
+
+	if (options[OptExtract])
+		dump_breakdown(edid);
 
 	parse_base_block(state, edid);
 
 	x = edid;
-	for (edid_lines /= 8; edid_lines > 1; edid_lines--) {
+	for (i = 1; i < state.num_blocks; i++) {
 		x += EDID_PAGE_SIZE;
 		state.cur_block_nr++;
 		printf("\n----------------\n");

@@ -71,7 +71,7 @@ struct edid_state {
 void warn(const char *fmt, ...);
 void fail(const char *fmt, ...);
 void do_checksum(const char *prefix, const unsigned char *x, size_t len);
-void hex_block(const char *prefix, const unsigned char *x, unsigned length);
+void hex_block(const char *prefix, const unsigned char *x, unsigned length, bool show_ascii = true);
 std::string block_name(unsigned char block);
 void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
 
