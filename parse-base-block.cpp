@@ -1275,22 +1275,25 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 
 	time(&the_time);
 	ptm = localtime(&the_time);
-	if (edid[0x10] < 55 || (edid[0x10] == 0xff && state.edid_minor >= 4)) {
-		if (edid[0x11] <= 0x0f) {
-			fail("bad year of manufacture\n");
-		} else if (edid[0x10] == 0xff) {
-			printf("Model year %u\n", edid[0x11] + 1990);
-		} else if (edid[0x11] + 90 <= ptm->tm_year + 1) {
-			if (edid[0x10])
-				printf("Made in week %hhu of %u\n", edid[0x10], edid[0x11] + 1990);
-			else
-				printf("Made in year %u\n", edid[0x11] + 1990);
-		} else {
-			fail("bad year of manufacture\n");
-		}
-	} else {
-		fail("bad week of manufacture\n");
+
+	unsigned char week = edid[0x10];
+	int year = 1990 + edid[0x11];
+
+	if (week) {
+		// The max week is 53 in EDID 1.3 and 54 in EDID 1.4.
+		// No idea why there is a difference.
+		if ((state.edid_minor <= 3 && week > 53) ||
+		    (week != 0xff && week > 54))
+			fail("invalid week %u of manufacture\n", week);
+		if (week != 0xff)
+			printf("Made in week %hhu of %d\n", week, year);
 	}
+	if (state.edid_minor >= 4 && week == 0xff)
+		printf("Model year %d\n", year);
+	else if (!week)
+		printf("Made in year %d\n", year);
+	if (year + 1 > ptm->tm_year + 1900)
+		fail("The year %d is more than one year in the future\n", year);
 
 	/* display section */
 
