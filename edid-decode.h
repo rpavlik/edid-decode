@@ -43,6 +43,8 @@ struct edid_state {
 	bool supports_cvt;
 	bool uses_gtf;
 	bool uses_cvt;
+	bool has_spwg;
+	int timing_descr_cnt;
 
 	unsigned min_display_hor_freq_hz;
 	unsigned max_display_hor_freq_hz;

@@ -974,14 +974,20 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 	vso = ((x[10] >> 4) + ((x[11] & 0x0c) << 2));
 	vspw = ((x[10] & 0x0f) + ((x[11] & 0x03) << 4));
 	vborder = x[16];
-	switch ((x[17] & 0x18) >> 3) {
+
+	unsigned char flags = x[17];
+
+	if (state.has_spwg && state.timing_descr_cnt == 2)
+		flags = *(x - 1);
+
+	switch ((flags & 0x18) >> 3) {
 	case 0x00:
 		syncmethod = "analog composite";
 		/* fall-through */
 	case 0x01:
 		if (!syncmethod)
 			syncmethod = "bipolar analog composite";
-		switch ((x[17] & 0x06) >> 1) {
+		switch ((flags & 0x06) >> 1) {
 		case 0x00:
 			syncmethod_details = ", sync-on-green";
 			break;
@@ -997,17 +1003,19 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 		break;
 	case 0x02:
 		syncmethod = "digital composite";
-		phsync = (x[17] & (1 << 1)) ? "+hsync " : "-hsync ";
-		if (x[17] & (1 << 2))
+		phsync = (flags & (1 << 1)) ? "+hsync " : "-hsync ";
+		if (flags & (1 << 2))
 		    syncmethod_details = ", serrate";
 		break;
 	case 0x03:
 		syncmethod = "";
-		pvsync = (x[17] & (1 << 2)) ? "+vsync " : "-vsync ";
-		phsync = (x[17] & (1 << 1)) ? "+hsync " : "-hsync ";
+		if (state.has_spwg && (flags & 0x01))
+			syncmethod = "DE timing only";
+		pvsync = (flags & (1 << 2)) ? "+vsync " : "-vsync ";
+		phsync = (flags & (1 << 1)) ? "+hsync " : "-hsync ";
 		break;
 	}
-	switch (x[17] & 0x61) {
+	switch (flags & 0x61) {
 	case 0x20:
 		stereo = "field sequential L/R";
 		break;
@@ -1062,8 +1070,8 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw, vborder,
 	       prefix,
 	       phsync, pvsync, syncmethod, syncmethod_details,
-	       syncmethod && ((x[17] & 0x80) || *stereo) ? ", " : "",
-	       x[17] & 0x80 ? "interlaced " : "", stereo,
+	       syncmethod && ((flags & 0x80) || *stereo) ? ", " : "",
+	       flags & 0x80 ? "interlaced " : "", stereo,
 	       prefix,
 	       refresh, ha + hbl ? (double)pixclk_khz / (ha + hbl) : 0.0);
 	if (hso + hspw >= hbl)
@@ -1096,14 +1104,49 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 		state.max_hor_freq_hz = max(state.max_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
 		state.max_pixclk_khz = max(state.max_pixclk_khz, pixclk_khz);
 	}
+	if (state.has_spwg && state.timing_descr_cnt == 2)
+		printf("SPWG Module Revision: %hhu\n", x[17]);
 }
 
+/*
+ * Notes on panel extensions: (TODO, implement me in the code)
+ *
+ * EPI: http://www.epi-standard.org/fileadmin/spec/EPI_Specification1.0.pdf
+ * at offset 0x6c (fourth detailed block): (all other bits reserved)
+ * 0x6c: 00 00 00 0e 00
+ * 0x71: bit 6-5: data color mapping (00 conventional/fpdi/vesa, 01 openldi)
+ *       bit 4-3: pixels per clock (00 1, 01 2, 10 4, 11 reserved)
+ *       bit 2-0: bits per pixel (000 18, 001 24, 010 30, else reserved)
+ * 0x72: bit 5: FPSCLK polarity (0 normal 1 inverted)
+ *       bit 4: DE polarity (0 high active 1 low active)
+ *       bit 3-0: interface (0000 LVDS TFT
+ *                           0001 mono STN 4/8bit
+ *                           0010 color STN 8/16 bit
+ *                           0011 18 bit tft
+ *                           0100 24 bit tft
+ *                           0101 tmds
+ *                           else reserved)
+ * 0x73: bit 1: horizontal display mode (0 normal 1 right/left reverse)
+ *       bit 0: vertical display mode (0 normal 1 up/down reverse)
+ * 0x74: bit 7-4: total poweroff seq delay (0000 vga controller default
+ *                                          else time in 10ms (10ms to 150ms))
+ *       bit 3-0: total poweron seq delay (as above)
+ * 0x75: contrast power on/off seq delay, same as 0x74
+ * 0x76: bit 7: backlight control enable (1 means this field is valid)
+ *       bit 6: backlight enabled at boot (0 on 1 off)
+ *       bit 5-0: backlight brightness control steps (0..63)
+ * 0x77: bit 7: contrast control, same bit pattern as 0x76 except bit 6 resvd
+ * 0x78 - 0x7c: reserved
+ * 0x7d: bit 7-4: EPI descriptor major version (1)
+ *       bit 3-0: EPI descriptor minor version (0)
+ */
 static void detailed_block(edid_state &state, const unsigned char *x)
 {
 	static int seen_non_detailed_descriptor;
 	unsigned cnt;
 	unsigned i;
 
+	state.timing_descr_cnt++;
 	if (x[0] || x[1]) {
 		detailed_timings(state, "", x);
 		if (seen_non_detailed_descriptor)
@@ -1132,7 +1175,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		 * 0x0f seems to be common in laptop panels.
 		 * 0x0e is used by EPI: http://www.epi-standard.org/
 		 */
-		printf("Manufacturer-specified data, tag %d\n", x[3]);
+		printf("Manufacturer-specified data: tag 0x%02x\n", x[3]);
 		return;
 	}
 	switch (x[3]) {
@@ -1224,13 +1267,32 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		detailed_display_range_limits(state, x);
 		return;
 	case 0xfe:
-		/*
-		 * TODO: Two of these in a row, in the third and fourth slots,
-		 * seems to be specified by SPWG: http://www.spwg.org/
-		 */
-		state.cur_block = "Alphanumeric Data String";
-		printf("%s: %s\n", state.cur_block.c_str(),
-		       extract_string(x + 5, 13));
+		if (!state.has_spwg || state.timing_descr_cnt < 3) {
+			state.cur_block = "Alphanumeric Data String";
+			printf("%s: %s\n", state.cur_block.c_str(),
+			       extract_string(x + 5, 13));
+			return;
+		}
+		if (state.timing_descr_cnt == 3) {
+			char buf[6] = { 0 };
+
+			state.cur_block = "SPWG Descriptor #3";
+			memcpy(buf, x + 5, 5);
+			if (strlen(buf) != 5)
+				fail("invalid PC Maker P/N\n");
+			printf("SPWG PC Maker P/N: %s\n", buf);
+			printf("SPWG LCD Supplier EEDID Revision: %hhu\n", x[10]);
+			printf("SPWG Manufacturer P/N: %s\n", extract_string(x + 11, 7));
+		} else {
+			state.cur_block = "SPWG Descriptor #4";
+			printf("SMBUS Values: 0x%02hhx 0x%02hhx 0x%02hhx 0x%02hhx"
+			       " 0x%02hhx 0x%02hhx 0x%02hhx 0x%02hhx\n",
+			       x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12]);
+			printf("LVDS Channels: %hhu\n", x[13]);
+			printf("Panel Self Test %sPresent\n", x[14] ? "" : "Not");
+			if (x[15] != 0x0a || x[16] != 0x20 || x[17] != 0x20)
+				fail("Invalid trailing data\n");
+		}
 		return;
 	case 0xff:
 		state.cur_block = "Display Product Serial Number";
@@ -1483,10 +1545,20 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 	/* 18 byte descriptors */
 	if (has_preferred_timing && !edid[0x36] && !edid[0x37])
 		fail("Missing preferred timing\n");
+
+	/* Look for SPWG Noteboook Panel EDID data blocks */
+	if ((edid[0x36] || edid[0x37]) &&
+	    (edid[0x48] || edid[0x49]) &&
+	    !edid[0x5a] && !edid[0x5b] && edid[0x5d] == 0xfe &&
+	    !edid[0x6c] && !edid[0x6d] && edid[0x6f] == 0xfe &&
+	    (edid[0x79] == 1 || edid[0x79] == 2) && edid[0x7a] <= 1)
+		state.has_spwg = true;
+
 	detailed_block(state, edid + 0x36);
 	detailed_block(state, edid + 0x48);
 	detailed_block(state, edid + 0x5a);
 	detailed_block(state, edid + 0x6c);
+	state.has_spwg = false;
 
 	if (edid[0x7e])
 		printf("Has %u extension block%s\n", edid[0x7e], edid[0x7e] > 1 ? "s" : "");
