@@ -1142,6 +1142,7 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
  */
 static void detailed_block(edid_state &state, const unsigned char *x)
 {
+	static const unsigned char zero_descr[18] = { 0 };
 	static int seen_non_detailed_descriptor;
 	unsigned cnt;
 	unsigned i;
@@ -1168,6 +1169,12 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 	seen_non_detailed_descriptor = 1;
 	if (state.edid_minor == 0)
 		fail("Has descriptor blocks other than detailed timings\n");
+
+	if (!memcmp(x, zero_descr, sizeof(zero_descr))) {
+		state.cur_block = "Empty Descriptor";
+		printf("%s\n", state.cur_block.c_str());
+		fail("use Dummy Descriptor instead of all zeroes\n");
+	}
 
 	switch (x[3]) {
 	case 0x0e:
@@ -1298,7 +1305,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 	default:
 		printf("%s Description 0x%02hhx:",
 		       x[3] <= 0x0f ? "Manufacturer-Specified" : "Unknown", x[3]);
-		hex_block(" ", x + 4, 14);
+		hex_block(" ", x + 2, 16);
 		if (x[3] > 0x0f)
 			warn("Unknown Description Type 0x%02hhx\n", x[3]);
 		return;
