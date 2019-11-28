@@ -670,7 +670,7 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 	}
 	t = find_std_id((b1 << 8) | b2);
 	if (t) {
-		print_timings(state, "  ", t, "");
+		print_timings(state, "  ", t, " (DMT)");
 		return;
 	}
 	x = (b1 + 31) * 8;
