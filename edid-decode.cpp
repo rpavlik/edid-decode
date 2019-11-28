@@ -304,9 +304,16 @@ static unsigned char *extract_edid(int fd)
 		return out;
 	}
 
+	start = strstr(ret, "EDID (hex):");
+	if (start)
+		start += 12;
+	else
+		start = ret;
+
 	/* Is the EDID provided in hex? */
-	for (i = 0; i < 32 && (isspace(ret[i]) || ret[i] == ',' ||
-			       tolower(ret[i]) == 'x' || isxdigit(ret[i])); i++);
+	for (i = 0; i < 32 && (isspace(start[i]) || start[i] == ',' ||
+			       tolower(start[i]) == 'x' || isxdigit(start[i])); i++);
+
 	if (i == 32) {
 		out = (unsigned char *)malloc(size >> 1);
 		if (out == NULL) {
@@ -314,7 +321,7 @@ static unsigned char *extract_edid(int fd)
 			return NULL;
 		}
 
-		for (c=ret; *c; c++) {
+		for (c = start; *c; c++) {
 			char buf[3];
 
 			if (!isxdigit(*c) || (*c == '0' && tolower(c[1]) == 'x'))
