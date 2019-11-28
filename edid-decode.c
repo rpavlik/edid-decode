@@ -45,13 +45,10 @@ enum {
 };
 
 static unsigned edid_minor = 0;
-static int did_detailed_timing = 0;
 static int has_name_descriptor = 0;
-static int has_range_descriptor = 0;
-static int has_preferred_timing = 0;
+static int has_display_range_descriptor = 0;
 static int has_serial_number = 0;
 static int has_serial_string = 0;
-static int has_cta861 = 0;
 static int has_640x480p60_est_timing = 0;
 static int has_cta861_vic_1 = 0;
 
@@ -831,7 +828,7 @@ static void detailed_display_range_limits(const unsigned char *x)
 
 	cur_block = "Display Range Limits";
 	printf("%s\n", cur_block);
-	has_range_descriptor = 1;
+	has_display_range_descriptor = 1;
 	/* 
 	 * XXX todo: implement feature flags, vtd blocks
 	 * XXX check: ranges are well-formed; block termination if no vtd
@@ -997,7 +994,6 @@ static void detailed_timings(const char *prefix, const unsigned char *x)
 		fail("First two bytes are 0, invalid data\n");
 		return;
 	}
-	did_detailed_timing = 1;
 	ha = (x[2] + ((x[4] & 0xf0) << 4));
 	hbl = (x[3] + ((x[4] & 0x0f) << 8));
 	hso = (x[8] + ((x[11] & 0xc0) << 2));
@@ -2632,10 +2628,11 @@ static void parse_cta(const unsigned char *x)
 				detailed_timings("  ", detailed);
 	} while (0);
 
-	has_cta861 = 1;
 	if (!has_cta861_vic_1 && !has_640x480p60_est_timing)
 		fail("Required 640x480p60 timings are missing in the established timings"
 		     "and the SVD list (VIC 1)\n");
+	if ((supported_hdmi_vic_vsb_codes & supported_hdmi_vic_codes) != supported_hdmi_vic_codes)
+		fail("HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB\n");
 }
 
 static void parse_displayid_detailed_timing(const unsigned char *x)
@@ -3292,6 +3289,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	struct tm *ptm;
 	int analog, i;
 	unsigned col_x, col_y;
+	int has_preferred_timing = 0;
 
 	if (!from_file || !strcmp(from_file, "-")) {
 		fd = 0;
@@ -3555,10 +3553,10 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	for (i = 0; i < 8; i++)
 		print_standard_timing(edid[0x26 + i * 2], edid[0x26 + i * 2 + 1]);
 
-	/* detailed timings */
+	/* 18 byte descriptors */
+	if (has_preferred_timing && !edid[0x36] && !edid[0x37])
+		fail("Missing preferred timing\n");
 	detailed_block(edid + 0x36);
-	if (has_preferred_timing && !did_detailed_timing)
-		has_preferred_timing = 0; /* not really accurate... */
 	detailed_block(edid + 0x48);
 	detailed_block(edid + 0x5a);
 	detailed_block(edid + 0x6c);
@@ -3571,6 +3569,8 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	if (edid_minor >= 3) {
 		if (!has_name_descriptor)
 			fail("Missing Display Product Name\n");
+		if (edid_minor == 3 && !has_display_range_descriptor)
+			fail("Missing Display Range Limits Descriptor\n");
 	}
 
 	x = edid;
@@ -3587,19 +3587,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	printf("\n----------------\n\n");
 
-	if (edid_minor >= 3) {
-		if (!has_preferred_timing ||
-		    (edid_minor < 4 && !has_range_descriptor))
-			conformant = 0;
-		if (!conformant)
-			printf("EDID block does NOT conform to EDID 1.%u!\n", edid_minor);
-		if (!has_preferred_timing)
-			printf("\tMissing preferred timing\n");
-		if (!has_range_descriptor)
-			printf("\tMissing monitor ranges\n");
-	}
-
-	if (has_range_descriptor &&
+	if (has_display_range_descriptor &&
 	    (min_vert_freq_hz < mon_min_vert_freq_hz ||
 	     max_vert_freq_hz > mon_max_vert_freq_hz ||
 	     min_hor_freq_hz < mon_min_hor_freq_hz ||
@@ -3631,9 +3619,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			     max_pixclk_khz / 1000.0, mon_max_pixclk_khz / 1000.0);
 		}
 	}
-
-	if ((supported_hdmi_vic_vsb_codes & supported_hdmi_vic_codes) != supported_hdmi_vic_codes)
-		printf("Warning: HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB\n");
 
 	free(edid);
 	if (s_warn)
