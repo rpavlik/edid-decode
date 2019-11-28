@@ -597,9 +597,9 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	if (out) {
 		write_edid(out, edid, edid_lines * 16, out_fmt);
-		if (out == stdout)
-			return 0;
-		fclose(out);
+		if (out != stdout)
+			fclose(out);
+		return 0;
 	}
 
 	if (options[OptExtract])
