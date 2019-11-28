@@ -49,7 +49,6 @@ static int claims_one_point_oh = 0;
 static int claims_one_point_two = 0;
 static int claims_one_point_three = 0;
 static int claims_one_point_four = 0;
-static int nonconformant_digital_display = 0;
 static int did_detailed_timing = 0;
 static int has_name_descriptor = 0;
 static int has_range_descriptor = 0;
@@ -3341,22 +3340,25 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	cur_block = "EDID Structure Version & Revision";
 	printf("EDID version: %hhu.%hhu\n", edid[0x12], edid[0x13]);
 	if (edid[0x12] == 1) {
-		if (edid[0x13] > 4) {
-			printf("Claims > 1.4, assuming 1.4 conformance\n");
-			edid[0x13] = 4;
-		}
 		edid_minor = edid[0x13];
-		switch (edid[0x13]) {
+		switch (edid_minor) {
+		default:
+			warn("Unknown EDID minor version %u, assuming 1.4 conformance\n", edid_minor);
 		case 4:
 			claims_one_point_four = 1;
 		case 3:
 			claims_one_point_three = 1;
 		case 2:
 			claims_one_point_two = 1;
-		default:
+		case 1:
+		case 0:
+			claims_one_point_oh = 1;
 			break;
 		}
-		claims_one_point_oh = 1;
+		if (edid_minor < 3)
+			fail("EDID 1.%u is deprecated, do not use\n", edid_minor);
+	} else {
+		fail("Unknown EDID major version\n");
 	}
 
 	cur_block = "Vendor & Product Identification";
@@ -3391,15 +3393,13 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	cur_block = "Basic Display Parameters & Features";
 	if (edid[0x14] & 0x80) {
-		int conformance_mask;
 		analog = 0;
 		printf("Digital display\n");
 		if (claims_one_point_four) {
-			conformance_mask = 0;
 			if ((edid[0x14] & 0x70) == 0x00)
 				printf("Color depth is undefined\n");
 			else if ((edid[0x14] & 0x70) == 0x70)
-				nonconformant_digital_display = 1;
+				fail("Color Bit Depth set to reserved value\n");
 			else
 				printf("%u bits per primary color channel\n",
 				       ((edid[0x14] & 0x70) >> 3) + 4);
@@ -3412,16 +3412,18 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			case 0x04: printf("MDDI interface\n"); break;
 			case 0x05: printf("DisplayPort interface\n"); break;
 			default:
-				   nonconformant_digital_display = 1;
+				   fail("Digital Video Interface Standard set to reserved value\n");
+				   break;
 			}
 		} else if (claims_one_point_two) {
-			conformance_mask = 0x7e;
 			if (edid[0x14] & 0x01) {
 				printf("DFP 1.x compatible TMDS\n");
 			}
-		} else conformance_mask = 0x7f;
-		if (!nonconformant_digital_display)
-			nonconformant_digital_display = edid[0x14] & conformance_mask;
+			if (edid[0x14] & 0x7e)
+				fail("Byte 14Digital Video Interface Standard set to reserved value\n");
+		} else if (edid[0x14] & 0x7f) {
+			fail("Digital Video Interface Standard set to reserved value\n");
+		}
 	} else {
 		unsigned voltage = (edid[0x14] & 0x60) >> 5;
 		unsigned sync = (edid[0x14] & 0x0f);
@@ -3602,27 +3604,15 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	printf("\n----------------\n\n");
 
 	if (claims_one_point_three) {
-		if (nonconformant_digital_display ||
-		    !has_preferred_timing ||
+		if (!has_preferred_timing ||
 		    (!claims_one_point_four && !has_range_descriptor))
 			conformant = 0;
 		if (!conformant)
 			printf("EDID block does NOT conform to EDID 1.%u!\n", edid_minor);
-		if (nonconformant_digital_display)
-			printf("\tDigital display field contains garbage: 0x%x\n",
-			       nonconformant_digital_display);
 		if (!has_preferred_timing)
 			printf("\tMissing preferred timing\n");
 		if (!has_range_descriptor)
 			printf("\tMissing monitor ranges\n");
-	} else if (claims_one_point_two) {
-		if (nonconformant_digital_display)
-			conformant = 0;
-		if (!conformant)
-			printf("EDID block does NOT conform to EDID 1.2!\n");
-		if (nonconformant_digital_display)
-			printf("\tDigital display field contains garbage: %x\n",
-			       nonconformant_digital_display);
 	}
 
 	if (has_range_descriptor &&
