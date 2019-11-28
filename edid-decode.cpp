@@ -1,26 +1,11 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2006-2012 Red Hat, Inc.
+ * Copyright 2018-2019 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * on the rights to use, copy, modify, merge, publish, distribute, sub
- * license, and/or sell copies of the Software, and to permit persons to whom
- * the Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * Author: Adam Jackson <ajax@nwnk.net>
+ * Maintainer: Hans Verkuil <hverkuil-cisco@xs4all.nl>
  */
-/* Author: Adam Jackson <ajax@nwnk.net> */
-/* Maintainer: Hans Verkuil <hverkuil-cisco@xs4all.nl> */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -38,55 +23,19 @@
 
 #include <string>
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#define max(a, b) ((a) > (b) ? (a) : (b))
+#include "edid-decode.h"
 
 enum {
 	EDID_PAGE_SIZE = 128u
 };
 
-static unsigned edid_minor = 0;
-static int has_name_descriptor = 0;
-static int has_display_range_descriptor = 0;
-static int has_serial_number = 0;
-static int has_serial_string = 0;
-static int has_640x480p60_est_timing = 0;
-static int has_cta861_vic_1 = 0;
-
-static unsigned min_hor_freq_hz = 0xfffffff;
-static unsigned max_hor_freq_hz = 0;
-static unsigned min_vert_freq_hz = 0xfffffff;
-static unsigned max_vert_freq_hz = 0;
-static unsigned max_pixclk_khz = 0;
-static unsigned mon_min_hor_freq_hz = 0;
-static unsigned mon_max_hor_freq_hz = 0;
-static unsigned mon_min_vert_freq_hz = 0;
-static unsigned mon_max_vert_freq_hz = 0;
-static unsigned mon_max_pixclk_khz = 0;
-static unsigned max_display_width_mm = 0;
-static unsigned max_display_height_mm = 0;
-
-static unsigned supported_hdmi_vic_codes = 0;
-static unsigned supported_hdmi_vic_vsb_codes = 0;
-
-static unsigned warnings;
-static unsigned fails;
+static edid_state state;
 
 enum output_format {
 	OUT_FMT_DEFAULT,
 	OUT_FMT_HEX,
 	OUT_FMT_RAW,
 	OUT_FMT_CARRAY
-};
-
-// Video Timings
-struct timings {
-	unsigned x, y;
-	unsigned refresh;
-	unsigned ratio_w, ratio_h;
-	unsigned hor_freq_hz, pixclk_khz;
-	unsigned rb, interlaced;
 };
 
 /*
@@ -143,7 +92,6 @@ struct field {
 	unsigned n_values;
 };
 
-static const char *cur_block;
 static std::string s_warn, s_fail;
 
 static void warn(const char *fmt, ...)
@@ -154,8 +102,8 @@ static void warn(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsprintf(buf, fmt, ap);
 	va_end(ap);
-	warnings++;
-	s_warn += std::string(cur_block) + ": " + buf;
+	state.warnings++;
+	s_warn += std::string(state.cur_block) + ": " + buf;
 }
 
 static void fail(const char *fmt, ...)
@@ -166,8 +114,8 @@ static void fail(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsprintf(buf, fmt, ap);
 	va_end(ap);
-	fails++;
-	s_fail += std::string(cur_block) + ": " + buf;
+	state.fails++;
+	s_fail += std::string(state.cur_block) + ": " + buf;
 }
 
 #define DEFINE_FIELD(n, var, s, e, ...)				\
@@ -390,11 +338,11 @@ static void print_timings(const char *prefix, const struct timings *t, const cha
 		fail("unknown short timings\n");
 		return;
 	}
-	min_vert_freq_hz = min(min_vert_freq_hz, t->refresh);
-	max_vert_freq_hz = max(max_vert_freq_hz, t->refresh);
-	min_hor_freq_hz = min(min_hor_freq_hz, t->hor_freq_hz);
-	max_hor_freq_hz = max(max_hor_freq_hz, t->hor_freq_hz);
-	max_pixclk_khz = max(max_pixclk_khz, t->pixclk_khz);
+	state.min_vert_freq_hz = min(state.min_vert_freq_hz, t->refresh);
+	state.max_vert_freq_hz = max(state.max_vert_freq_hz, t->refresh);
+	state.min_hor_freq_hz = min(state.min_hor_freq_hz, t->hor_freq_hz);
+	state.max_hor_freq_hz = max(state.max_hor_freq_hz, t->hor_freq_hz);
+	state.max_pixclk_khz = max(state.max_pixclk_khz, t->pixclk_khz);
 
 	printf("%s%ux%u%s@%u %s%u:%u HorFreq: %.3f kHz Clock: %.3f MHz%s\n",
 	       prefix,
@@ -622,23 +570,23 @@ static char *extract_string(const unsigned char *x, unsigned len)
 			if (x[i] == 0x0a) {
 				seen_newline = 1;
 				if (!i)
-					fail("%s: empty string\n", cur_block);
+					fail("empty string\n");
 				else if (s[i - 1] == 0x20)
-					fail("%s: one or more trailing spaces\n", cur_block);
+					fail("one or more trailing spaces\n");
 			} else if (x[i] == 0x20) {
 				s[i] = x[i];
 			} else {
-				fail("%s: non-printable character\n", cur_block);
+				fail("non-printable character\n");
 				return s;
 			}
 		} else if (x[i] != 0x20) {
-			fail("%s: non-space after newline\n", cur_block);
+			fail("non-space after newline\n");
 			return s;
 		}
 	}
 	/* Does the string end with a space? */
 	if (!seen_newline && s[len - 1] == 0x20)
-		fail("%s: one or more trailing spaces\n", cur_block);
+		fail("one or more trailing spaces\n");
 
 	return s;
 }
@@ -743,7 +691,7 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 	x = (b1 + 31) * 8;
 	switch ((b2 >> 6) & 0x3) {
 	case 0x00:
-		if (edid_minor >= 3) {
+		if (state.edid_minor >= 3) {
 			y = x * 10 / 16;
 			ratio_w = 16;
 			ratio_h = 10;
@@ -771,8 +719,8 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 	}
 	refresh = 60 + (b2 & 0x3f);
 
-	min_vert_freq_hz = min(min_vert_freq_hz, refresh);
-	max_vert_freq_hz = max(max_vert_freq_hz, refresh);
+	state.min_vert_freq_hz = min(state.min_vert_freq_hz, refresh);
+	state.max_vert_freq_hz = max(state.max_vert_freq_hz, refresh);
 	for (i = 0; i < ARRAY_SIZE(established_timings12); i++) {
 		if (established_timings12[i].x == x &&
 		    established_timings12[i].y == y &&
@@ -807,14 +755,14 @@ static void detailed_display_range_limits(const unsigned char *x)
 	int is_cvt = 0;
 	const char *range_class = "";
 
-	cur_block = "Display Range Limits";
-	printf("%s\n", cur_block);
-	has_display_range_descriptor = 1;
+	state.cur_block = "Display Range Limits";
+	printf("%s\n", state.cur_block);
+	state.has_display_range_descriptor = 1;
 	/* 
 	 * XXX todo: implement feature flags, vtd blocks
 	 * XXX check: ranges are well-formed; block termination if no vtd
 	 */
-	if (edid_minor >= 4) {
+	if (state.edid_minor >= 4) {
 		if (x[4] & 0x02) {
 			v_max_offset = 255;
 			if (x[4] & 0x01) {
@@ -838,7 +786,7 @@ static void detailed_display_range_limits(const unsigned char *x)
 		break;
 	case 0x01: /* range limits only */
 		range_class = "bare limits";
-		if (edid_minor < 4)
+		if (state.edid_minor < 4)
 			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
 		break;
 	case 0x02: /* secondary gtf curve */
@@ -847,7 +795,7 @@ static void detailed_display_range_limits(const unsigned char *x)
 	case 0x04: /* cvt */
 		range_class = "CVT";
 		is_cvt = 1;
-		if (edid_minor < 4)
+		if (state.edid_minor < 4)
 			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
 		break;
 	default: /* invalid */
@@ -858,21 +806,21 @@ static void detailed_display_range_limits(const unsigned char *x)
 
 	if (x[5] + v_min_offset > x[6] + v_max_offset)
 		fail("min vertical rate > max vertical rate\n");
-	mon_min_vert_freq_hz = x[5] + v_min_offset;
-	mon_max_vert_freq_hz = x[6] + v_max_offset;
+	state.min_display_vert_freq_hz = x[5] + v_min_offset;
+	state.max_display_vert_freq_hz = x[6] + v_max_offset;
 	if (x[7] + h_min_offset > x[8] + h_max_offset)
 		fail("min horizontal freq > max horizontal freq\n");
-	mon_min_hor_freq_hz = (x[7] + h_min_offset) * 1000;
-	mon_max_hor_freq_hz = (x[8] + h_max_offset) * 1000;
+	state.min_display_hor_freq_hz = (x[7] + h_min_offset) * 1000;
+	state.max_display_hor_freq_hz = (x[8] + h_max_offset) * 1000;
 	printf("  Monitor ranges (%s): %d-%d Hz V, %d-%d kHz H",
 	       range_class,
 	       x[5] + v_min_offset, x[6] + v_max_offset,
 	       x[7] + h_min_offset, x[8] + h_max_offset);
 	if (x[9]) {
-		mon_max_pixclk_khz = x[9] * 10000;
+		state.max_display_pixclk_khz = x[9] * 10000;
 		printf(", max dotclock %d MHz\n", x[9] * 10);
 	} else {
-		if (edid_minor >= 4)
+		if (state.edid_minor >= 4)
 			fail("EDID 1.4 block does not set max dotclock\n");
 		printf("\n");
 	}
@@ -970,7 +918,7 @@ static void detailed_timings(const char *prefix, const unsigned char *x)
 	const char *phsync = "", *pvsync = "";
 	const char *syncmethod = NULL, *syncmethod_details = "", *stereo;
 
-	cur_block = "Detailed Timings";
+	state.cur_block = "Detailed Timings";
 	if (x[0] == 0 && x[1] == 0) {
 		fail("First two bytes are 0, invalid data\n");
 		return;
@@ -1081,31 +1029,31 @@ static void detailed_timings(const char *prefix, const unsigned char *x)
 		fail("0 or negative horizontal back porch\n");
 	if (vso + vspw >= vbl)
 		fail("0 or negative vertical back porch\n");
-	if ((!max_display_width_mm && hor_mm) ||
-	    (!max_display_height_mm && vert_mm)) {
+	if ((!state.max_display_width_mm && hor_mm) ||
+	    (!state.max_display_height_mm && vert_mm)) {
 		fail("mismatch of image size vs display size: image size is set, but not display size\n");
-	} else if ((max_display_width_mm && !hor_mm) ||
-		   (max_display_height_mm && !vert_mm)) {
+	} else if ((state.max_display_width_mm && !hor_mm) ||
+		   (state.max_display_height_mm && !vert_mm)) {
 		fail("mismatch of image size vs display size: image size is not set, but display size is\n");
 	} else if (!hor_mm && !vert_mm) {
 		/* this is valid */
-	} else if (hor_mm > max_display_width_mm + 9 ||
-		   vert_mm > max_display_height_mm + 9) {
+	} else if (hor_mm > state.max_display_width_mm + 9 ||
+		   vert_mm > state.max_display_height_mm + 9) {
 		fail("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
-		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
-	} else if (hor_mm < max_display_width_mm - 9 &&
-		   vert_mm < max_display_height_mm - 9) {
+		     hor_mm, vert_mm, state.max_display_width_mm, state.max_display_height_mm);
+	} else if (hor_mm < state.max_display_width_mm - 9 &&
+		   vert_mm < state.max_display_height_mm - 9) {
 		fail("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
-		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
+		     hor_mm, vert_mm, state.max_display_width_mm, state.max_display_height_mm);
 	}
 	if (refresh) {
-		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
-		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
+		state.min_vert_freq_hz = min(state.min_vert_freq_hz, refresh);
+		state.max_vert_freq_hz = max(state.max_vert_freq_hz, refresh);
 	}
 	if (pixclk_khz && (ha + hbl)) {
-		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
-		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
-		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
+		state.min_hor_freq_hz = min(state.min_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
+		state.max_hor_freq_hz = max(state.max_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
+		state.max_pixclk_khz = max(state.max_pixclk_khz, pixclk_khz);
 	}
 }
 
@@ -1121,19 +1069,19 @@ static void detailed_block(const unsigned char *x)
 		return;
 	}
 
-	cur_block = "Display Descriptor";
+	state.cur_block = "Display Descriptor";
 	/* Monitor descriptor block, not detailed timing descriptor. */
 	if (x[2] != 0) {
 		/* 1.3, 3.10.3 */
 		fail("monitor descriptor block has byte 2 nonzero (0x%02x)\n", x[2]);
 	}
-	if ((edid_minor < 4 || x[3] != 0xfd) && x[4] != 0x00) {
+	if ((state.edid_minor < 4 || x[3] != 0xfd) && x[4] != 0x00) {
 		/* 1.3, 3.10.3 */
 		fail("monitor descriptor block has byte 4 nonzero (0x%02x)\n", x[4]);
 	}
 
 	seen_non_detailed_descriptor = 1;
-	if (edid_minor == 0)
+	if (state.edid_minor == 0)
 		fail("Has descriptor blocks other than detailed timings\n");
 
 	if (x[3] <= 0xf) {
@@ -1147,8 +1095,8 @@ static void detailed_block(const unsigned char *x)
 	}
 	switch (x[3]) {
 	case 0x10:
-		cur_block = "Dummy Descriptor";
-		printf("%s\n", cur_block);
+		state.cur_block = "Dummy Descriptor";
+		printf("%s\n", state.cur_block);
 		for (i = 5; i < 18; i++) {
 			if (x[i]) {
 				fail("dummy block filled with garbage\n");
@@ -1157,15 +1105,15 @@ static void detailed_block(const unsigned char *x)
 		}
 		return;
 	case 0xf7:
-		cur_block = "Established timings III";
-		printf("%s\n", cur_block);
+		state.cur_block = "Established timings III";
+		printf("%s\n", state.cur_block);
 		for (i = 0; i < 44; i++)
 			if (x[6 + i / 8] & (1 << (7 - i % 8)))
 				print_timings("  ", find_dmt_id(established_timings3_dmt_ids[i]), "");
 		return;
 	case 0xf8:
-		cur_block = "CVT 3 Byte Timing Codes";
-		printf("%s\n", cur_block);
+		state.cur_block = "CVT 3 Byte Timing Codes";
+		printf("%s\n", state.cur_block);
 		if (x[5] != 0x01) {
 			fail("Invalid version number\n");
 			return;
@@ -1174,8 +1122,8 @@ static void detailed_block(const unsigned char *x)
 			detailed_cvt_descriptor(x + 6 + (i * 3), (i == 0));
 		return;
 	case 0xf9:
-		cur_block = "Display Color Management Data";
-		printf("%s\n", cur_block);
+		state.cur_block = "Display Color Management Data";
+		printf("%s\n", state.cur_block);
 		printf("  Version:  %d\n", x[5]);
 		printf("  Red a3:   %.2f\n", (short)(x[6] | (x[7] << 8)) / 100.0);
 		printf("  Red a2:   %.2f\n", (short)(x[8] | (x[9] << 8)) / 100.0);
@@ -1185,8 +1133,8 @@ static void detailed_block(const unsigned char *x)
 		printf("  Blue a2:  %.2f\n", (short)(x[16] | (x[17] << 8)) / 100.0);
 		return;
 	case 0xfa:
-		cur_block = "Standard Timing Identifications";
-		printf("%s\n", cur_block);
+		state.cur_block = "Standard Timing Identifications";
+		printf("%s\n", state.cur_block);
 		for (i = 0; i < 6; i++)
 			print_standard_timing(x[5 + i * 2], x[5 + i * 2 + 1]);
 		return;
@@ -1194,8 +1142,8 @@ static void detailed_block(const unsigned char *x)
 		unsigned w_x, w_y;
 		unsigned gamma;
 
-		cur_block = "Color Point Data";
-		printf("%s\n", cur_block);
+		state.cur_block = "Color Point Data";
+		printf("%s\n", state.cur_block);
 		w_x = (x[7] << 2) | ((x[6] >> 2) & 3);
 		w_y = (x[8] << 2) | (x[6] & 3);
 		gamma = x[9];
@@ -1221,9 +1169,9 @@ static void detailed_block(const unsigned char *x)
 		return;
 	}
 	case 0xfc:
-		cur_block = "Display Product Name";
-		has_name_descriptor = 1;
-		printf("%s: %s\n", cur_block, extract_string(x + 5, 13));
+		state.cur_block = "Display Product Name";
+		state.has_name_descriptor = 1;
+		printf("%s: %s\n", state.cur_block, extract_string(x + 5, 13));
 		return;
 	case 0xfd:
 		detailed_display_range_limits(x);
@@ -1233,15 +1181,15 @@ static void detailed_block(const unsigned char *x)
 		 * TODO: Two of these in a row, in the third and fourth slots,
 		 * seems to be specified by SPWG: http://www.spwg.org/
 		 */
-		cur_block = "Alphanumeric Data String";
-		printf("%s: %s\n", cur_block,
+		state.cur_block = "Alphanumeric Data String";
+		printf("%s: %s\n", state.cur_block,
 		       extract_string(x + 5, 13));
 		return;
 	case 0xff:
-		cur_block = "Display Product Serial Number";
-		printf("%s: %s\n", cur_block,
+		state.cur_block = "Display Product Serial Number";
+		printf("%s: %s\n", state.cur_block,
 		       extract_string(x + 5, 13));
-		has_serial_string = 1;
+		state.has_serial_string = 1;
 		return;
 	default:
 		warn("Unknown monitor description type %d\n", x[3]);
@@ -1601,16 +1549,16 @@ static void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 		if (t) {
 			switch (vic) {
 			case 95:
-				supported_hdmi_vic_vsb_codes |= 1 << 0;
+				state.supported_hdmi_vic_vsb_codes |= 1 << 0;
 				break;
 			case 94:
-				supported_hdmi_vic_vsb_codes |= 1 << 1;
+				state.supported_hdmi_vic_vsb_codes |= 1 << 1;
 				break;
 			case 93:
-				supported_hdmi_vic_vsb_codes |= 1 << 2;
+				state.supported_hdmi_vic_vsb_codes |= 1 << 2;
 				break;
 			case 98:
-				supported_hdmi_vic_vsb_codes |= 1 << 3;
+				state.supported_hdmi_vic_vsb_codes |= 1 << 3;
 				break;
 			}
 			printf("    VIC %3u ", vic);
@@ -1621,7 +1569,7 @@ static void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 		}
 
 		if (vic == 1 && !for_ycbcr420)
-			has_cta861_vic_1 = 1;
+			state.has_cta861_vic_1 = 1;
 	}
 }
 
@@ -1785,7 +1733,7 @@ static void cta_hdmi_block(const unsigned char *x, unsigned length)
 			const struct timings *t;
 
 			if (vic && vic <= ARRAY_SIZE(edid_hdmi_modes)) {
-				supported_hdmi_vic_codes |= 1 << (vic - 1);
+				state.supported_hdmi_vic_codes |= 1 << (vic - 1);
 				t = &edid_hdmi_modes[vic - 1];
 				printf("      HDMI VIC %u ", vic);
 				print_timings("", t, "");
@@ -2385,12 +2333,12 @@ static void cta_block(const unsigned char *x)
 
 	switch ((x[0] & 0xe0) >> 5) {
 	case 0x01:
-		cur_block = "Audio Data Block";
+		state.cur_block = "Audio Data Block";
 		printf("  Audio Data Block\n");
 		cta_audio_block(x + 1, length);
 		break;
 	case 0x02:
-		cur_block = "Video Data Block";
+		state.cur_block = "Video Data Block";
 		printf("  Video Data Block\n");
 		cta_video_block(x + 1, length);
 		break;
@@ -2398,14 +2346,14 @@ static void cta_block(const unsigned char *x)
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
 		printf("  Vendor-Specific Data Block, OUI %06x", oui);
 		if (oui == 0x000c03) {
-			cur_block = "Vendor-Specific Data Block (HDMI)";
+			state.cur_block = "Vendor-Specific Data Block (HDMI)";
 			cta_hdmi_block(x + 1, length);
 			last_block_was_hdmi_vsdb = 1;
 			first_block = 0;
 			return;
 		}
 		if (oui == 0xc45dd8) {
-			cur_block = "Vendor-Specific Data Block (HDMI Forum)";
+			state.cur_block = "Vendor-Specific Data Block (HDMI Forum)";
 			if (!last_block_was_hdmi_vsdb)
 				fail("HDMI Forum VSDB did not immediately follow the HDMI VSDB\n");
 			if (have_hf_scdb || have_hf_vsdb)
@@ -2419,7 +2367,7 @@ static void cta_block(const unsigned char *x)
 		}
 		break;
 	case 0x04:
-		cur_block = "Speaker Allocation Data Block";
+		state.cur_block = "Speaker Allocation Data Block";
 		printf("  Speaker Allocation Data Block\n");
 		cta_sadb(x + 1, length);
 		break;
@@ -2431,7 +2379,7 @@ static void cta_block(const unsigned char *x)
 		printf("  Extended tag: ");
 		switch (x[1]) {
 		case 0x00:
-			cur_block = "Video Capability Data Block";
+			state.cur_block = "Video Capability Data Block";
 			printf("Video Capability Data Block\n");
 			cta_vcdb(x + 2, length - 1);
 			break;
@@ -2439,7 +2387,7 @@ static void cta_block(const unsigned char *x)
 			oui = (x[4] << 16) + (x[3] << 8) + x[2];
 			printf("Vendor-Specific Video Data Block, OUI %06x", oui);
 			if (oui == 0x90848b) {
-				cur_block = "Vendor-Specific Video Data Block (HDR10+)";
+				state.cur_block = "Vendor-Specific Video Data Block (HDR10+)";
 				printf(" (HDR10+)\n");
 				cta_hdr10plus(x + 5, length - 4);
 			} else {
@@ -2461,32 +2409,32 @@ static void cta_block(const unsigned char *x)
 			hex_block("  ", x + 2, length - 1);
 			break;
 		case 0x05:
-			cur_block = "Colorimetry Data Block";
+			state.cur_block = "Colorimetry Data Block";
 			printf("Colorimetry Data Block\n");
 			cta_colorimetry_block(x + 2, length - 1);
 			break;
 		case 0x06:
-			cur_block = "HDR Static Metadata Data Block";
+			state.cur_block = "HDR Static Metadata Data Block";
 			printf("HDR Static Metadata Data Block\n");
 			cta_hdr_static_metadata_block(x + 2, length - 1);
 			break;
 		case 0x07:
-			cur_block = "HDR Dynamic Metadata Data Block";
+			state.cur_block = "HDR Dynamic Metadata Data Block";
 			printf("HDR Dynamic Metadata Data Block\n");
 			cta_hdr_dyn_metadata_block(x + 2, length - 1);
 			break;
 		case 0x0d:
-			cur_block = "Video Format Preference Data Block";
+			state.cur_block = "Video Format Preference Data Block";
 			printf("Video Format Preference Data Block\n");
 			cta_vfpdb(x + 2, length - 1);
 			break;
 		case 0x0e:
-			cur_block = "YCbCr 4:2:0 Video Data Block";
+			state.cur_block = "YCbCr 4:2:0 Video Data Block";
 			printf("YCbCr 4:2:0 Video Data Block\n");
 			cta_y420vdb(x + 2, length - 1);
 			break;
 		case 0x0f:
-			cur_block = "YCbCr 4:2:0 Capability Map Data Block";
+			state.cur_block = "YCbCr 4:2:0 Capability Map Data Block";
 			printf("YCbCr 4:2:0 Capability Map Data Block\n");
 			cta_y420cmdb(x + 2, length - 1);
 			break;
@@ -2499,17 +2447,17 @@ static void cta_block(const unsigned char *x)
 			hex_block("  ", x + 2, length - 1);
 			break;
 		case 0x12:
-			cur_block = "HDMI Audio Data Block";
+			state.cur_block = "HDMI Audio Data Block";
 			printf("HDMI Audio Data Block\n");
 			cta_hdmi_audio_block(x + 2, length - 1);
 			break;
 		case 0x13:
-			cur_block = "Room Configuration Data Block";
+			state.cur_block = "Room Configuration Data Block";
 			printf("Room Configuration Data Block\n");
 			cta_rcdb(x + 2, length - 1);
 			break;
 		case 0x14:
-			cur_block = "Speaker Location Data Block";
+			state.cur_block = "Speaker Location Data Block";
 			printf("Speaker Location Data Block\n");
 			cta_sldb(x + 2, length - 1);
 			break;
@@ -2518,7 +2466,7 @@ static void cta_block(const unsigned char *x)
 			cta_ifdb(x + 2, length - 1);
 			break;
 		case 0x78:
-			cur_block = "HDMI Forum EDID Extension Override Data Block";
+			state.cur_block = "HDMI Forum EDID Extension Override Data Block";
 			printf("HDMI Forum EDID Extension Override Data Block\n");
 			cta_hf_eeodb(x + 2, length - 1);
 			// This must be the first CTA block
@@ -2526,7 +2474,7 @@ static void cta_block(const unsigned char *x)
 				fail("Block starts at a wrong offset\n");
 			break;
 		case 0x79:
-			cur_block = "HDMI Forum Sink Capability Data Block";
+			state.cur_block = "HDMI Forum Sink Capability Data Block";
 			printf("HDMI Forum Sink Capability Data Block\n");
 			if (!last_block_was_hdmi_vsdb)
 				fail("HDMI Forum SCDB did not immediately follow the HDMI VSDB\n");
@@ -2565,7 +2513,7 @@ static void parse_cta(const unsigned char *x)
 	unsigned offset = x[2];
 	const unsigned char *detailed;
 
-	if (has_serial_number && has_serial_string)
+	if (state.has_serial_number && state.has_serial_string)
 		fail("Both the serial number and the serial string are set\n");
 
 	if (version >= 1) do {
@@ -2602,16 +2550,17 @@ static void parse_cta(const unsigned char *x)
 			printf("\n");
 		}
 
-		cur_block = "CTA-861 Detailed Timings";
+		state.cur_block = "CTA-861 Detailed Timings";
 		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18)
 			if (detailed[0])
 				detailed_timings("  ", detailed);
 	} while (0);
 
-	if (!has_cta861_vic_1 && !has_640x480p60_est_timing)
+	if (!state.has_cta861_vic_1 && !state.has_640x480p60_est_timing)
 		fail("Required 640x480p60 timings are missing in the established timings"
 		     "and the SVD list (VIC 1)\n");
-	if ((supported_hdmi_vic_vsb_codes & supported_hdmi_vic_codes) != supported_hdmi_vic_codes)
+	if ((state.supported_hdmi_vic_vsb_codes & state.supported_hdmi_vic_codes) !=
+	    state.supported_hdmi_vic_codes)
 		fail("HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB\n");
 }
 
@@ -2834,7 +2783,7 @@ static void parse_displayid(const unsigned char *x)
 	 * but checksum is calculated over the entire structure
 	 * (excluding DisplayID-in-EDID magic byte)
 	 */
-	cur_block = "DisplayID";
+	state.cur_block = "DisplayID";
 	do_checksum("  ", orig+1, orig[2] + 5);
 }
 
@@ -2851,64 +2800,64 @@ static void parse_extension(const unsigned char *x)
 
 	switch (x[0]) {
 	case 0x02:
-		cur_block = "CTA-861 Extension Block";
-		printf("%s\n", cur_block);
+		state.cur_block = "CTA-861 Extension Block";
+		printf("%s\n", state.cur_block);
 		extension_version(x);
 		parse_cta(x);
-		cur_block = "CTA-861 Extension Block";
+		state.cur_block = "CTA-861 Extension Block";
 		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0x10:
-		cur_block = "VTB Extension Block";
-		printf("%s\n", cur_block);
+		state.cur_block = "VTB Extension Block";
+		printf("%s\n", state.cur_block);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
 		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0x40:
-		cur_block = "DI Extension Block";
-		printf("%s\n", cur_block);
+		state.cur_block = "DI Extension Block";
+		printf("%s\n", state.cur_block);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
 		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0x50:
-		cur_block = "LS Extension Block";
-		printf("%s\n", cur_block);
+		state.cur_block = "LS Extension Block";
+		printf("%s\n", state.cur_block);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
 		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0x60:
-		cur_block = "DPVL Extension Block";
-		printf("%s\n", cur_block);
+		state.cur_block = "DPVL Extension Block";
+		printf("%s\n", state.cur_block);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
 		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0x70:
-		cur_block = "DisplayID Extension Block";
-		printf("%s\n", cur_block);
+		state.cur_block = "DisplayID Extension Block";
+		printf("%s\n", state.cur_block);
 		parse_displayid(x);
-		cur_block = "DisplayID Extension Block";
+		state.cur_block = "DisplayID Extension Block";
 		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	case 0xf0:
-		cur_block = "Block map";
-		printf("%s\n", cur_block);
+		state.cur_block = "Block map";
+		printf("%s\n", state.cur_block);
 		hex_block("  ", x + 1, 126);
 		do_checksum("  ", x, EDID_PAGE_SIZE);
 		break;
 	case 0xff:
-		cur_block = "Manufacturer-specific Extension Block";
-		printf("%s\n", cur_block);
+		state.cur_block = "Manufacturer-specific Extension Block";
+		printf("%s\n", state.cur_block);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
 		do_checksum("", x, EDID_PAGE_SIZE);
 		break;
 	default:
-		cur_block = "Unknown Extension Block";
-		printf("%s (0x%02x)\n", cur_block, x[0]);
+		state.cur_block = "Unknown Extension Block";
+		printf("%s (0x%02x)\n", state.cur_block, x[0]);
 		extension_version(x);
 		hex_block("  ", x + 2, 125);
 		do_checksum("", x, EDID_PAGE_SIZE);
@@ -3018,7 +2967,6 @@ static unsigned char *extract_edid(int fd)
 				out[out_index++] = strtol(buf, NULL, 16);
 				c += 2;
 			}
-			cur_block = "CTA-861";
 		}
 
 		free(ret);
@@ -3266,30 +3214,30 @@ static void parse_base_block(const unsigned char *edid)
 	unsigned col_x, col_y;
 	int has_preferred_timing = 0;
 
-	cur_block = "EDID Structure Version & Revision";
+	state.cur_block = "EDID Structure Version & Revision";
 	printf("EDID version: %hhu.%hhu\n", edid[0x12], edid[0x13]);
 	if (edid[0x12] == 1) {
-		edid_minor = edid[0x13];
-		if (edid_minor > 4)
-			warn("Unknown EDID minor version %u, assuming 1.4 conformance\n", edid_minor);
-		if (edid_minor < 3)
-			fail("EDID 1.%u is deprecated, do not use\n", edid_minor);
+		state.edid_minor = edid[0x13];
+		if (state.edid_minor > 4)
+			warn("Unknown EDID minor version %u, assuming 1.4 conformance\n", state.edid_minor);
+		if (state.edid_minor < 3)
+			fail("EDID 1.%u is deprecated, do not use\n", state.edid_minor);
 	} else {
 		fail("Unknown EDID major version\n");
 	}
 
-	cur_block = "Vendor & Product Identification";
+	state.cur_block = "Vendor & Product Identification";
 	printf("Manufacturer: %s Model %x Serial Number %u\n",
 	       manufacturer_name(edid + 0x08),
 	       (unsigned short)(edid[0x0a] + (edid[0x0b] << 8)),
 	       (unsigned)(edid[0x0c] + (edid[0x0d] << 8) +
 			  (edid[0x0e] << 16) + (edid[0x0f] << 24)));
-	has_serial_number = edid[0x0c] || edid[0x0d] || edid[0x0e] || edid[0x0f];
+	state.has_serial_number = edid[0x0c] || edid[0x0d] || edid[0x0e] || edid[0x0f];
 	/* XXX need manufacturer ID table */
 
 	time(&the_time);
 	ptm = localtime(&the_time);
-	if (edid[0x10] < 55 || (edid[0x10] == 0xff && edid_minor >= 4)) {
+	if (edid[0x10] < 55 || (edid[0x10] == 0xff && state.edid_minor >= 4)) {
 		if (edid[0x11] <= 0x0f) {
 			fail("bad year of manufacture\n");
 		} else if (edid[0x10] == 0xff) {
@@ -3308,11 +3256,11 @@ static void parse_base_block(const unsigned char *edid)
 
 	/* display section */
 
-	cur_block = "Basic Display Parameters & Features";
+	state.cur_block = "Basic Display Parameters & Features";
 	if (edid[0x14] & 0x80) {
 		analog = 0;
 		printf("Digital display\n");
-		if (edid_minor >= 4) {
+		if (state.edid_minor >= 4) {
 			if ((edid[0x14] & 0x70) == 0x00)
 				printf("Color depth is undefined\n");
 			else if ((edid[0x14] & 0x70) == 0x70)
@@ -3332,7 +3280,7 @@ static void parse_base_block(const unsigned char *edid)
 				   fail("Digital Video Interface Standard set to reserved value\n");
 				   break;
 			}
-		} else if (edid_minor >= 2) {
+		} else if (state.edid_minor >= 2) {
 			if (edid[0x14] & 0x01) {
 				printf("DFP 1.x compatible TMDS\n");
 			}
@@ -3352,7 +3300,7 @@ static void parse_base_block(const unsigned char *edid)
 		       voltage == 1 ? "0.714/0.286" :
 		       "0.7/0.3");
 
-		if (edid_minor >= 4) {
+		if (state.edid_minor >= 4) {
 			if (edid[0x14] & 0x10)
 				printf("Blank-to-black setup/pedestal\n");
 			else
@@ -3374,15 +3322,15 @@ static void parse_base_block(const unsigned char *edid)
 
 	if (edid[0x15] && edid[0x16]) {
 		printf("Maximum image size: %u cm x %u cm\n", edid[0x15], edid[0x16]);
-		max_display_width_mm = edid[0x15] * 10;
-		max_display_height_mm = edid[0x16] * 10;
-		if ((max_display_height_mm && !max_display_width_mm) ||
-		    (max_display_width_mm && !max_display_height_mm))
+		state.max_display_width_mm = edid[0x15] * 10;
+		state.max_display_height_mm = edid[0x16] * 10;
+		if ((state.max_display_height_mm && !state.max_display_width_mm) ||
+		    (state.max_display_width_mm && !state.max_display_height_mm))
 			fail("invalid maximum image size\n");
-		else if (max_display_width_mm < 100 || max_display_height_mm < 100)
+		else if (state.max_display_width_mm < 100 || state.max_display_height_mm < 100)
 			warn("dubious maximum image size (smaller than 10x10 cm)\n");
 	}
-	else if (edid_minor >= 4 && (edid[0x15] || edid[0x16])) {
+	else if (state.edid_minor >= 4 && (edid[0x15] || edid[0x16])) {
 		if (edid[0x15])
 			printf("Aspect ratio is %f (landscape)\n", 100.0/(edid[0x16] + 99));
 		else
@@ -3393,7 +3341,7 @@ static void parse_base_block(const unsigned char *edid)
 	}
 
 	if (edid[0x17] == 0xff) {
-		if (edid_minor >= 4)
+		if (state.edid_minor >= 4)
 			printf("Gamma is defined in an extension block\n");
 		else
 			/* XXX Technically 1.3 doesn't say this... */
@@ -3408,7 +3356,7 @@ static void parse_base_block(const unsigned char *edid)
 		printf("\n");
 	}
 
-	if (analog || edid_minor < 4) {
+	if (analog || state.edid_minor < 4) {
 		switch (edid[0x18] & 0x18) {
 		case 0x00: printf("Monochrome or grayscale display\n"); break;
 		case 0x08: printf("RGB color display\n"); break;
@@ -3440,25 +3388,25 @@ static void parse_base_block(const unsigned char *edid)
 			fail("sRGB is signaled, but the chromaticities do not match\n");
 	}
 	if (edid[0x18] & 0x02) {
-		if (edid_minor >= 4)
+		if (state.edid_minor >= 4)
 			printf("First detailed timing includes the native pixel format and preferred refresh rate\n");
 		else
 			printf("First detailed timing is preferred timing\n");
 		has_preferred_timing = 1;
-	} else if (edid_minor >= 4) {
+	} else if (state.edid_minor >= 4) {
 		/* 1.4 always has a preferred timing and this bit means something else. */
 		has_preferred_timing = 1;
 	}
 
 	if (edid[0x18] & 0x01) {
-		if (edid_minor >= 4)
+		if (state.edid_minor >= 4)
 			printf("Display is continuous frequency\n");
 		else
 			printf("Supports GTF timings within operating range\n");
 	}
 
-	cur_block = "Color Characteristics";
-	printf("%s\n", cur_block);
+	state.cur_block = "Color Characteristics";
+	printf("%s\n", state.cur_block);
 	col_x = (edid[0x1b] << 2) | (edid[0x19] >> 6);
 	col_y = (edid[0x1c] << 2) | ((edid[0x19] >> 4) & 3);
 	printf("  Red:   0.%04u, 0.%04u\n",
@@ -3476,15 +3424,15 @@ static void parse_base_block(const unsigned char *edid)
 	printf("  White: 0.%04u, 0.%04u\n",
 	       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
 
-	cur_block = "Established Timings I & II";
-	printf("%s\n", cur_block);
+	state.cur_block = "Established Timings I & II";
+	printf("%s\n", state.cur_block);
 	for (i = 0; i < 17; i++)
 		if (edid[0x23 + i / 8] & (1 << (7 - i % 8)))
 			print_timings("  ", &established_timings12[i], "");
-	has_640x480p60_est_timing = edid[0x23] & 0x20;
+	state.has_640x480p60_est_timing = edid[0x23] & 0x20;
 
-	cur_block = "Standard Timings";
-	printf("%s\n", cur_block);
+	state.cur_block = "Standard Timings";
+	printf("%s\n", state.cur_block);
 	for (i = 0; i < 8; i++)
 		print_standard_timing(edid[0x26 + i * 2], edid[0x26 + i * 2 + 1]);
 
@@ -3499,12 +3447,12 @@ static void parse_base_block(const unsigned char *edid)
 	if (edid[0x7e])
 		printf("Has %u extension block%s\n", edid[0x7e], edid[0x7e] > 1 ? "s" : "");
 
-	cur_block = "Base Block";
+	state.cur_block = "Base Block";
 	do_checksum("", edid, EDID_PAGE_SIZE);
-	if (edid_minor >= 3) {
-		if (!has_name_descriptor)
+	if (state.edid_minor >= 3) {
+		if (!state.has_name_descriptor)
 			fail("Missing Display Product Name\n");
-		if (edid_minor == 3 && !has_display_range_descriptor)
+		if (state.edid_minor == 3 && !state.has_display_range_descriptor)
 			fail("Missing Display Range Limits Descriptor\n");
 	}
 }
@@ -3557,6 +3505,9 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		return -1;
 	}
 
+	state.min_hor_freq_hz = 0xfffffff;
+	state.min_vert_freq_hz = 0xfffffff;
+
 	parse_base_block(edid);
 
 	x = edid;
@@ -3573,36 +3524,36 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	printf("\n----------------\n\n");
 
-	if (has_display_range_descriptor &&
-	    (min_vert_freq_hz < mon_min_vert_freq_hz ||
-	     max_vert_freq_hz > mon_max_vert_freq_hz ||
-	     min_hor_freq_hz < mon_min_hor_freq_hz ||
-	     max_hor_freq_hz > mon_max_hor_freq_hz ||
-	     max_pixclk_khz > mon_max_pixclk_khz)) {
+	if (state.has_display_range_descriptor &&
+	    (state.min_vert_freq_hz < state.min_display_vert_freq_hz ||
+	     state.max_vert_freq_hz > state.max_display_vert_freq_hz ||
+	     state.min_hor_freq_hz < state.min_display_hor_freq_hz ||
+	     state.max_hor_freq_hz > state.max_display_hor_freq_hz ||
+	     state.max_pixclk_khz > state.max_display_pixclk_khz)) {
 		/*
 		 * EDID 1.4 states (in an Errata) that explicitly defined
 		 * timings supersede the monitor range definition.
 		 */
-		if (edid_minor < 4) {
+		if (state.edid_minor < 4) {
 			fail("\n  One or more of the timings is out of range of the Monitor Ranges:\n"
 			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
-			     min_vert_freq_hz, max_vert_freq_hz,
-			     mon_min_vert_freq_hz, mon_max_vert_freq_hz,
-			     min_hor_freq_hz, max_hor_freq_hz,
-			     mon_min_hor_freq_hz, mon_max_hor_freq_hz,
-			     max_pixclk_khz / 1000.0, mon_max_pixclk_khz / 1000.0);
+			     state.min_vert_freq_hz, state.max_vert_freq_hz,
+			     state.min_display_vert_freq_hz, state.max_display_vert_freq_hz,
+			     state.min_hor_freq_hz, state.max_hor_freq_hz,
+			     state.min_display_hor_freq_hz, state.max_display_hor_freq_hz,
+			     state.max_pixclk_khz / 1000.0, state.max_display_pixclk_khz / 1000.0);
 		} else {
 			warn("\n  One or more of the timings is out of range of the Monitor Ranges:\n"
 			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
-			     min_vert_freq_hz, max_vert_freq_hz,
-			     mon_min_vert_freq_hz, mon_max_vert_freq_hz,
-			     min_hor_freq_hz, max_hor_freq_hz,
-			     mon_min_hor_freq_hz, mon_max_hor_freq_hz,
-			     max_pixclk_khz / 1000.0, mon_max_pixclk_khz / 1000.0);
+			     state.min_vert_freq_hz, state.max_vert_freq_hz,
+			     state.min_display_vert_freq_hz, state.max_display_vert_freq_hz,
+			     state.min_hor_freq_hz, state.max_hor_freq_hz,
+			     state.min_display_hor_freq_hz, state.max_display_hor_freq_hz,
+			     state.max_pixclk_khz / 1000.0, state.max_display_pixclk_khz / 1000.0);
 		}
 	}
 
