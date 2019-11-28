@@ -45,10 +45,6 @@ enum {
 };
 
 static unsigned edid_minor = 0;
-static int claims_one_point_oh = 0;
-static int claims_one_point_two = 0;
-static int claims_one_point_three = 0;
-static int claims_one_point_four = 0;
 static int did_detailed_timing = 0;
 static int has_name_descriptor = 0;
 static int has_range_descriptor = 0;
@@ -769,7 +765,7 @@ static void print_standard_timing(uint8_t b1, uint8_t b2)
 	x = (b1 + 31) * 8;
 	switch ((b2 >> 6) & 0x3) {
 	case 0x00:
-		if (claims_one_point_three) {
+		if (edid_minor >= 3) {
 			y = x * 10 / 16;
 			ratio_w = 16;
 			ratio_h = 10;
@@ -840,7 +836,7 @@ static void detailed_display_range_limits(const unsigned char *x)
 	 * XXX todo: implement feature flags, vtd blocks
 	 * XXX check: ranges are well-formed; block termination if no vtd
 	 */
-	if (claims_one_point_four) {
+	if (edid_minor >= 4) {
 		if (x[4] & 0x02) {
 			v_max_offset = 255;
 			if (x[4] & 0x01) {
@@ -864,7 +860,7 @@ static void detailed_display_range_limits(const unsigned char *x)
 		break;
 	case 0x01: /* range limits only */
 		range_class = "bare limits";
-		if (!claims_one_point_four)
+		if (edid_minor < 4)
 			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
 		break;
 	case 0x02: /* secondary gtf curve */
@@ -873,7 +869,7 @@ static void detailed_display_range_limits(const unsigned char *x)
 	case 0x04: /* cvt */
 		range_class = "CVT";
 		is_cvt = 1;
-		if (!claims_one_point_four)
+		if (edid_minor < 4)
 			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
 		break;
 	default: /* invalid */
@@ -898,7 +894,7 @@ static void detailed_display_range_limits(const unsigned char *x)
 		mon_max_pixclk_khz = x[9] * 10000;
 		printf(", max dotclock %d MHz\n", x[9] * 10);
 	} else {
-		if (claims_one_point_four)
+		if (edid_minor >= 4)
 			fail("EDID 1.4 block does not set max dotclock\n");
 		printf("\n");
 	}
@@ -1154,13 +1150,13 @@ static void detailed_block(const unsigned char *x)
 		/* 1.3, 3.10.3 */
 		fail("monitor descriptor block has byte 2 nonzero (0x%02x)\n", x[2]);
 	}
-	if ((!claims_one_point_four || x[3] != 0xfd) && x[4] != 0x00) {
+	if ((edid_minor < 4 || x[3] != 0xfd) && x[4] != 0x00) {
 		/* 1.3, 3.10.3 */
 		fail("monitor descriptor block has byte 4 nonzero (0x%02x)\n", x[4]);
 	}
 
 	seen_non_detailed_descriptor = 1;
-	if (claims_one_point_oh)
+	if (edid_minor == 0)
 		fail("Has descriptor blocks other than detailed timings\n");
 
 	if (x[3] <= 0xf) {
@@ -3341,20 +3337,8 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	printf("EDID version: %hhu.%hhu\n", edid[0x12], edid[0x13]);
 	if (edid[0x12] == 1) {
 		edid_minor = edid[0x13];
-		switch (edid_minor) {
-		default:
+		if (edid_minor > 4)
 			warn("Unknown EDID minor version %u, assuming 1.4 conformance\n", edid_minor);
-		case 4:
-			claims_one_point_four = 1;
-		case 3:
-			claims_one_point_three = 1;
-		case 2:
-			claims_one_point_two = 1;
-		case 1:
-		case 0:
-			claims_one_point_oh = 1;
-			break;
-		}
 		if (edid_minor < 3)
 			fail("EDID 1.%u is deprecated, do not use\n", edid_minor);
 	} else {
@@ -3372,7 +3356,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	time(&the_time);
 	ptm = localtime(&the_time);
-	if (edid[0x10] < 55 || (edid[0x10] == 0xff && claims_one_point_four)) {
+	if (edid[0x10] < 55 || (edid[0x10] == 0xff && edid_minor >= 4)) {
 		if (edid[0x11] <= 0x0f) {
 			fail("bad year of manufacture\n");
 		} else if (edid[0x10] == 0xff) {
@@ -3395,7 +3379,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	if (edid[0x14] & 0x80) {
 		analog = 0;
 		printf("Digital display\n");
-		if (claims_one_point_four) {
+		if (edid_minor >= 4) {
 			if ((edid[0x14] & 0x70) == 0x00)
 				printf("Color depth is undefined\n");
 			else if ((edid[0x14] & 0x70) == 0x70)
@@ -3415,7 +3399,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 				   fail("Digital Video Interface Standard set to reserved value\n");
 				   break;
 			}
-		} else if (claims_one_point_two) {
+		} else if (edid_minor >= 2) {
 			if (edid[0x14] & 0x01) {
 				printf("DFP 1.x compatible TMDS\n");
 			}
@@ -3435,7 +3419,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		       voltage == 1 ? "0.714/0.286" :
 		       "0.7/0.3");
 
-		if (claims_one_point_four) {
+		if (edid_minor >= 4) {
 			if (edid[0x14] & 0x10)
 				printf("Blank-to-black setup/pedestal\n");
 			else
@@ -3465,7 +3449,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		else if (max_display_width_mm < 100 || max_display_height_mm < 100)
 			warn("dubious maximum image size (smaller than 10x10 cm)\n");
 	}
-	else if (claims_one_point_four && (edid[0x15] || edid[0x16])) {
+	else if (edid_minor >= 4 && (edid[0x15] || edid[0x16])) {
 		if (edid[0x15])
 			printf("Aspect ratio is %f (landscape)\n", 100.0/(edid[0x16] + 99));
 		else
@@ -3476,7 +3460,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	}
 
 	if (edid[0x17] == 0xff) {
-		if (claims_one_point_four)
+		if (edid_minor >= 4)
 			printf("Gamma is defined in an extension block\n");
 		else
 			/* XXX Technically 1.3 doesn't say this... */
@@ -3491,7 +3475,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		printf("\n");
 	}
 
-	if (analog || !claims_one_point_four) {
+	if (analog || edid_minor < 4) {
 		switch (edid[0x18] & 0x18) {
 		case 0x00: printf("Monochrome or grayscale display\n"); break;
 		case 0x08: printf("RGB color display\n"); break;
@@ -3523,18 +3507,18 @@ static int edid_from_file(const char *from_file, const char *to_file,
 			fail("sRGB is signaled, but the chromaticities do not match\n");
 	}
 	if (edid[0x18] & 0x02) {
-		if (claims_one_point_four)
+		if (edid_minor >= 4)
 			printf("First detailed timing includes the native pixel format and preferred refresh rate\n");
 		else
 			printf("First detailed timing is preferred timing\n");
 		has_preferred_timing = 1;
-	} else if (claims_one_point_four) {
+	} else if (edid_minor >= 4) {
 		/* 1.4 always has a preferred timing and this bit means something else. */
 		has_preferred_timing = 1;
 	}
 
 	if (edid[0x18] & 0x01) {
-		if (claims_one_point_four)
+		if (edid_minor >= 4)
 			printf("Display is continuous frequency\n");
 		else
 			printf("Supports GTF timings within operating range\n");
@@ -3584,7 +3568,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	cur_block = "Base Block";
 	do_checksum("", edid, EDID_PAGE_SIZE);
-	if (claims_one_point_three) {
+	if (edid_minor >= 3) {
 		if (!has_name_descriptor)
 			fail("Missing Display Product Name\n");
 	}
@@ -3603,9 +3587,9 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	printf("\n----------------\n\n");
 
-	if (claims_one_point_three) {
+	if (edid_minor >= 3) {
 		if (!has_preferred_timing ||
-		    (!claims_one_point_four && !has_range_descriptor))
+		    (edid_minor < 4 && !has_range_descriptor))
 			conformant = 0;
 		if (!conformant)
 			printf("EDID block does NOT conform to EDID 1.%u!\n", edid_minor);
@@ -3625,7 +3609,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		 * EDID 1.4 states (in an Errata) that explicitly defined
 		 * timings supersede the monitor range definition.
 		 */
-		if (!claims_one_point_four) {
+		if (edid_minor < 4) {
 			fail("\n  One or more of the timings is out of range of the Monitor Ranges:\n"
 			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
