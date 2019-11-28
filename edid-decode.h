@@ -54,7 +54,9 @@ struct edid_state {
 	unsigned supported_hdmi_vic_vsb_codes;
 
 	// Global state
+	unsigned num_blocks;
 	std::string cur_block;
+	unsigned cur_block_nr;
 
 	unsigned min_hor_freq_hz;
 	unsigned max_hor_freq_hz;

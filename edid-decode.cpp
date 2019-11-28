@@ -521,20 +521,52 @@ std::string block_name(unsigned char block)
 	case 0x10:
 		return "VTB Extension Block";
 	case 0x40:
-		return "DI Extension Block";
+		return "Display Information Extension Block";
 	case 0x50:
-		return "LS Extension Block";
-	case 0x60:
-		return "DPVL Extension Block";
+		return "Localized String Extension Block";
 	case 0x70:
-		return "DisplayID Extension Block";
+		return "Display ID Extension Block";
 	case 0xf0:
-		return "Block map";
+		return "Block Map Extension Block";
 	case 0xff:
-		return "Manufacturer-specific Extension Block";
+		return "Manufacturer-Specific Extension Block";
 	default:
 		sprintf(buf, " (0x%02x)", block);
 		return std::string("Unknown Extension Block") + buf;
+	}
+}
+
+static void parse_block_map(edid_state &state, const unsigned char *x)
+{
+	static bool saw_block_1;
+	unsigned last_valid_block_tag = 0;
+	bool fail_once = false;
+	unsigned offset = 1;
+	unsigned i;
+
+	if (state.cur_block_nr == 1)
+		saw_block_1 = true;
+	else if (!saw_block_1)
+		fail("no EDID Block Map Extension found in block 1\n");
+
+	if (state.cur_block_nr > 1)
+		offset = 128;
+
+	for (i = 1; i < 127; i++) {
+		unsigned block = offset + i;
+
+		if (x[i]) {
+			last_valid_block_tag++;
+			if (i != last_valid_block_tag && !fail_once) {
+				fail("valid block tags are not consecutive\n");
+				fail_once = true;
+			}
+			printf("  Block %3u: %s\n", block, block_name(block).c_str());
+			if (block >= state.num_blocks && !fail_once) {
+				fail("invalid block number\n");
+				fail_once = true;
+			}
+		}
 	}
 }
 
@@ -550,8 +582,16 @@ static void parse_extension(edid_state &state, const unsigned char *x)
 	case 0x02:
 		parse_cta_block(state, x);
 		break;
+	case 0x20:
+		fail("Deprecated extension block, do not use\n");
+		break;
 	case 0x70:
 		parse_displayid_block(state, x);
+		break;
+	case 0xf0:
+		parse_block_map(state, x);
+		if (state.cur_block_nr != 1 && state.cur_block_nr != 128)
+			fail("must be used in block 1 and 128\n");
 		break;
 	default:
 		hex_block("  ", x + 2, 125);
@@ -610,11 +650,14 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		return -1;
 	}
 
+	state.num_blocks = edid_lines / 8;
+
 	parse_base_block(state, edid);
 
 	x = edid;
 	for (edid_lines /= 8; edid_lines > 1; edid_lines--) {
 		x += EDID_PAGE_SIZE;
+		state.cur_block_nr++;
 		printf("\n----------------\n");
 		parse_extension(state, x);
 	}
