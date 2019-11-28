@@ -1101,6 +1101,7 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 static void detailed_block(edid_state &state, const unsigned char *x)
 {
 	static int seen_non_detailed_descriptor;
+	unsigned cnt;
 	unsigned i;
 
 	if (x[0] || x[1]) {
@@ -1176,8 +1177,13 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 	case 0xfa:
 		state.cur_block = "Standard Timing Identifications";
 		printf("%s\n", state.cur_block.c_str());
-		for (i = 0; i < 6; i++)
+		for (cnt = i = 0; i < 6; i++) {
+			if (x[5 + i * 2] != 0x01 || x[5 + i * 2 + 1] != 0x01)
+				cnt++;
 			print_standard_timing(state, x[5 + i * 2], x[5 + i * 2 + 1]);
+		}
+		if (!cnt)
+			warn("%s block without any timings\n", state.cur_block.c_str());
 		return;
 	case 0xfb: {
 		unsigned w_x, w_y;
