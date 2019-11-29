@@ -652,6 +652,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	unsigned i;
 
 	if (!from_file || !strcmp(from_file, "-")) {
+		from_file = "stdin";
 		fd = 0;
 	} else if ((fd = open(from_file, O_RDONLY)) == -1) {
 		perror(from_file);
@@ -659,6 +660,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	}
 	if (to_file) {
 		if (!strcmp(to_file, "-")) {
+			to_file = "stdout";
 			out = stdout;
 		} else if ((out = fopen(to_file, "w")) == NULL) {
 			perror(to_file);
@@ -670,7 +672,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	edid = extract_edid(fd);
 	if (!edid) {
-		fprintf(stderr, "edid extract failed\n");
+		fprintf(stderr, "edid extract of '%s' failed\n", from_file);
 		return -1;
 	}
 	if (fd != 0)
@@ -684,7 +686,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	}
 
 	if (!edid || memcmp(edid, "\x00\xFF\xFF\xFF\xFF\xFF\xFF\x00", 8)) {
-		fprintf(stderr, "No header found\n");
+		fprintf(stderr, "No header found in '%s'\n", from_file);
 		return -1;
 	}
 
