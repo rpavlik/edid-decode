@@ -194,18 +194,182 @@ void hex_block(const char *prefix, const unsigned char *x,
 	}
 }
 
+static unsigned char edid[32768];
 static int edid_lines = 0;
+
+static unsigned char *extract_edid_quantumdata(char *start)
+{
+	unsigned char *out = edid;
+	unsigned out_index = 0;
+	int i;
+
+	/* Parse QuantumData 980 EDID files */
+	do {
+		start = strstr(start, ">");
+		if (!start)
+			return NULL;
+		start++;
+		for (i = 0; i < 256; i += 2) {
+			char buf[3];
+
+			buf[0] = start[i];
+			buf[1] = start[i + 1];
+			buf[2] = 0;
+			out[out_index++] = strtol(buf, NULL, 16);
+		}
+		start = strstr(start, "<BLOCK");
+	} while (start);
+	edid_lines = out_index >> 4;
+	return out;
+}
+
+static unsigned char *extract_edid_hex(char *start)
+{
+	unsigned char *out = edid;
+	unsigned out_index = 0;
+	char *c;
+
+	for (c = start; *c; c++) {
+		char buf[3];
+
+		if (isspace(*c) || strchr(",:;", *c))
+			continue;
+
+		if (*c == '0' && tolower(c[1]) == 'x') {
+			c++;
+			continue;
+		}
+
+		/* Read a %02x from the log */
+		if (!isxdigit(c[0]) || !isxdigit(c[1])) {
+			if (out_index && out_index % 128 == 0)
+				break;
+			return NULL;
+		}
+
+		buf[0] = c[0];
+		buf[1] = c[1];
+		buf[2] = 0;
+
+		out[out_index++] = strtol(buf, NULL, 16);
+		c++;
+	}
+
+	edid_lines = out_index >> 4;
+	return out;
+}
+
+static unsigned char *extract_edid_xrandr(char *start)
+{
+	unsigned char *out = edid;
+	unsigned out_index = 0;
+	const char indentation1[] = "                ";
+	const char indentation2[] = "\t\t";
+	/* Used to detect that we've gone past the EDID property */
+	const char half_indentation1[] = "        ";
+	const char half_indentation2[] = "\t";
+	const char *indentation;
+	unsigned lines = 0;
+	unsigned i;
+	char *s, *c;
+
+	lines = 0;
+	for (i = 0;; i++) {
+		unsigned j;
+
+		/* Get the next start of the line of EDID hex, assuming spaces for indentation */
+		s = strstr(start, indentation = indentation1);
+		/* Did we skip the start of another property? */
+		if (s && s > strstr(start, half_indentation1))
+			break;
+
+		/* If we failed, retry assuming tabs for indentation */
+		if (!s) {
+			s = strstr(start, indentation = indentation2);
+			/* Did we skip the start of another property? */
+			if (s && s > strstr(start, half_indentation2))
+				break;
+		}
+
+		if (!s)
+			break;
+
+		lines++;
+		start = s + strlen(indentation);
+
+		c = start;
+		for (j = 0; j < 16; j++) {
+			char buf[3];
+			/* Read a %02x from the log */
+			if (!isxdigit(c[0]) || !isxdigit(c[1])) {
+				if (j != 0) {
+					lines--;
+					break;
+				}
+				return NULL;
+			}
+			buf[0] = c[0];
+			buf[1] = c[1];
+			buf[2] = 0;
+			out[out_index++] = strtol(buf, NULL, 16);
+			c += 2;
+		}
+	}
+
+	edid_lines = lines;
+	return out;
+}
+
+static unsigned char *extract_edid_xorg(char *start)
+{
+	unsigned char *out = edid;
+	unsigned out_index = 0;
+	unsigned state = 0;
+	unsigned lines = 0;
+	char *c;
+
+	for (c = start; *c; c++) {
+		if (state == 0) {
+			char *s;
+
+			/* skip ahead to the : */
+			s = strstr(c, ": \t");
+			if (!s)
+				s = strstr(c, ":     ");
+			if (!s)
+				break;
+			c = s;
+			/* and find the first number */
+			while (!isxdigit(c[1]))
+				c++;
+			state = 1;
+			lines++;
+		} else if (state == 1) {
+			char buf[3];
+			/* Read a %02x from the log */
+			if (!isxdigit(*c)) {
+				state = 0;
+				continue;
+			}
+			buf[0] = c[0];
+			buf[1] = c[1];
+			buf[2] = 0;
+			out[out_index++] = strtol(buf, NULL, 16);
+			c++;
+		}
+	}
+
+	edid_lines = lines;
+	return out;
+}
 
 static unsigned char *extract_edid(int fd)
 {
 	char *ret;
-	char *start, *c;
+	char *start;
 	unsigned char *out = NULL;
-	unsigned state = 0;
-	unsigned lines = 0;
-	int i;
-	unsigned out_index = 0;
 	unsigned len, size;
+	int i;
 
 	size = 1 << 10;
 	ret = (char *)malloc(size);
@@ -233,150 +397,37 @@ static unsigned char *extract_edid(int fd)
 		}
 	}
 
-	start = strstr(ret, "EDID_DATA:");
-	if (start == NULL)
-		start = strstr(ret, "EDID:");
-	/* Look for xrandr --verbose output (lines of 16 hex bytes) */
-	if (start != NULL) {
-		const char indentation1[] = "                ";
-		const char indentation2[] = "\t\t";
-		/* Used to detect that we've gone past the EDID property */
-		const char half_indentation1[] = "        ";
-		const char half_indentation2[] = "\t";
-		const char *indentation;
-		char *s;
-
-		lines = 0;
-		for (i = 0;; i++) {
-			unsigned j;
-
-			/* Get the next start of the line of EDID hex, assuming spaces for indentation */
-			s = strstr(start, indentation = indentation1);
-			/* Did we skip the start of another property? */
-			if (s && s > strstr(start, half_indentation1))
-				break;
-
-			/* If we failed, retry assuming tabs for indentation */
-			if (!s) {
-				s = strstr(start, indentation = indentation2);
-				/* Did we skip the start of another property? */
-				if (s && s > strstr(start, half_indentation2))
-					break;
-			}
-
-			if (!s)
-				break;
-
-			lines++;
-			start = s + strlen(indentation);
-
-			s = (char *)realloc(out, lines * 16);
-			if (!s) {
-				free(ret);
-				free(out);
-				return NULL;
-			}
-			out = (unsigned char *)s;
-			c = start;
-			for (j = 0; j < 16; j++) {
-				char buf[3];
-				/* Read a %02x from the log */
-				if (!isxdigit(c[0]) || !isxdigit(c[1])) {
-					if (j != 0) {
-						lines--;
-						break;
-					}
-					free(ret);
-					free(out);
-					return NULL;
-				}
-				buf[0] = c[0];
-				buf[1] = c[1];
-				buf[2] = 0;
-				out[out_index++] = strtol(buf, NULL, 16);
-				c += 2;
-			}
-		}
-
+	start = strstr(ret, "EDID (hex):");
+	if (start) {
+		out = extract_edid_hex(start + 12);
 		free(ret);
-		edid_lines = lines;
 		return out;
 	}
 
 	start = strstr(ret, "<BLOCK");
 	if (start) {
-		/* Parse QuantumData 980 EDID files */
-		do {
-			start = strstr(start, ">");
-			if (start)
-				out = (unsigned char *)realloc(out, out_index + 128);
-			if (!start || !out) {
-				free(ret);
-				free(out);
-				return NULL;
-			}
-			start++;
-			for (i = 0; i < 256; i += 2) {
-				char buf[3];
-
-				buf[0] = start[i];
-				buf[1] = start[i + 1];
-				buf[2] = 0;
-				out[out_index++] = strtol(buf, NULL, 16);
-			}
-			start = strstr(start, "<BLOCK");
-		} while (start);
-		edid_lines = out_index >> 4;
+		out = extract_edid_quantumdata(start);
+		free(ret);
 		return out;
 	}
 
-	start = strstr(ret, "EDID (hex):");
-	if (start)
-		start += 12;
-	else
-		start = ret;
+	start = strstr(ret, "EDID_DATA:");
+	if (start == NULL)
+		start = strstr(ret, "EDID:");
+	/* Look for xrandr --verbose output (lines of 16 hex bytes) */
+	if (start != NULL) {
+		out = extract_edid_xrandr(start);
+		free(ret);
+		return out;
+	}
 
 	/* Is the EDID provided in hex? */
-	for (i = 0; i < 32 && (isspace(start[i]) || start[i] == ',' ||
-			       tolower(start[i]) == 'x' || isxdigit(start[i])); i++);
+	for (i = 0; i < 32 && (isspace(ret[i]) || ret[i] == ',' ||
+			       tolower(ret[i]) == 'x' || isxdigit(ret[i])); i++);
 
 	if (i == 32) {
-		out = (unsigned char *)malloc(size >> 1);
-		if (out == NULL) {
-			free(ret);
-			return NULL;
-		}
-
-		for (c = start; *c; c++) {
-			char buf[3];
-
-			if (isspace(*c) || strchr(",:;", *c))
-				continue;
-
-			if (*c == '0' && tolower(c[1]) == 'x') {
-				c++;
-				continue;
-			}
-
-			/* Read a %02x from the log */
-			if (!isxdigit(c[0]) || !isxdigit(c[1])) {
-				if (out_index && out_index % 128 == 0)
-					break;
-				free(ret);
-				free(out);
-				return NULL;
-			}
-
-			buf[0] = c[0];
-			buf[1] = c[1];
-			buf[2] = 0;
-
-			out[out_index++] = strtol(buf, NULL, 16);
-			c++;
-		}
-
+		out = extract_edid_hex(ret);
 		free(ret);
-		edid_lines = out_index >> 4;
 		return out;
 	}
 
@@ -393,49 +444,8 @@ static unsigned char *extract_edid(int fd)
 		return (unsigned char *)ret;
 	if (!(start = strstr(start, "(II)")))
 		return (unsigned char *)ret;
-
-	for (c = start; *c; c++) {
-		if (state == 0) {
-			char *s;
-
-			/* skip ahead to the : */
-			s = strstr(c, ": \t");
-			if (!s)
-				s = strstr(c, ":     ");
-			if (!s)
-				break;
-			c = s;
-			/* and find the first number */
-			while (!isxdigit(c[1]))
-				c++;
-			state = 1;
-			lines++;
-			s = (char *)realloc(out, lines * 16);
-			if (!s) {
-				free(ret);
-				free(out);
-				return NULL;
-			}
-			out = (unsigned char *)s;
-		} else if (state == 1) {
-			char buf[3];
-			/* Read a %02x from the log */
-			if (!isxdigit(*c)) {
-				state = 0;
-				continue;
-			}
-			buf[0] = c[0];
-			buf[1] = c[1];
-			buf[2] = 0;
-			out[out_index++] = strtol(buf, NULL, 16);
-			c++;
-		}
-	}
-
-	edid_lines = lines;
-
+	out = extract_edid_xorg(start);
 	free(ret);
-
 	return out;
 }
 
@@ -751,7 +761,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		}
 	}
 
-	free(edid);
 	if (!options[OptCheck] && !options[OptCheckInline])
 		return 0;
 
