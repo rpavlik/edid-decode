@@ -578,27 +578,35 @@ static char *extract_string(const unsigned char *x, unsigned len)
 static const struct {
 	unsigned dmt_id;
 	struct timings t;
+	const char *std_name;
 } established_timings12[] = {
+	// For IBM formats see: http://www.mcamafia.de/pdf/pdfref.htm:
+	// VGA / XGA / XGA-2 Technical Reference Manual
+	//
+	// For Apple formats (mac6, mac13 and mac18) see
+	// drivers/video/fbdev/macmodes.c in the linux kernel.
+
 	/* 0x23 bit 7 - 0 */
-	{ 0x00, { 720, 400, 70, 9, 5, 31469, 28320 } },
-	{ 0x00, { 720, 400, 88, 9, 5, 39500, 35500 } },
+	// 720x400p70: +vsync -hsync 
+	{ 0x00, { 720, 400, 70, 9, 5, 31469, 28250 }, "IBM" },
+	{ 0x00, { 720, 400, 88, 9, 5, 39500, 35500 }, "IBM" },
 	{ 0x04 },
-	{ 0x00, { 640, 480, 67, 4, 3, 35000, 30240 } },
+	{ 0x00, { 640, 480, 67, 4, 3, 35000, 30240 }, "Apple" },
 	{ 0x05 },
 	{ 0x06 },
 	{ 0x08 },
 	{ 0x09 },
 	/* 0x24 bit 7 - 0 */
-	{ 0x0a, { 800, 600, 72, 4, 3, 48100, 50000 } },
-	{ 0x0b, { 800, 600, 75, 4, 3, 46900, 49500 } },
-	{ 0x00, { 832, 624, 75, 4, 3, 49726, 57284 } },
-	{ 0x00, { 1024, 768, 87, 4, 3, 35522, 44900, 0, 1 } },
+	{ 0x0a },
+	{ 0x0b },
+	{ 0x00, { 832, 624, 75, 4, 3, 49107, 55000 }, "Apple" },
+	{ 0x00, { 1024, 768, 87, 4, 3, 35522, 44900, 0, 1 }, "IBM" },
 	{ 0x10 },
 	{ 0x11 },
 	{ 0x12 },
-	{ 0x00, { 1280, 1024, 75, 5, 4, 80000, 135000 } },
+	{ 0x24 },
 	/* 0x25 bit 7 */
-	{ 0x00, { 1152, 870, 75, 192, 145, 67500, 108000 } },
+	{ 0x00, { 1152, 870, 75, 192, 145, 67500, 108000 }, "Apple" },
 };
 
 // The bits in the Established Timings III map to DMT timings,
@@ -716,7 +724,7 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 			t = find_dmt_id(established_timings12[i].dmt_id);
 		} else {
 			t = &established_timings12[i].t;
-			suffix = "";
+			suffix = established_timings12[i].std_name;
 		}
 		if (t->x == x && t->y == y && t->refresh == refresh &&
 		    t->ratio_w == ratio_w && t->ratio_h == ratio_h) {
@@ -957,6 +965,105 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 	}
 }
 
+static void detailed_epi(edid_state &state, const unsigned char *x)
+{
+	state.cur_block = "EPI Descriptor";
+	printf("%s\n", state.cur_block.c_str());
+
+	unsigned v = x[5] & 0x07;
+
+	printf("  Bits per pixel: %u\n", 18 + v * 6);
+	if (v > 2)
+		fail("Invalid bits per pixel\n");
+	v = (x[5] & 0x18) >> 3;
+	printf("  Pixels per clock: %u\n", 1 << v);
+	if (v > 2)
+		fail("Invalid pixels per clock\n");
+	v = (x[5] & 0x60) >> 5;
+	printf("  Data color mapping: %sconventional\n", v ? "non-" : "");
+	if (v > 1)
+		fail("Invalid data color mapping\n");
+	if (x[5] & 0x80)
+		fail("Non-zero reserved field in byte 5\n");
+
+	v = x[6] & 0x0f;
+	printf("  Interface type: ");
+	switch (v) {
+	case 0x00: printf("LVDS TFT\n"); break;
+	case 0x01: printf("monoSTN 4/8 Bit\n"); break;
+	case 0x02: printf("colorSTN 8/16 Bit\n"); break;
+	case 0x03: printf("18 Bit TFT\n"); break;
+	case 0x04: printf("24 Bit TFT\n"); break;
+	case 0x05: printf("TMDS\n"); break;
+	default:
+		   printf("0x%02x (reserved)\n", v);
+		   fail("Invalid interface type\n");
+		   break;
+	}
+	printf("  DE polarity: DE %s active\n",
+	       (x[6] & 0x10) ? "low" : "high");
+	printf("  FPSCLK polarity: FPSCLK %sinverted\n",
+	       (x[6] & 0x20) ? "" : "not ");
+	if (x[6] & 0xc0)
+		fail("Non-zero reserved field in byte 6\n");
+
+	printf("  Vertical display mode: %s\n",
+	       (x[7] & 0x01) ? "Up/Down reverse mode" : "normal");
+	printf("  Horizontal display mode: %s\n",
+	       (x[7] & 0x02) ? "Left/Right reverse mode" : "normal");
+	if (x[7] & 0xfc)
+		fail("Non-zero reserved field in byte 7\n");
+
+	v = x[8] & 0x0f;
+	printf("  Total power on sequencing delay: ");
+	if (v)
+		printf("%u ms\n", v * 10);
+	else
+		printf("VGA controller default\n");
+	v = (x[8] & 0xf0) >> 4;
+	printf("  Total power off sequencing delay: ");
+	if (v)
+		printf("%u ms\n", v * 10);
+	else
+		printf("VGA controller default\n");
+
+	v = x[9] & 0x0f;
+	printf("  Contrast power on sequencing delay: ");
+	if (v)
+		printf("%u ms\n", v * 10);
+	else
+		printf("VGA controller default\n");
+	v = (x[9] & 0xf0) >> 4;
+	printf("  Contrast power off sequencing delay: ");
+	if (v)
+		printf("%u ms\n", v * 10);
+	else
+		printf("VGA controller default\n");
+
+	v = x[10] & 0x2f;
+	const char *s = (x[10] & 0x80) ? "" : " (ignored)";
+
+	printf("  Backlight brightness control: %u steps%s\n", v, s);
+	printf("  Backlight enable at boot: %s%s\n",
+	       (x[10] & 0x40) ? "off" : "on", s);
+	printf("  Backlight control enable: %s\n",
+	       (x[10] & 0x80) ? "enabled" : "disabled");
+
+	v = x[11] & 0x2f;
+	s = (x[11] & 0x80) ? "" : " (ignored)";
+
+	printf("  Contrast voltable control: %u steps%s\n", v, s);
+	if (x[11] & 0x40)
+		fail("Non-zero reserved field in byte 11\n");
+	printf("  Contrast control enable: %s\n",
+	       (x[11] & 0x80) ? "enabled" : "disabled");
+
+	if (x[12] || x[13] || x[14] || x[15] || x[16])
+		fail("Non-zero values in reserved bytes 12-16\n");
+
+	printf("  EPI Version: %u.%u\n", (x[17] & 0xf0) >> 4, x[17] & 0x0f);
+}
+
 void detailed_timings(edid_state &state, const char *prefix, const unsigned char *x)
 {
 	unsigned ha, hbl, hso, hspw, hborder, va, vbl, vso, vspw, vborder;
@@ -1115,38 +1222,6 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 		printf("SPWG Module Revision: %hhu\n", x[17]);
 }
 
-/*
- * Notes on panel extensions: (TODO, implement me in the code)
- *
- * EPI: http://www.epi-standard.org/fileadmin/spec/EPI_Specification1.0.pdf
- * at offset 0x6c (fourth detailed block): (all other bits reserved)
- * 0x6c: 00 00 00 0e 00
- * 0x71: bit 6-5: data color mapping (00 conventional/fpdi/vesa, 01 openldi)
- *       bit 4-3: pixels per clock (00 1, 01 2, 10 4, 11 reserved)
- *       bit 2-0: bits per pixel (000 18, 001 24, 010 30, else reserved)
- * 0x72: bit 5: FPSCLK polarity (0 normal 1 inverted)
- *       bit 4: DE polarity (0 high active 1 low active)
- *       bit 3-0: interface (0000 LVDS TFT
- *                           0001 mono STN 4/8bit
- *                           0010 color STN 8/16 bit
- *                           0011 18 bit tft
- *                           0100 24 bit tft
- *                           0101 tmds
- *                           else reserved)
- * 0x73: bit 1: horizontal display mode (0 normal 1 right/left reverse)
- *       bit 0: vertical display mode (0 normal 1 up/down reverse)
- * 0x74: bit 7-4: total poweroff seq delay (0000 vga controller default
- *                                          else time in 10ms (10ms to 150ms))
- *       bit 3-0: total poweron seq delay (as above)
- * 0x75: contrast power on/off seq delay, same as 0x74
- * 0x76: bit 7: backlight control enable (1 means this field is valid)
- *       bit 6: backlight enabled at boot (0 on 1 off)
- *       bit 5-0: backlight brightness control steps (0..63)
- * 0x77: bit 7: contrast control, same bit pattern as 0x76 except bit 6 resvd
- * 0x78 - 0x7c: reserved
- * 0x7d: bit 7-4: EPI descriptor major version (1)
- *       bit 3-0: EPI descriptor minor version (0)
- */
 static void detailed_block(edid_state &state, const unsigned char *x)
 {
 	static const unsigned char zero_descr[18] = { 0 };
@@ -1185,8 +1260,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 
 	switch (x[3]) {
 	case 0x0e:
-		state.cur_block = "EPI Descriptor";
-		printf("%s\n", state.cur_block.c_str());
+		detailed_epi(state, x);
 		return;
 	case 0x10:
 		state.cur_block = "Dummy Descriptor";
@@ -1554,7 +1628,7 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 				t = find_dmt_id(established_timings12[i].dmt_id);
 			} else {
 				t = &established_timings12[i].t;
-				suffix = "";
+				suffix = established_timings12[i].std_name;
 			}
 			print_timings(state, "  ", t, suffix);
 		}
