@@ -125,15 +125,15 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 		switch (tag) {
 		case 0:
 			printf("  Product ID Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 1:
 			printf("  Display Parameters Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 2:
 			printf("  Color Characteristics Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 3: {
 			printf("  Type 1 Detailed Timings Block\n");
@@ -144,15 +144,15 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 		}
 		case 4:
 			printf("  Type 2 Detailed Timings Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 5:
 			printf("  Type 3 Short Timings Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 6:
 			printf("  Type 4 DMT Timings Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 7:
 			printf("  Type 1 VESA DMT Timings Block\n");
@@ -162,39 +162,39 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 			break;
 		case 8:
 			printf("  CTA Timings Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 9:
 			printf("  Video Timing Range Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 0xa:
 			printf("  Product Serial Number Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 0xb:
 			printf("  GP ASCII String Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 0xc:
 			printf("  Display Device Data Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 0xd:
 			printf("  Interface Power Sequencing Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 0xe:
 			printf("  Transfer Characteristics Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 0xf:
 			printf("  Display Interface Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 0x10:
 			printf("  Stereo Display Interface Block\n");
-			hex_block("    ", x + offset + 3, len - 3);
+			hex_block("    ", x + offset + 3, len);
 			break;
 		case 0x12: {
 			unsigned capabilities = x[offset + 3];
