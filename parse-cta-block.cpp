@@ -424,8 +424,10 @@ static void cta_svd(edid_state &state, const unsigned char *x, unsigned n, int f
 				state.supported_hdmi_vic_vsb_codes |= 1 << 3;
 				break;
 			}
-			printf("    VIC %3u ", vic);
-			print_timings(state, "", t, native ? " native" : "");
+			char suffix[16];
+
+			sprintf(suffix, "VIC %3u%s", vic, native ? ", native" : "");
+			print_timings(state, "    ", t, suffix);
 		} else {
 			printf("    VIC %3u (Unknown)\n", vic);
 			fail("unknown VIC %u\n", vic);
@@ -460,7 +462,7 @@ static void cta_y420cmdb(const unsigned char *x, unsigned length)
 	}
 }
 
-static void cta_vfpdb(const unsigned char *x, unsigned length)
+static void cta_vfpdb(edid_state &state, const unsigned char *x, unsigned length)
 {
 	unsigned i;
 
@@ -468,17 +470,15 @@ static void cta_vfpdb(const unsigned char *x, unsigned length)
 		unsigned char svr = x[i];
 
 		if ((svr > 0 && svr < 128) || (svr > 192 && svr < 254)) {
+			char suffix[16];
 			const struct timings *t;
 			unsigned char vic = svr;
 
+			sprintf(suffix, "VIC %3u", vic);
+
 			t = vic_to_mode(vic);
 			if (t)
-				printf("    VIC %3u %ux%u%s@%u %s%u:%u\n", vic,
-				       t->x, t->y,
-				       t->interlaced ? "i" : "",
-				       t->refresh,
-				       t->rb ? "RB " : "",
-				       t->ratio_w, t->ratio_h);
+				print_timings(state, "    ", t, suffix);
 			else
 				printf("    VIC %3u (Unknown)\n", vic);
 
@@ -596,10 +596,10 @@ static void cta_hdmi_block(edid_state &state, const unsigned char *x, unsigned l
 			const struct timings *t;
 
 			if (vic && vic <= ARRAY_SIZE(edid_hdmi_modes)) {
+				std::string suffix = "HDMI VIC " + std::to_string(vic);
 				state.supported_hdmi_vic_codes |= 1 << (vic - 1);
 				t = &edid_hdmi_modes[vic - 1];
-				printf("      HDMI VIC %u ", vic);
-				print_timings(state, "", t, "");
+				print_timings(state, "      ", t, suffix.c_str());
 			} else {
 				printf("      HDMI VIC %u (Unknown)\n", vic);
 			}
@@ -1271,7 +1271,7 @@ static void cta_block(edid_state &state, const unsigned char *x)
 		case 0x0d:
 			state.cur_block = "Video Format Preference Data Block";
 			printf("Video Format Preference Data Block\n");
-			cta_vfpdb(x + 2, length - 1);
+			cta_vfpdb(state, x + 2, length - 1);
 			break;
 		case 0x0e:
 			state.cur_block = "YCbCr 4:2:0 Video Data Block";
@@ -1369,7 +1369,7 @@ void parse_cta_block(edid_state &state, const unsigned char *x)
 			break;
 
 		if (version < 3) {
-			printf("%u 8-byte timing descriptors\n\n", (offset - 4) / 8);
+			printf("%u 8-byte timing descriptors\n", (offset - 4) / 8);
 			if (offset - 4 > 0)
 				/* do stuff */ ;
 		}
@@ -1383,7 +1383,7 @@ void parse_cta_block(edid_state &state, const unsigned char *x)
 				printf("Supports YCbCr 4:4:4\n");
 			if (x[3] & 0x10)
 				printf("Supports YCbCr 4:2:2\n");
-			printf("%u native detailed modes\n\n", x[3] & 0x0f);
+			printf("%u native detailed modes\n", x[3] & 0x0f);
 		}
 		if (version == 3) {
 			unsigned i;
@@ -1392,7 +1392,6 @@ void parse_cta_block(edid_state &state, const unsigned char *x)
 			for (i = 4; i < offset; i += (x[i] & 0x1f) + 1) {
 				cta_block(state, x + i);
 			}
-			printf("\n");
 		}
 
 		state.cur_block = "CTA-861 Detailed Timings";

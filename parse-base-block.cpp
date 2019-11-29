@@ -338,7 +338,7 @@ static void edid_gtf_mode(edid_state &state, const char *prefix, struct timings 
 
 	t->hor_freq_hz = 1000000.0 / h_period;
 
-	print_timings(state, prefix, t, " (GTF)");
+	print_timings(state, prefix, t, "GTF");
 }
 
 /*
@@ -462,7 +462,7 @@ static void edid_cvt_mode(edid_state &state, const char *prefix,
 	t->pixclk_khz -= t->pixclk_khz % CVT_CLOCK_STEP;
 	t->hor_freq_hz = (t->pixclk_khz * 1000) / HTotal;
 
-	print_timings(state, prefix, t, preferred ? " (CVT, preferred vertical rate)" : " (CVT)");
+	print_timings(state, prefix, t, preferred ? "CVT, preferred vertical rate" : "CVT");
 }
 
 static void detailed_cvt_descriptor(edid_state &state, const unsigned char *x, int first)
@@ -575,27 +575,30 @@ static char *extract_string(const unsigned char *x, unsigned len)
 	return s;
 }
 
-static const struct timings established_timings12[] = {
+static const struct {
+	unsigned dmt_id;
+	struct timings t;
+} established_timings12[] = {
 	/* 0x23 bit 7 - 0 */
-	{ 720, 400, 70, 9, 5, 31469, 28320 },
-	{ 720, 400, 88, 9, 5, 39500, 35500 },
-	{ 640, 480, 60, 4, 3, 31469, 25175 }, // DMT 0x04
-	{ 640, 480, 67, 4, 3, 35000, 30240 },
-	{ 640, 480, 72, 4, 3, 37900, 31500 }, // DMT 0x05
-	{ 640, 480, 75, 4, 3, 37500, 31500 }, // DMT 0x06
-	{ 800, 600, 56, 4, 3, 35200, 36000 }, // DMT 0x08
-	{ 800, 600, 60, 4, 3, 37900, 40000 }, // DMT 0x09
+	{ 0x00, { 720, 400, 70, 9, 5, 31469, 28320 } },
+	{ 0x00, { 720, 400, 88, 9, 5, 39500, 35500 } },
+	{ 0x04 },
+	{ 0x00, { 640, 480, 67, 4, 3, 35000, 30240 } },
+	{ 0x05 },
+	{ 0x06 },
+	{ 0x08 },
+	{ 0x09 },
 	/* 0x24 bit 7 - 0 */
-	{ 800, 600, 72, 4, 3, 48100, 50000 }, // DMT 0x0a
-	{ 800, 600, 75, 4, 3, 46900, 49500 }, // DMT 0x0b
-	{ 832, 624, 75, 4, 3, 49726, 57284 },
-	{ 1024, 768, 87, 4, 3, 35522, 44900, 0, 1 },
-	{ 1024, 768, 60, 4, 3, 48400, 65000 }, // DMT 0x10
-	{ 1024, 768, 70, 4, 3, 56500, 75000 }, // DMT 0x11
-	{ 1024, 768, 75, 4, 3, 60000, 78750 }, // DMT 0x12
-	{ 1280, 1024, 75, 5, 4, 80000, 135000 },
+	{ 0x0a, { 800, 600, 72, 4, 3, 48100, 50000 } },
+	{ 0x0b, { 800, 600, 75, 4, 3, 46900, 49500 } },
+	{ 0x00, { 832, 624, 75, 4, 3, 49726, 57284 } },
+	{ 0x00, { 1024, 768, 87, 4, 3, 35522, 44900, 0, 1 } },
+	{ 0x10 },
+	{ 0x11 },
+	{ 0x12 },
+	{ 0x00, { 1280, 1024, 75, 5, 4, 80000, 135000 } },
 	/* 0x25 bit 7 */
-	{ 1152, 870, 75, 192, 145, 67500, 108000 },
+	{ 0x00, { 1152, 870, 75, 192, 145, 67500, 108000 } },
 };
 
 // The bits in the Established Timings III map to DMT timings,
@@ -670,7 +673,7 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 	}
 	t = find_std_id((b1 << 8) | b2);
 	if (t) {
-		print_timings(state, "  ", t, " (DMT)");
+		print_timings(state, "  ", t, "DMT");
 		return;
 	}
 	x = (b1 + 31) * 8;
@@ -707,13 +710,17 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 	state.min_vert_freq_hz = min(state.min_vert_freq_hz, refresh);
 	state.max_vert_freq_hz = max(state.max_vert_freq_hz, refresh);
 	for (i = 0; i < ARRAY_SIZE(established_timings12); i++) {
-		if (established_timings12[i].x == x &&
-		    established_timings12[i].y == y &&
-		    established_timings12[i].refresh == refresh &&
-		    established_timings12[i].ratio_w == ratio_w &&
-		    established_timings12[i].ratio_h == ratio_h) {
-			t = &established_timings12[i];
-			print_timings(state, "  ", t, "");
+		const char *suffix = "DMT";
+
+		if (established_timings12[i].dmt_id) {
+			t = find_dmt_id(established_timings12[i].dmt_id);
+		} else {
+			t = &established_timings12[i].t;
+			suffix = "";
+		}
+		if (t->x == x && t->y == y && t->refresh == refresh &&
+		    t->ratio_w == ratio_w && t->ratio_h == ratio_h) {
+			print_timings(state, "  ", t, suffix);
 			return;
 		}
 	}
@@ -723,7 +730,7 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 		if (t->x == x && t->y == y &&
 		    t->refresh == refresh &&
 		    t->ratio_w == ratio_w && t->ratio_h == ratio_h) {
-			print_timings(state, "  ", t, "");
+			print_timings(state, "  ", t, "DMT");
 			return;
 		}
 	}
@@ -1196,7 +1203,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		printf("%s\n", state.cur_block.c_str());
 		for (i = 0; i < 44; i++)
 			if (x[6 + i / 8] & (1 << (7 - i % 8)))
-				print_timings(state, "  ", find_dmt_id(established_timings3_dmt_ids[i]), "");
+				print_timings(state, "  ", find_dmt_id(established_timings3_dmt_ids[i]), "DMT");
 		return;
 	case 0xf8:
 		state.cur_block = "CVT 3 Byte Timing Codes";
@@ -1538,9 +1545,20 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 
 	state.cur_block = "Established Timings I & II";
 	printf("%s\n", state.cur_block.c_str());
-	for (i = 0; i < 17; i++)
-		if (edid[0x23 + i / 8] & (1 << (7 - i % 8)))
-			print_timings(state, "  ", &established_timings12[i], "");
+	for (i = 0; i < 17; i++) {
+		if (edid[0x23 + i / 8] & (1 << (7 - i % 8))) {
+			const struct timings *t;
+			const char *suffix = "DMT";
+
+			if (established_timings12[i].dmt_id) {
+				t = find_dmt_id(established_timings12[i].dmt_id);
+			} else {
+				t = &established_timings12[i].t;
+				suffix = "";
+			}
+			print_timings(state, "  ", t, suffix);
+		}
+	}
 	state.has_640x480p60_est_timing = edid[0x23] & 0x20;
 
 	state.cur_block = "Standard Timings";

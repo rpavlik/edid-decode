@@ -158,7 +158,7 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 			printf("  Type 1 VESA DMT Timings Block\n");
 			for (i = 0; i < min(len, 10) * 8; i++)
 				if (x[offset + 3 + i / 8] & (1 << (i % 8)))
-					print_timings(state, "    ", find_dmt_id(i + 1), "");
+					print_timings(state, "    ", find_dmt_id(i + 1), "DMT");
 			break;
 		case 8:
 			printf("  CTA Timings Block\n");

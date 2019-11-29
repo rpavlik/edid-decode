@@ -148,16 +148,26 @@ void print_timings(edid_state &state, const char *prefix,
 	state.max_hor_freq_hz = max(state.max_hor_freq_hz, t->hor_freq_hz);
 	state.max_pixclk_khz = max(state.max_pixclk_khz, t->pixclk_khz);
 
-	printf("%s%ux%u%s@%u %s%u:%u HorFreq: %.3f kHz Clock: %.3f MHz%s\n",
+	std::string s(suffix);
+	if (t->rb) {
+		if (s.empty())
+			s = "RB";
+		else
+			s += ", RB";
+	}
+	if (!s.empty())
+		s = " (" + s + ")";
+
+	char buf[10];
+	sprintf(buf, "%u%s", t->y, t->interlaced ? "i" : "");
+	printf("%s%5ux%-5s %3u Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
 	       prefix,
-	       t->x, t->y,
-	       t->interlaced ? "i" : "",
+	       t->x, buf,
 	       t->refresh,
-	       t->rb ? "RB " : "",
 	       t->ratio_w, t->ratio_h,
 	       t->hor_freq_hz / 1000.0,
 	       t->pixclk_khz / 1000.0,
-	       suffix);
+	       s.c_str());
 }
 
 void hex_block(const char *prefix, const unsigned char *x,
