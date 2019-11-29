@@ -1064,14 +1064,21 @@ static void detailed_epi(edid_state &state, const unsigned char *x)
 	printf("  EPI Version: %u.%u\n", (x[17] & 0xf0) >> 4, x[17] & 0x0f);
 }
 
+static void add_str(std::string &s, const std::string &add)
+{
+	if (s.empty())
+		s = add;
+	else
+		s = s + ", " + add;
+}
+
 void detailed_timings(edid_state &state, const char *prefix, const unsigned char *x)
 {
 	unsigned ha, hbl, hso, hspw, hborder, va, vbl, vso, vspw, vborder;
 	unsigned hor_mm, vert_mm;
 	unsigned pixclk_khz;
 	double refresh;
-	const char *phsync = "", *pvsync = "";
-	const char *syncmethod = NULL, *syncmethod_details = "", *stereo;
+	std::string s_sync, s_flags;
 
 	state.cur_block = "Detailed Timings";
 	if (x[0] == 0 && x[1] == 0) {
@@ -1096,60 +1103,60 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 
 	switch ((flags & 0x18) >> 3) {
 	case 0x00:
-		syncmethod = "analog composite";
+		s_flags = "analog composite";
 		/* fall-through */
 	case 0x01:
-		if (!syncmethod)
-			syncmethod = "bipolar analog composite";
+		if (s_flags.empty())
+			s_flags = "bipolar analog composite";
 		switch ((flags & 0x06) >> 1) {
 		case 0x00:
-			syncmethod_details = ", sync-on-green";
+			add_str(s_flags, "sync-on-green");
 			break;
 		case 0x01:
 			break;
 		case 0x02:
-			syncmethod_details = ", serrate, sync-on-green";
+			add_str(s_flags, "serrate, sync-on-green");
 			break;
 		case 0x03:
-			syncmethod_details = ", serrate";
+			add_str(s_flags, "serrate");
 			break;
 		}
 		break;
 	case 0x02:
-		syncmethod = "digital composite";
-		phsync = (flags & (1 << 1)) ? "+hsync " : "-hsync ";
+		s_sync = (flags & (1 << 1)) ? "+hsync " : "-hsync ";
+		s_flags = "digital composite";
 		if (flags & (1 << 2))
-		    syncmethod_details = ", serrate";
+		    add_str(s_flags, "serrate");
 		break;
 	case 0x03:
-		syncmethod = "";
+		s_sync = (flags & (1 << 2)) ? "+vsync " : "-vsync ";
+		s_sync += (flags & (1 << 1)) ? "+hsync " : "-hsync ";
 		if (state.has_spwg && (flags & 0x01))
-			syncmethod = "DE timing only";
-		pvsync = (flags & (1 << 2)) ? "+vsync " : "-vsync ";
-		phsync = (flags & (1 << 1)) ? "+hsync " : "-hsync ";
+			s_flags = "DE timing only";
 		break;
 	}
+	if (flags & 0x80)
+		add_str(s_flags, "interlaced");
 	switch (flags & 0x61) {
 	case 0x20:
-		stereo = "field sequential L/R";
+		add_str(s_flags, "field sequential L/R");
 		break;
 	case 0x40:
-		stereo = "field sequential R/L";
+		add_str(s_flags, "field sequential R/L");
 		break;
 	case 0x21:
-		stereo = "interleaved right even";
+		add_str(s_flags, "interleaved right even");
 		break;
 	case 0x41:
-		stereo = "interleaved left even";
+		add_str(s_flags, "interleaved left even");
 		break;
 	case 0x60:
-		stereo = "four way interleaved";
+		add_str(s_flags, "four way interleaved");
 		break;
 	case 0x61:
-		stereo = "side by side interleaved";
+		add_str(s_flags, "side by side interleaved");
 		break;
 	default:
-		stereo = "";
 		break;
 	}
 
@@ -1173,7 +1180,7 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 	printf("%sDetailed mode: Clock %.3f MHz, %u mm x %u mm\n"
 	       "%s               %4u %4u %4u %4u (%3u %3u %3d) hborder %u\n"
 	       "%s               %4u %4u %4u %4u (%3u %3u %3d) vborder %u\n"
-	       "%s               %s%s%s%s%s%s%s\n"
+	       "%s               %s%s\n"
 	       "%s               VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       prefix,
 	       pixclk_khz / 1000.0,
@@ -1183,9 +1190,7 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 	       prefix,
 	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw, vborder,
 	       prefix,
-	       phsync, pvsync, syncmethod, syncmethod_details,
-	       syncmethod && ((flags & 0x80) || *stereo) ? ", " : "",
-	       flags & 0x80 ? "interlaced " : "", stereo,
+	       s_sync.c_str(), s_flags.c_str(),
 	       prefix,
 	       refresh, ha + hbl ? (double)pixclk_khz / (ha + hbl) : 0.0);
 	if (hso + hspw >= hbl)
@@ -1441,7 +1446,7 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 		printf("Model year %d\n", year);
 	else if (!week)
 		printf("Made in year %d\n", year);
-	if (year + 1 > ptm->tm_year + 1900)
+	if (year - 1 > ptm->tm_year + 1900)
 		fail("The year %d is more than one year in the future\n", year);
 
 	/* display section */
@@ -1618,27 +1623,41 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 	       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
 
 	state.cur_block = "Established Timings I & II";
-	printf("%s\n", state.cur_block.c_str());
-	for (i = 0; i < 17; i++) {
-		if (edid[0x23 + i / 8] & (1 << (7 - i % 8))) {
-			const struct timings *t;
-			const char *suffix = "DMT";
+	if (edid[0x23] || edid[0x24] || edid[0x25]) {
+		printf("%s\n", state.cur_block.c_str());
+		for (i = 0; i < 17; i++) {
+			if (edid[0x23 + i / 8] & (1 << (7 - i % 8))) {
+				const struct timings *t;
+				const char *suffix = "DMT";
 
-			if (established_timings12[i].dmt_id) {
-				t = find_dmt_id(established_timings12[i].dmt_id);
-			} else {
-				t = &established_timings12[i].t;
-				suffix = established_timings12[i].std_name;
+				if (established_timings12[i].dmt_id) {
+					t = find_dmt_id(established_timings12[i].dmt_id);
+				} else {
+					t = &established_timings12[i].t;
+					suffix = established_timings12[i].std_name;
+				}
+				print_timings(state, "  ", t, suffix);
 			}
-			print_timings(state, "  ", t, suffix);
 		}
+	} else {
+		printf("%s: none\n", state.cur_block.c_str());
 	}
 	state.has_640x480p60_est_timing = edid[0x23] & 0x20;
 
 	state.cur_block = "Standard Timings";
-	printf("%s\n", state.cur_block.c_str());
-	for (i = 0; i < 8; i++)
-		print_standard_timing(state, edid[0x26 + i * 2], edid[0x26 + i * 2 + 1]);
+	bool found = false;
+	for (i = 0; i < 8; i++) {
+		if (edid[0x26 + i * 2] != 0x01 || edid[0x26 + i * 2 + 1] != 0x01) {
+			found = true;
+		}
+	}
+	if (found) {
+		printf("%s\n", state.cur_block.c_str());
+		for (i = 0; i < 8; i++)
+			print_standard_timing(state, edid[0x26 + i * 2], edid[0x26 + i * 2 + 1]);
+	} else {
+		printf("%s: none\n", state.cur_block.c_str());
+	}
 
 	/* 18 byte descriptors */
 	if (has_preferred_timing && !edid[0x36] && !edid[0x37])
