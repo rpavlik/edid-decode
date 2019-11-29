@@ -24,6 +24,7 @@
 #include <string>
 
 #include "edid-decode.h"
+#include "version.h"
 
 static edid_state state;
 
@@ -764,7 +765,15 @@ static int edid_from_file(const char *from_file, const char *to_file,
 	if (!options[OptCheck] && !options[OptCheckInline])
 		return 0;
 
-	printf("\n----------------\n");
+	printf("\n----------------\n\n");
+
+#ifdef SHA
+#define STR(x) #x
+#define STRING(x) STR(x)
+	printf("edid-decode SHA: %s\n", STRING(SHA));
+#else
+	printf("edid-decode SHA: not available\n");
+#endif
 
 	if (options[OptCheck]) {
 		if (state.warnings)

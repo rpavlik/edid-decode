@@ -5,11 +5,19 @@ SOURCES = edid-decode.cpp parse-base-block.cpp parse-cta-block.cpp parse-display
 
 all: edid-decode
 
-edid-decode: $(SOURCES) edid-decode.h
+edid-decode: $(SOURCES) edid-decode.h version.h
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -g -Wall -o $@ $(SOURCES) -lm
 
+version.h:
+	@if [ -d .git ]; then \
+		echo -n "#define SHA " >$@ ; \
+		git rev-parse HEAD >>$@ ; \
+	else \
+		touch $@ ; \
+	fi
+
 clean:
-	rm -f edid-decode
+	rm -f edid-decode version.h
 
 install:
 	mkdir -p $(DESTDIR)$(bindir)
