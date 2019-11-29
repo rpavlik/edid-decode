@@ -77,7 +77,7 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 		stereo = ", reserved";
 		break;
 	}
-	printf("    Aspect %s%s%s\n", aspect, x[3] & 0x80 ? ", preferred" : "", stereo);
+	printf("      Aspect %s%s%s\n", aspect, x[3] & 0x80 ? ", preferred" : "", stereo);
 	pix_clock = 1 + (x[0] + (x[1] << 8) + (x[2] << 16));
 	ha = 1 + (x[4] | (x[5] << 8));
 	hbl = 1 + (x[6] | (x[7] << 8));
@@ -90,11 +90,11 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	vspw = 1 + (x[18] | (x[19] << 8));
 	pvsync = ((x[17] >> 7) & 0x1 ) ? '+' : '-';
 	
-	printf("    Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
-	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
-	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
-	       "                   %chsync %cvsync\n"
-	       "                   VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
+	printf("      Detailed mode: Clock %.3f MHz, %u mm x %u mm\n"
+	       "                     %4u %4u %4u %4u (%3u %3u %3d)\n"
+	       "                     %4u %4u %4u %4u (%3u %3u %3d)\n"
+	       "                     %chsync %cvsync\n"
+	       "                     VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       (float)pix_clock/100.0, 0, 0,
 	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw,
 	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw,
