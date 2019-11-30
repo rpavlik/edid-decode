@@ -83,7 +83,8 @@ void warn(const char *fmt, ...);
 void fail(const char *fmt, ...);
 void do_checksum(const char *prefix, const unsigned char *x, size_t len);
 std::string utohex(unsigned char x);
-void hex_block(const char *prefix, const unsigned char *x, unsigned length, bool show_ascii = true);
+void hex_block(const char *prefix, const unsigned char *x, unsigned length,
+	       bool show_ascii = true, bool no_line_break = false);
 std::string block_name(unsigned char block);
 void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
 
@@ -94,5 +95,7 @@ void parse_base_block(edid_state &state, const unsigned char *edid);
 void parse_cta_block(edid_state &state, const unsigned char *x);
 
 void parse_displayid_block(edid_state &state, const unsigned char *x);
+
+void parse_ls_ext_block(edid_state &state, const unsigned char *x);
 
 #endif

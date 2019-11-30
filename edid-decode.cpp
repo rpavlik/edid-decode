@@ -182,23 +182,24 @@ std::string utohex(unsigned char x)
 }
 
 void hex_block(const char *prefix, const unsigned char *x,
-	       unsigned length, bool show_ascii)
+	       unsigned length, bool show_ascii, bool no_line_break)
 {
+	unsigned step = no_line_break ? length : 16;
 	unsigned i, j;
 
 	if (!length)
 		return;
 
-	for (i = 0; i < length; i += 16) {
+	for (i = 0; i < length; i += step) {
 		printf("%s", prefix);
-		for (j = 0; j < 16; j++)
+		for (j = 0; j < step; j++)
 			if (i + j < length)
 				printf("%02x ", x[i + j]);
-			else if (length > 16)
+			else if (length > step)
 				printf("   ");
 		if (show_ascii) {
 			printf(" ");
-			for (j = 0; j < 16 && i + j < length; j++)
+			for (j = 0; j < step && i + j < length; j++)
 				printf("%c", x[i + j] >= ' ' && x[i + j] <= '~' ? x[i + j] : '.');
 		}
 		printf("\n");
@@ -642,6 +643,9 @@ static void parse_extension(edid_state &state, const unsigned char *x)
 	case 0x20:
 		printf("%s\n", state.cur_block.c_str());
 		fail("Deprecated extension block, do not use\n");
+		break;
+	case 0x50:
+		parse_ls_ext_block(state, x);
 		break;
 	case 0x70:
 		parse_displayid_block(state, x);
