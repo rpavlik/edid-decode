@@ -96,7 +96,7 @@ static std::string audio_ext_format(unsigned char x)
 	case 13: return "L-PCM 3D Audio";
 	default: break;
 	}
-	return std::string("Unknown Audio Ext Format ") + utohex(x);
+	return std::string("Unknown Audio Ext Format (") + utohex(x) + ")";
 }
 
 static std::string audio_format(unsigned char x)
@@ -118,7 +118,7 @@ static std::string audio_format(unsigned char x)
 	case 14: return "WMA Pro";
 	default: break;
 	}
-	return std::string("Unknown Audio Format ") + utohex(x);
+	return std::string("Unknown Audio Format (") + utohex(x) + ")";
 }
 
 static std::string mpeg_h_3d_audio_level(unsigned char x)
@@ -132,7 +132,7 @@ static std::string mpeg_h_3d_audio_level(unsigned char x)
 	case 5: return "Level 5";
 	default: break;
 	}
-	return std::string("Unknown MPEG-H 3D Audio Level ") + utohex(x);
+	return std::string("Unknown MPEG-H 3D Audio Level (") + utohex(x) + ")";
 }
 
 static void cta_audio_block(const unsigned char *x, unsigned length)
@@ -427,7 +427,7 @@ static void cta_svd(edid_state &state, const unsigned char *x, unsigned n, int f
 			sprintf(suffix, "VIC %3u%s", vic, native ? ", native" : "");
 			print_timings(state, "    ", t, suffix);
 		} else {
-			printf("    VIC %3u (Unknown)\n", vic);
+			printf("    Unknown (VIC %3u)\n", vic);
 			fail("Unknown VIC %u\n", vic);
 		}
 
@@ -478,7 +478,7 @@ static void cta_vfpdb(edid_state &state, const unsigned char *x, unsigned length
 			if (t)
 				print_timings(state, "    ", t, suffix);
 			else
-				printf("    VIC %3u (Unknown)\n", vic);
+				printf("    Unknown (VIC %3u)\n", vic);
 
 		} else if (svr > 128 && svr < 145) {
 			printf("    DTD number %02u\n", svr - 128);
@@ -599,7 +599,7 @@ static void cta_hdmi_block(edid_state &state, const unsigned char *x, unsigned l
 				t = &edid_hdmi_modes[vic - 1];
 				print_timings(state, "      ", t, suffix.c_str());
 			} else {
-				printf("      HDMI VIC %u (Unknown)\n", vic);
+				printf("      Unknown (HDMI VIC %u)\n", vic);
 			}
 		}
 
@@ -1026,8 +1026,10 @@ static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned lengt
 		printf("    Electro optical transfer functions:\n");
 		for (i = 0; i < 6; i++) {
 			if (x[0] & (1 << i)) {
-				printf("      %s\n", i < ARRAY_SIZE(eotf_map) ?
-				       eotf_map[i] : "Unknown");
+				if (i < ARRAY_SIZE(eotf_map))
+					printf("      %s\n", eotf_map[i]);
+				else
+					printf("      Unknown (%u)\n", i);
 			}
 		}
 		printf("    Supported static metadata descriptors:\n");
@@ -1153,7 +1155,7 @@ static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 				printf("    Speaker Allocation for 30.2 channels:\n");
 				break;
 			default:
-				printf("    Unknown Speaker Allocation (%d)\n", x[3] >> 4);
+				printf("    Unknown Speaker Allocation (0x%02x)\n", x[3] >> 4);
 				return;
 			}
 
@@ -1341,7 +1343,7 @@ static void cta_block(edid_state &state, const unsigned char *x)
 			else
 				printf("Unknown CTA");
 			printf(" tag 0x%02x, length %u\n", x[1], length - 1);
-			hex_block("  ", x + 2, length - 1);
+			hex_block("    ", x + 2, length - 1);
 			break;
 		}
 		break;
@@ -1404,7 +1406,7 @@ void parse_cta_block(edid_state &state, const unsigned char *x)
 		state.cur_block = "CTA-861 Detailed Timings";
 		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18)
 			if (detailed[0])
-				detailed_timings(state, "  ", detailed);
+				detailed_timings(state, "", detailed);
 	} while (0);
 
 	if (!state.has_cta861_vic_1 && !state.has_640x480p60_est_timing)

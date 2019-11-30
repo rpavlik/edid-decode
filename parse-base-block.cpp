@@ -773,7 +773,7 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 	int v_max_offset = 0, v_min_offset = 0;
 	int is_cvt = 0;
 	bool has_sec_gtf = false;
-	const char *range_class = "";
+	std::string range_class;
 
 	state.cur_block = "Display Range Limits";
 	printf("%s\n", state.cur_block.c_str());
@@ -808,7 +808,7 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 		state.supports_gtf = true;
 		break;
 	case 0x01: /* range limits only */
-		range_class = "bare limits";
+		range_class = "Bare Limits";
 		if (state.edid_minor < 4)
 			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
 		break;
@@ -833,8 +833,8 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 		}
 		break;
 	default: /* invalid */
-		fail("Invalid range class 0x%02x\n", x[10]);
-		range_class = "invalid";
+		fail("Unknown range class (0x%02x)\n", x[10]);
+		range_class = std::string("Unknown (") + utohex(x[10]) + ")";
 		break;
 	}
 
@@ -847,7 +847,7 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 	state.min_display_hor_freq_hz = (x[7] + h_min_offset) * 1000;
 	state.max_display_hor_freq_hz = (x[8] + h_max_offset) * 1000;
 	printf("  Monitor ranges (%s): %d-%d Hz V, %d-%d kHz H",
-	       range_class,
+	       range_class.c_str(),
 	       x[5] + v_min_offset, x[6] + v_max_offset,
 	       x[7] + h_min_offset, x[8] + h_max_offset);
 	if (x[9]) {
@@ -903,7 +903,7 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 			fail("Reserved bits of byte 14 are non-zero\n");
 
 		printf("  Preferred aspect ratio: ");
-		switch((x[15] & 0xe0) >> 5) {
+		switch ((x[15] & 0xe0) >> 5) {
 		case 0x00:
 			printf("4:3");
 			break;
@@ -920,8 +920,9 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 			printf("15:9");
 			break;
 		default:
-			printf("(broken)");
-			fail("Invalid preferred aspect ratio\n");
+			printf("Unknown (0x%02x)", (x[15] & 0xe0) >> 5);
+			fail("Invalid preferred aspect ratio 0x%02x\n",
+			     (x[15] & 0xe0) >> 5);
 			break;
 		}
 		printf("\n");
@@ -982,7 +983,7 @@ static void detailed_epi(edid_state &state, const unsigned char *x)
 	v = (x[5] & 0x60) >> 5;
 	printf("  Data color mapping: %sconventional\n", v ? "non-" : "");
 	if (v > 1)
-		fail("Invalid data color mapping\n");
+		fail("Unknown data color mapping (0x%02x)\n", v);
 	if (x[5] & 0x80)
 		fail("Non-zero reserved field in byte 5\n");
 
@@ -996,8 +997,8 @@ static void detailed_epi(edid_state &state, const unsigned char *x)
 	case 0x04: printf("24 Bit TFT\n"); break;
 	case 0x05: printf("TMDS\n"); break;
 	default:
-		   printf("0x%02x (reserved)\n", v);
-		   fail("Invalid interface type\n");
+		   printf("Unknown (0x%02x)\n", v);
+		   fail("Invalid interface type 0x%02x\n", v);
 		   break;
 	}
 	printf("  DE polarity: DE %s active\n",
@@ -1288,7 +1289,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		state.cur_block = "CVT 3 Byte Timing Codes";
 		printf("%s\n", state.cur_block.c_str());
 		if (x[5] != 0x01) {
-			fail("Invalid version number\n");
+			fail("Invalid version number %u\n", x[5]);
 			return;
 		}
 		for (i = 0; i < 4; i++)
@@ -1367,7 +1368,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 			state.cur_block = "SPWG Descriptor #3";
 			memcpy(buf, x + 5, 5);
 			if (strlen(buf) != 5)
-				fail("Invalid PC Maker P/N\n");
+				fail("Invalid PC Maker P/N length\n");
 			printf("SPWG PC Maker P/N: %s\n", buf);
 			printf("SPWG LCD Supplier EEDID Revision: %hhu\n", x[10]);
 			printf("SPWG Manufacturer P/N: %s\n", extract_string(x + 11, 7));
@@ -1434,15 +1435,18 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 	int year = 1990 + edid[0x11];
 
 	if (week) {
+		if (state.edid_minor <= 3 && week == 0xff)
+			fail("EDID 1.3 does not support week 0xff\n");
 		// The max week is 53 in EDID 1.3 and 54 in EDID 1.4.
 		// No idea why there is a difference.
-		if ((state.edid_minor <= 3 && week > 53) ||
-		    (week != 0xff && week > 54))
+		if (state.edid_minor <= 3 && week == 54)
+			fail("EDID 1.3 does not support week 54\n");
+		if (week != 0xff && week > 54)
 			fail("Invalid week %u of manufacture\n", week);
 		if (week != 0xff)
 			printf("Made in week %hhu of %d\n", week, year);
 	}
-	if (state.edid_minor >= 4 && week == 0xff)
+	if (week == 0xff)
 		printf("Model year %d\n", year);
 	else if (!week)
 		printf("Made in year %d\n", year);
@@ -1472,6 +1476,7 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 			case 0x04: printf("MDDI interface\n"); break;
 			case 0x05: printf("DisplayPort interface\n"); break;
 			default:
+				   printf("Unknown (0x%02x) interface\n", edid[0x14] & 0x0f);
 				   fail("Digital Video Interface Standard set to reserved value\n");
 				   break;
 			}
@@ -1480,7 +1485,7 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 				printf("DFP 1.x compatible TMDS\n");
 			}
 			if (edid[0x14] & 0x7e)
-				fail("Byte 14Digital Video Interface Standard set to reserved value\n");
+				fail("Byte 14 Digital Video Interface Standard set to reserved value\n");
 		} else if (edid[0x14] & 0x7f) {
 			fail("Digital Video Interface Standard set to reserved value\n");
 		}
@@ -1521,9 +1526,11 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 		state.max_display_height_mm = edid[0x16] * 10;
 		if ((state.max_display_height_mm && !state.max_display_width_mm) ||
 		    (state.max_display_width_mm && !state.max_display_height_mm))
-			fail("Invalid maximum image size\n");
+			fail("Invalid maximum image size (%u cm x %u cm)\n",
+			     state.max_display_width_mm, state.max_display_height_mm);
 		else if (state.max_display_width_mm < 100 || state.max_display_height_mm < 100)
-			warn("Dubious maximum image size (smaller than 10x10 cm)\n");
+			warn("Dubious maximum image size (%ux%u is smaller than 10x10 cm)\n",
+			     state.max_display_width_mm, state.max_display_height_mm);
 	}
 	else if (state.edid_minor >= 4 && (edid[0x15] || edid[0x16])) {
 		if (edid[0x15])

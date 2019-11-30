@@ -128,7 +128,8 @@ void do_checksum(const char *prefix, const unsigned char *x, size_t len)
 
 	if ((unsigned char)(check + sum) != 0) {
 		printf(" (should be 0x%02x)\n", -sum & 0xff);
-		fail("Invalid checksum\n");
+		fail("Invalid checksum 0x%02x (should be 0x%02x)\n",
+		     check, -sum & 0xff);
 		return;
 	}
 	printf("\n");
@@ -622,7 +623,7 @@ static void parse_block_map(edid_state &state, const unsigned char *x)
 			}
 			printf("  Block %3u: %s\n", block, block_name(block).c_str());
 			if (block >= state.num_blocks && !fail_once) {
-				fail("Invalid block number\n");
+				fail("Invalid block number %u\n", block);
 				fail_once = true;
 			}
 		}
