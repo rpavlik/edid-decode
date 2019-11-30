@@ -10,11 +10,14 @@
 #ifndef __EDID_DECODE_H_
 #define __EDID_DECODE_H_
 
+#include <string>
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 #define EDID_PAGE_SIZE 128U
+#define EDID_MAX_BLOCKS 256U
 
 // Video Timings
 struct timings {
@@ -61,6 +64,7 @@ struct edid_state {
 	unsigned supported_hdmi_vic_vsb_codes;
 
 	// Global state
+	unsigned edid_size;
 	unsigned num_blocks;
 	std::string cur_block;
 	unsigned cur_block_nr;

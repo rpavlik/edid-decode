@@ -21,12 +21,14 @@
 #include <ctype.h>
 #include <math.h>
 
-#include <string>
+#include <vector>
 
 #include "edid-decode.h"
 #include "version.h"
 
 static edid_state state;
+
+static unsigned char edid[EDID_PAGE_SIZE * EDID_MAX_BLOCKS];
 
 enum output_format {
 	OUT_FMT_DEFAULT,
@@ -203,87 +205,72 @@ void hex_block(const char *prefix, const unsigned char *x,
 	}
 }
 
-static unsigned char edid[32768];
-static int edid_lines = 0;
-
-static unsigned char *extract_edid_quantumdata(char *start)
+static bool edid_add_byte(const char *s)
 {
-	unsigned char *out = edid;
-	unsigned out_index = 0;
-	int i;
+	char buf[3];
 
+	if (state.edid_size == sizeof(edid))
+		return false;
+	buf[0] = s[0];
+	buf[1] = s[1];
+	buf[2] = 0;
+	edid[state.edid_size++] = strtoul(buf, NULL, 16);
+	return true;
+}
+
+static bool extract_edid_quantumdata(const char *start)
+{
 	/* Parse QuantumData 980 EDID files */
 	do {
 		start = strstr(start, ">");
 		if (!start)
-			return NULL;
+			return false;
 		start++;
-		for (i = 0; i < 256; i += 2) {
-			char buf[3];
-
-			buf[0] = start[i];
-			buf[1] = start[i + 1];
-			buf[2] = 0;
-			out[out_index++] = strtol(buf, NULL, 16);
-		}
+		for (unsigned i = 0; start[i] && start[i + 1] && i < 256; i += 2)
+			if (!edid_add_byte(start + i))
+				return false;
 		start = strstr(start, "<BLOCK");
 	} while (start);
-	edid_lines = out_index >> 4;
-	return out;
+	return state.edid_size && !(state.edid_size % EDID_PAGE_SIZE);
 }
 
-static unsigned char *extract_edid_hex(char *start)
+static const char *ignore_chars = ",:;";
+
+static bool extract_edid_hex(const char *s)
 {
-	unsigned char *out = edid;
-	unsigned out_index = 0;
-	char *c;
-
-	for (c = start; *c; c++) {
-		char buf[3];
-
-		if (isspace(*c) || strchr(",:;", *c))
+	for (; *s; s++) {
+		if (isspace(*s) || strchr(ignore_chars, *s))
 			continue;
 
-		if (*c == '0' && tolower(c[1]) == 'x') {
-			c++;
+		if (*s == '0' && tolower(s[1]) == 'x') {
+			s++;
 			continue;
 		}
 
 		/* Read a %02x from the log */
-		if (!isxdigit(c[0]) || !isxdigit(c[1])) {
-			if (out_index && out_index % 128 == 0)
+		if (!isxdigit(s[0]) || !isxdigit(s[1])) {
+			if (state.edid_size && state.edid_size % 128 == 0)
 				break;
-			return NULL;
+			return false;
 		}
-
-		buf[0] = c[0];
-		buf[1] = c[1];
-		buf[2] = 0;
-
-		out[out_index++] = strtol(buf, NULL, 16);
-		c++;
+		if (!edid_add_byte(s))
+			return false;
+		s++;
 	}
-
-	edid_lines = out_index >> 4;
-	return out;
+	return state.edid_size && !(state.edid_size % EDID_PAGE_SIZE);
 }
 
-static unsigned char *extract_edid_xrandr(char *start)
+static bool extract_edid_xrandr(const char *start)
 {
-	unsigned char *out = edid;
-	unsigned out_index = 0;
-	const char indentation1[] = "                ";
-	const char indentation2[] = "\t\t";
+	static const char indentation1[] = "                ";
+	static const char indentation2[] = "\t\t";
 	/* Used to detect that we've gone past the EDID property */
-	const char half_indentation1[] = "        ";
-	const char half_indentation2[] = "\t";
+	static const char half_indentation1[] = "        ";
+	static const char half_indentation2[] = "\t";
 	const char *indentation;
-	unsigned lines = 0;
-	unsigned i;
-	char *s, *c;
+	const char *s;
 
-	lines = 0;
-	for (i = 0;; i++) {
+	for (;;) {
 		unsigned j;
 
 		/* Get the next start of the line of EDID hex, assuming spaces for indentation */
@@ -303,159 +290,123 @@ static unsigned char *extract_edid_xrandr(char *start)
 		if (!s)
 			break;
 
-		lines++;
 		start = s + strlen(indentation);
 
-		c = start;
-		for (j = 0; j < 16; j++) {
-			char buf[3];
+		for (j = 0; j < 16; j++, start += 2) {
 			/* Read a %02x from the log */
-			if (!isxdigit(c[0]) || !isxdigit(c[1])) {
-				if (j != 0) {
-					lines--;
+			if (!isxdigit(start[0]) || !isxdigit(start[1])) {
+				if (j)
 					break;
-				}
-				return NULL;
+				return false;
 			}
-			buf[0] = c[0];
-			buf[1] = c[1];
-			buf[2] = 0;
-			out[out_index++] = strtol(buf, NULL, 16);
-			c += 2;
+			if (!edid_add_byte(start))
+				return false;
 		}
 	}
-
-	edid_lines = lines;
-	return out;
+	return state.edid_size && !(state.edid_size % EDID_PAGE_SIZE);
 }
 
-static unsigned char *extract_edid_xorg(char *start)
+static bool extract_edid_xorg(const char *start)
 {
-	unsigned char *out = edid;
-	unsigned out_index = 0;
-	unsigned state = 0;
-	unsigned lines = 0;
-	char *c;
+	bool find_first_num = true;
 
-	for (c = start; *c; c++) {
-		if (state == 0) {
-			char *s;
+	for (; *start; start++) {
+		if (find_first_num) {
+			const char *s;
 
 			/* skip ahead to the : */
-			s = strstr(c, ": \t");
+			s = strstr(start, ": \t");
 			if (!s)
-				s = strstr(c, ":     ");
+				s = strstr(start, ":     ");
 			if (!s)
 				break;
-			c = s;
+			start = s;
 			/* and find the first number */
-			while (!isxdigit(c[1]))
-				c++;
-			state = 1;
-			lines++;
-		} else if (state == 1) {
-			char buf[3];
+			while (!isxdigit(start[1]))
+				start++;
+			find_first_num = false;
+			continue;
+		} else {
 			/* Read a %02x from the log */
-			if (!isxdigit(*c)) {
-				state = 0;
+			if (!isxdigit(*start)) {
+				find_first_num = true;
 				continue;
 			}
-			buf[0] = c[0];
-			buf[1] = c[1];
-			buf[2] = 0;
-			out[out_index++] = strtol(buf, NULL, 16);
-			c++;
+			if (!edid_add_byte(start))
+				return false;
+			start++;
 		}
 	}
-
-	edid_lines = lines;
-	return out;
+	return state.edid_size && !(state.edid_size % EDID_PAGE_SIZE);
 }
 
-static unsigned char *extract_edid(int fd)
+static bool extract_edid(int fd)
 {
-	char *ret;
-	char *start;
-	unsigned char *out = NULL;
-	unsigned len, size;
-	int i;
-
-	size = 1 << 10;
-	ret = (char *)malloc(size);
-	len = 0;
+	std::vector<char> edid_data;
+	char buf[EDID_PAGE_SIZE];
 
 	for (;;) {
-		i = read(fd, ret + len, size - len);
-		if (i < 0) {
-			free(ret);
-			return NULL;
-		}
+		ssize_t i = read(fd, buf, sizeof(buf));
+
+		if (i < 0)
+			return false;
 		if (i == 0)
 			break;
-		len += i;
-		if (len == size) {
-			char *t;
-
-			size <<= 1;
-			t = (char *)realloc(ret, size);
-			if (t == NULL) {
-				free(ret);
-				return NULL;
-			}
-			ret = t;
-		}
+		edid_data.insert(edid_data.end(), buf, buf + i);
 	}
 
-	start = strstr(ret, "EDID (hex):");
-	if (start) {
-		out = extract_edid_hex(start + 12);
-		free(ret);
-		return out;
-	}
+	if (edid_data.empty())
+		return false;
 
-	start = strstr(ret, "<BLOCK");
-	if (start) {
-		out = extract_edid_quantumdata(start);
-		free(ret);
-		return out;
-	}
+	const char *data = &edid_data[0];
+	const char *start;
 
-	start = strstr(ret, "EDID_DATA:");
-	if (start == NULL)
-		start = strstr(ret, "EDID:");
+	/* Look for edid-decode output */
+	start = strstr(data, "EDID (hex):");
+	if (!start)
+		start = strstr(data, "edid-decode (hex):");
+	if (start)
+		return extract_edid_hex(strchr(start, ':'));
+
+	/* Look for C-array */
+	start = strstr(data, "unsigned char edid[] = {");
+	if (start)
+		return extract_edid_hex(strchr(start, '{') + 1);
+
+	/* Look for QuantumData EDID output */
+	start = strstr(data, "<BLOCK");
+	if (start)
+		return extract_edid_quantumdata(start);
+
 	/* Look for xrandr --verbose output (lines of 16 hex bytes) */
-	if (start != NULL) {
-		out = extract_edid_xrandr(start);
-		free(ret);
-		return out;
-	}
+	start = strstr(data, "EDID_DATA:");
+	if (!start)
+		start = strstr(data, "EDID:");
+	if (start)
+		return extract_edid_xrandr(start);
+
+	/* Look for an EDID in an Xorg.0.log file */
+	start = strstr(data, "EDID (in hex):");
+	if (start)
+		start = strstr(start, "(II)");
+	if (start)
+		return extract_edid_xorg(start);
+
+	unsigned i;
 
 	/* Is the EDID provided in hex? */
-	for (i = 0; i < 32 && (isspace(ret[i]) || ret[i] == ',' ||
-			       tolower(ret[i]) == 'x' || isxdigit(ret[i])); i++);
+	for (i = 0; i < 32 && (isspace(data[i]) || strchr(ignore_chars, data[i]) ||
+			       tolower(data[i]) == 'x' || isxdigit(data[i])); i++);
 
-	if (i == 32) {
-		out = extract_edid_hex(ret);
-		free(ret);
-		return out;
-	}
+	if (i == 32)
+		return extract_edid_hex(data);
 
-	/* wait, is this a log file? */
-	for (i = 0; i < 8; i++) {
-		if (!isascii(ret[i])) {
-			edid_lines = len / 16;
-			return (unsigned char *)ret;
-		}
-	}
-
-	/* I think it is, let's go scanning */
-	if (!(start = strstr(ret, "EDID (in hex):")))
-		return (unsigned char *)ret;
-	if (!(start = strstr(start, "(II)")))
-		return (unsigned char *)ret;
-	out = extract_edid_xorg(start);
-	free(ret);
-	return out;
+	/* Assume binary */
+	if (edid_data.size() % EDID_PAGE_SIZE || edid_data.size() > sizeof(edid))
+		return false;
+	memcpy(edid, data, edid_data.size());
+	state.edid_size = edid_data.size();
+	return true;
 }
 
 static void print_subsection(const char *name, const unsigned char *edid,
@@ -531,7 +482,7 @@ static void carraydumpedid(FILE *f, const unsigned char *edid, unsigned size)
 {
 	unsigned b, i, j;
 
-	fprintf(f, "unsigned char edid[] = {\n");
+	fprintf(f, "const unsigned char edid[] = {\n");
 	for (b = 0; b < size / 128; b++) {
 		const unsigned char *buf = edid + 128 * b;
 
@@ -566,6 +517,54 @@ static void write_edid(FILE *f, const unsigned char *edid, unsigned size,
 		carraydumpedid(f, edid, size);
 		break;
 	}
+}
+
+static int edid_from_file(const char *from_file, const char *to_file,
+			  enum output_format out_fmt)
+{
+	FILE *out = NULL;
+	int fd;
+
+	if (!from_file || !strcmp(from_file, "-")) {
+		from_file = "stdin";
+		fd = 0;
+	} else if ((fd = open(from_file, O_RDONLY)) == -1) {
+		perror(from_file);
+		return -1;
+	}
+	if (to_file) {
+		if (!strcmp(to_file, "-")) {
+			to_file = "stdout";
+			out = stdout;
+		} else if ((out = fopen(to_file, "w")) == NULL) {
+			perror(to_file);
+			return -1;
+		}
+		if (out_fmt == OUT_FMT_DEFAULT)
+			out_fmt = out == stdout ? OUT_FMT_HEX : OUT_FMT_RAW;
+	}
+
+	if (!extract_edid(fd)) {
+		fprintf(stderr, "EDID extract of '%s' failed\n", from_file);
+		return -1;
+	}
+	state.num_blocks = state.edid_size / EDID_PAGE_SIZE;
+	if (fd != 0)
+		close(fd);
+
+	if (memcmp(edid, "\x00\xFF\xFF\xFF\xFF\xFF\xFF\x00", 8)) {
+		fprintf(stderr, "No EDID header found in '%s'\n", from_file);
+		return -1;
+	}
+
+	if (out) {
+		write_edid(out, edid, state.edid_size, out_fmt);
+		if (out != stdout)
+			fclose(out);
+		return 0;
+	}
+
+	return 0;
 }
 
 /* generic extension code */
@@ -662,58 +661,11 @@ static void parse_extension(edid_state &state, const unsigned char *x)
 	do_checksum("", x, EDID_PAGE_SIZE);
 }
 
-static int edid_from_file(const char *from_file, const char *to_file,
-			  enum output_format out_fmt)
+static int parse_edid()
 {
-	int fd;
-	FILE *out = NULL;
-	unsigned char *edid;
-	unsigned char *x;
-	unsigned i;
-
-	if (!from_file || !strcmp(from_file, "-")) {
-		from_file = "stdin";
-		fd = 0;
-	} else if ((fd = open(from_file, O_RDONLY)) == -1) {
-		perror(from_file);
-		return -1;
-	}
-	if (to_file) {
-		if (!strcmp(to_file, "-")) {
-			to_file = "stdout";
-			out = stdout;
-		} else if ((out = fopen(to_file, "w")) == NULL) {
-			perror(to_file);
-			return -1;
-		}
-		if (out_fmt == OUT_FMT_DEFAULT)
-			out_fmt = out == stdout ? OUT_FMT_HEX : OUT_FMT_RAW;
-	}
-
-	edid = extract_edid(fd);
-	if (!edid) {
-		fprintf(stderr, "EDID extract of '%s' failed\n", from_file);
-		return -1;
-	}
-	if (fd != 0)
-		close(fd);
-
-	if (out) {
-		write_edid(out, edid, edid_lines * 16, out_fmt);
-		if (out != stdout)
-			fclose(out);
-		return 0;
-	}
-
-	if (!edid || memcmp(edid, "\x00\xFF\xFF\xFF\xFF\xFF\xFF\x00", 8)) {
-		fprintf(stderr, "No header found in '%s'\n", from_file);
-		return -1;
-	}
-
-	state.num_blocks = edid_lines / 8;
 	if (!options[OptSkipHexDump]) {
-		printf("EDID (hex):\n\n");
-		for (i = 0; i < state.num_blocks; i++) {
+		printf("edid-decode (hex):\n\n");
+		for (unsigned i = 0; i < state.num_blocks; i++) {
 			hex_block("", edid + i * EDID_PAGE_SIZE, EDID_PAGE_SIZE, false);
 			printf("\n");
 		}
@@ -725,12 +677,10 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	parse_base_block(state, edid);
 
-	x = edid;
-	for (i = 1; i < state.num_blocks; i++) {
-		x += EDID_PAGE_SIZE;
+	for (unsigned i = 1; i < state.num_blocks; i++) {
 		state.cur_block_nr++;
 		printf("\n----------------\n");
-		parse_extension(state, x);
+		parse_extension(state, edid + i * EDID_PAGE_SIZE);
 	}
 
 	state.cur_block = "EDID";
@@ -798,12 +748,12 @@ int main(int argc, char **argv)
 {
 	char short_options[26 * 2 * 2 + 1];
 	enum output_format out_fmt = OUT_FMT_DEFAULT;
-	int ch;
-	unsigned i;
+	int ret;
 
 	while (1) {
 		int option_index = 0;
 		unsigned idx = 0;
+		unsigned i;
 
 		for (i = 0; long_options[i].name; i++) {
 			if (!isalpha(long_options[i].val))
@@ -813,8 +763,8 @@ int main(int argc, char **argv)
 				short_options[idx++] = ':';
 		}
 		short_options[idx] = 0;
-		ch = getopt_long(argc, argv, short_options,
-				 long_options, &option_index);
+		int ch = getopt_long(argc, argv, short_options,
+				     long_options, &option_index);
 		if (ch == -1)
 			break;
 
@@ -836,20 +786,22 @@ int main(int argc, char **argv)
 			}
 			break;
 		case ':':
-			fprintf(stderr, "Option `%s' requires a value\n",
+			fprintf(stderr, "Option '%s' requires a value\n",
 				argv[optind]);
 			usage();
 			return -1;
 		case '?':
-			fprintf(stderr, "Unknown argument `%s'\n",
+			fprintf(stderr, "Unknown argument '%s'\n",
 				argv[optind]);
 			usage();
 			return -1;
 		}
 	}
 	if (optind == argc)
-		return edid_from_file(NULL, NULL, out_fmt);
-	if (optind == argc - 1)
-		return edid_from_file(argv[optind], NULL, out_fmt);
-	return edid_from_file(argv[optind], argv[optind + 1], out_fmt);
+		ret = edid_from_file(NULL, NULL, out_fmt);
+	else if (optind == argc - 1)
+		ret = edid_from_file(argv[optind], NULL, out_fmt);
+	else
+		return edid_from_file(argv[optind], argv[optind + 1], out_fmt);
+	return ret ? ret : parse_edid();
 }

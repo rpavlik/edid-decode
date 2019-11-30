@@ -7,22 +7,6 @@
  * Maintainer: Hans Verkuil <hverkuil-cisco@xs4all.nl>
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <getopt.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <time.h>
-#include <ctype.h>
-#include <math.h>
-
-#include <string>
-
 #include "edid-decode.h"
 
 static void parse_displayid_detailed_timing(const unsigned char *x)

@@ -11,8 +11,6 @@
 #include <string.h>
 #include <math.h>
 
-#include <string>
-
 #include "edid-decode.h"
 
 struct value {
