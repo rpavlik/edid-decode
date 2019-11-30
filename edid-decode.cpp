@@ -127,12 +127,11 @@ void do_checksum(const char *prefix, const unsigned char *x, size_t len)
 		sum += x[i];
 
 	if ((unsigned char)(check + sum) != 0) {
-		printf(" (should be 0x%x)\n", -sum & 0xff);
+		printf(" (should be 0x%02x)\n", -sum & 0xff);
 		fail("Invalid checksum\n");
 		return;
 	}
-
-	printf(" (valid)\n");
+	printf("\n");
 }
 
 void print_timings(edid_state &state, const char *prefix,
@@ -169,6 +168,14 @@ void print_timings(edid_state &state, const char *prefix,
 	       t->hor_freq_hz / 1000.0,
 	       t->pixclk_khz / 1000.0,
 	       s.c_str());
+}
+
+std::string utohex(unsigned char x)
+{
+	char buf[10];
+
+	sprintf(buf, "0x%02hhx", x);
+	return buf;
 }
 
 void hex_block(const char *prefix, const unsigned char *x,
@@ -583,7 +590,7 @@ std::string block_name(unsigned char block)
 		return "Manufacturer-Specific Extension Block";
 	default:
 		sprintf(buf, " (0x%02x)", block);
-		return std::string("Unknown Extension Block") + buf;
+		return std::string("Unknown EDID Extension Block") + buf;
 	}
 }
 
@@ -595,6 +602,7 @@ static void parse_block_map(edid_state &state, const unsigned char *x)
 	unsigned offset = 1;
 	unsigned i;
 
+	printf("%s\n", state.cur_block.c_str());
 	if (state.cur_block_nr == 1)
 		saw_block_1 = true;
 	else if (!saw_block_1)
@@ -626,14 +634,13 @@ static void parse_extension(edid_state &state, const unsigned char *x)
 	state.cur_block = block_name(x[0]);
 
 	printf("\n");
-	printf("%s\n", state.cur_block.c_str());
-	printf("Extension version: %u\n", x[1]);
 
 	switch (x[0]) {
 	case 0x02:
 		parse_cta_block(state, x);
 		break;
 	case 0x20:
+		printf("%s\n", state.cur_block.c_str());
 		fail("Deprecated extension block, do not use\n");
 		break;
 	case 0x70:
@@ -645,6 +652,7 @@ static void parse_extension(edid_state &state, const unsigned char *x)
 			fail("Must be used in block 1 and 128\n");
 		break;
 	default:
+		printf("%s\n", state.cur_block.c_str());
 		hex_block("  ", x + 2, 125);
 		break;
 	}

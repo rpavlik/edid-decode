@@ -112,8 +112,9 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 	unsigned ext_count = x[4];
 	unsigned i;
 
-	printf("Length %u, version %u.%u, extension count %u\n",
-	       length, version >> 4, version & 0xf, ext_count);
+	printf("%s Version %u.%u Length %u Extension Count %u\n",
+	       state.cur_block.c_str(), version >> 4, version & 0xf,
+	       length, ext_count);
 
 	unsigned offset = 5;
 	while (length > 0) {
@@ -231,7 +232,7 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 			break;
 		}
 		default:
-			printf("  Unknown DisplayID Data Block 0x%x\n", tag);
+			printf("  Unknown DisplayID Data Block 0x%02x\n", tag);
 			hex_block("    ", x + offset + 3, len);
 			break;
 		}
@@ -245,5 +246,5 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 	 * (excluding DisplayID-in-EDID magic byte)
 	 */
 	state.cur_block = "DisplayID";
-	do_checksum("  ", orig+1, orig[2] + 5);
+	do_checksum("  ", orig + 1, orig[2] + 5);
 }

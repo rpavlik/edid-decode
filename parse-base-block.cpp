@@ -1419,7 +1419,7 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 	}
 
 	state.cur_block = "Vendor & Product Identification";
-	printf("Manufacturer: %s Model %x Serial Number %u\n",
+	printf("Manufacturer: %s Model %u Serial Number %u\n",
 	       manufacturer_name(edid + 0x08),
 	       (unsigned short)(edid[0x0a] + (edid[0x0b] << 8)),
 	       (unsigned)(edid[0x0c] + (edid[0x0d] << 8) +

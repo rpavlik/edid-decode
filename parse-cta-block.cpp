@@ -82,7 +82,7 @@ static void _decode(const struct field **fields, unsigned n_fields,
 #define decode(fields, data, prefix)    \
 	_decode(fields, ARRAY_SIZE(fields), data, prefix)
 
-static const char *audio_ext_format(unsigned char x)
+static std::string audio_ext_format(unsigned char x)
 {
 	switch (x) {
 	case 4: return "MPEG-4 HE AAC";
@@ -94,15 +94,14 @@ static const char *audio_ext_format(unsigned char x)
 	case 11: return "MPEG-H 3D Audio";
 	case 12: return "AC-4";
 	case 13: return "L-PCM 3D Audio";
-	default: return "RESERVED";
+	default: break;
 	}
-	return "BROKEN"; /* can't happen */
+	return std::string("Unknown Audio Ext Format ") + utohex(x);
 }
 
-static const char *audio_format(unsigned char x)
+static std::string audio_format(unsigned char x)
 {
 	switch (x) {
-	case 0: return "RESERVED";
 	case 1: return "Linear PCM";
 	case 2: return "AC-3";
 	case 3: return "MPEG 1 (Layers 1 & 2)";
@@ -117,12 +116,12 @@ static const char *audio_format(unsigned char x)
 	case 12: return "MAT (MLP)";
 	case 13: return "DST";
 	case 14: return "WMA Pro";
-	case 15: return "RESERVED";
+	default: break;
 	}
-	return "BROKEN"; /* can't happen */
+	return std::string("Unknown Audio Format ") + utohex(x);
 }
 
-static const char *mpeg_h_3d_audio_level(unsigned char x)
+static std::string mpeg_h_3d_audio_level(unsigned char x)
 {
 	switch (x) {
 	case 0: return "Unspecified";
@@ -131,10 +130,9 @@ static const char *mpeg_h_3d_audio_level(unsigned char x)
 	case 3: return "Level 3";
 	case 4: return "Level 4";
 	case 5: return "Level 5";
-	case 6: return "Reserved";
-	case 7: return "Reserved";
+	default: break;
 	}
-	return "BROKEN"; /* can't happen */
+	return std::string("Unknown MPEG-H 3D Audio Level ") + utohex(x);
 }
 
 static void cta_audio_block(const unsigned char *x, unsigned length)
@@ -150,17 +148,17 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 		format = (x[i] & 0x78) >> 3;
 		ext_format = (x[i + 2] & 0xf8) >> 3;
 		if (format != 15)
-			printf("    %s, max channels %u\n", audio_format(format),
+			printf("    %s, max channels %u\n", audio_format(format).c_str(),
 			       (x[i] & 0x07)+1);
 		else if (ext_format == 11)
-			printf("    %s, MPEG-H 3D Audio Level: %s\n", audio_ext_format(ext_format),
-			       mpeg_h_3d_audio_level(x[i] & 0x07));
+			printf("    %s, MPEG-H 3D Audio Level: %s\n", audio_ext_format(ext_format).c_str(),
+			       mpeg_h_3d_audio_level(x[i] & 0x07).c_str());
 		else if (ext_format == 13)
-			printf("    %s, max channels %u\n", audio_ext_format(ext_format),
+			printf("    %s, max channels %u\n", audio_ext_format(ext_format).c_str(),
 			       (((x[i + 1] & 0x80) >> 3) | ((x[i] & 0x80) >> 4) |
 				(x[i] & 0x07))+1);
 		else
-			printf("    %s, max channels %u\n", audio_ext_format(ext_format),
+			printf("    %s, max channels %u\n", audio_ext_format(ext_format).c_str(),
 			       (x[i] & 0x07)+1);
 		printf("      Supported sample rates (kHz):%s%s%s%s%s%s%s\n",
 		       (x[i+1] & 0x40) ? " 192" : "",
@@ -518,7 +516,7 @@ static void cta_hdmi_block(edid_state &state, const unsigned char *x, unsigned l
 		printf("    DC_30bit\n");
 	if (x[5] & 0x08)
 		printf("    DC_Y444\n");
-	/* two reserved */
+	/* two reserved bits */
 	if (x[5] & 0x01)
 		printf("    DVI_Dual\n");
 
@@ -738,10 +736,10 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 		unsigned max_frl_rate = x[3] >> 4;
 
 		printf("    Max Fixed Rate Link: ");
-		if (max_frl_rate >= ARRAY_SIZE(max_frl_rates))
-			printf("Reserved\n");
-		else
+		if (max_frl_rate < ARRAY_SIZE(max_frl_rates))
 			printf("%s\n", max_frl_rates[max_frl_rate]);
+		else
+			printf("Unknown (0x%02x)\n", max_frl_rate);
 		if (max_frl_rate == 1 && rate < 300)
 			fail("Max Fixed Rate Link is 1, but Max TMDS rate < 300\n");
 		else if (max_frl_rate >= 2 && rate < 600)
@@ -796,17 +794,20 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 	if (x[8] & 0xf) {
 		unsigned max_slices = x[8] & 0xf;
 
+		printf("    DSC Max Slices: ");
 		if (max_slices < ARRAY_SIZE(dsc_max_slices))
-			printf("    Supports %s\n", dsc_max_slices[max_slices]);
+			printf("%s\n", dsc_max_slices[max_slices]);
+		else
+			printf("Unknown (0x%02x)\n", max_slices);
 	}
 	if (x[8] & 0xf0) {
 		unsigned max_frl_rate = x[8] >> 4;
 
 		printf("    DSC Max Fixed Rate Link: ");
-		if (max_frl_rate >= ARRAY_SIZE(max_frl_rates))
-			printf("Reserved\n");
-		else
+		if (max_frl_rate < ARRAY_SIZE(max_frl_rates))
 			printf("%s\n", max_frl_rates[max_frl_rate]);
+		else
+			printf("Unknown (0x%02x)\n", max_frl_rate);
 	}
 	if (x[9] & 0x3f)
 		printf("    Maximum number of bytes in a line of chunks: %u\n",
@@ -1088,7 +1089,7 @@ static void cta_ifdb(const unsigned char *x, unsigned length)
 		int payload_len = x[0] >> 5;
 
 		if ((x[0] & 0x1f) == 1 && length >= 4) {
-			printf("    InfoFrame Type Code %u IEEE OUI: %02x%02x%02x\n",
+			printf("    InfoFrame Type Code %u IEEE OUI: 0x%02x%02x%02x\n",
 			       x[0] & 0x1f, x[3], x[2], x[1]);
 			x += 4;
 			length -= 4;
@@ -1122,7 +1123,7 @@ static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 		if (length > 4) {
 			unsigned format = x[0] & 0xf;
 
-			printf("    %s, max channels %u\n", audio_format(format),
+			printf("    %s, max channels %u\n", audio_format(format).c_str(),
 			       (x[1] & 0x1f)+1);
 			printf("      Supported sample rates (kHz):%s%s%s%s%s%s%s\n",
 			       (x[2] & 0x40) ? " 192" : "",
@@ -1187,7 +1188,7 @@ static void cta_block(edid_state &state, const unsigned char *x)
 		break;
 	case 0x03:
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
-		printf("  Vendor-Specific Data Block, OUI %06x", oui);
+		printf("  Vendor-Specific Data Block, OUI 0x%06x", oui);
 		if (oui == 0x000c03) {
 			state.cur_block = "Vendor-Specific Data Block (HDMI)";
 			cta_hdmi_block(state, x + 1, length);
@@ -1230,7 +1231,7 @@ static void cta_block(edid_state &state, const unsigned char *x)
 			break;
 		case 0x01:
 			oui = (x[4] << 16) + (x[3] << 8) + x[2];
-			printf("Vendor-Specific Video Data Block, OUI %06x", oui);
+			printf("Vendor-Specific Video Data Block, OUI 0x%06x", oui);
 			if (oui == 0x90848b) {
 				state.cur_block = "Vendor-Specific Video Data Block (HDR10+)";
 				printf(" (HDR10+)\n");
@@ -1331,12 +1332,15 @@ static void cta_block(edid_state &state, const unsigned char *x)
 			have_hf_scdb = 1;
 			break;
 		default:
-			if (x[1] >= 6 && x[1] <= 12)
-				printf("Reserved for video-related blocks (%02x)\n", x[1]);
-			else if (x[1] >= 19 && x[1] <= 31)
-				printf("Reserved for audio-related blocks (%02x)\n", x[1]);
+			if (x[1] <= 12)
+				printf("Unknown CTA video-related");
+			else if (x[1] <= 31)
+				printf("Unknown CTA audio-related");
+			else if (x[1] >= 120 && x[1] <= 127)
+				printf("Unknown CTA HDMI-related");
 			else
-				printf("Reserved (%02x)\n", x[1]);
+				printf("Unknown CTA");
+			printf(" tag 0x%02x, length %u\n", x[1], length - 1);
 			hex_block("  ", x + 2, length - 1);
 			break;
 		}
@@ -1344,7 +1348,8 @@ static void cta_block(edid_state &state, const unsigned char *x)
 	default: {
 		unsigned tag = (*x & 0xe0) >> 5;
 		unsigned length = *x & 0x1f;
-		printf("  Unknown tag %u, length %u (raw %02x)\n", tag, length, *x);
+		printf("  Unknown CTA tag 0x%02x, length %u\n", tag, length);
+		hex_block("    ", x + 1, length);
 		break;
 	}
 	}
@@ -1357,6 +1362,8 @@ void parse_cta_block(edid_state &state, const unsigned char *x)
 	unsigned version = x[1];
 	unsigned offset = x[2];
 	const unsigned char *detailed;
+
+	printf("%s Revision %u\n", state.cur_block.c_str(), version);
 
 	if (state.has_serial_number && state.has_serial_string)
 		fail("Both the serial number and the serial string are set\n");
