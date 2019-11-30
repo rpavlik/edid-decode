@@ -92,7 +92,7 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 {
 	const unsigned char *orig = x;
 	unsigned version = x[1];
-	unsigned length = x[2];
+	int length = x[2];
 	unsigned ext_count = x[4];
 	unsigned i;
 
@@ -105,82 +105,52 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 		unsigned tag = x[offset];
 		unsigned len = x[offset + 2];
 
-		if (len == 0)
+		if (!tag && !len) {
+			while (length && !x[offset]) {
+				length--;
+				offset++;
+			}
+			if (length)
+				fail("Non-0 filler bytes in the DisplayID block\n");
 			break;
+		}
 		switch (tag) {
-		case 0:
-			printf("  Product ID Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 1:
-			printf("  Display Parameters Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 2:
-			printf("  Color Characteristics Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 3: {
-			printf("  Type 1 Detailed Timings Block\n");
+		case 0x00: state.cur_block = "Product ID Data Block"; break;
+		case 0x01: state.cur_block = "Display Parameters Data Block"; break;
+		case 0x02: state.cur_block = "Color Characteristics Data Block"; break;
+		case 0x03: state.cur_block = "Type 1 Detailed Timings Data Block"; break;
+		case 0x04: state.cur_block = "Type 2 Detailed Timings Data Block"; break;
+		case 0x05: state.cur_block = "Type 3 Short Timings Data Block"; break;
+		case 0x06: state.cur_block = "Type 4 DMT Timings Data Block"; break;
+		case 0x07: state.cur_block = "Type 1 VESA DMT Timings Data Block"; break;
+		case 0x08: state.cur_block = "CTA Timings Data Block"; break;
+		case 0x09: state.cur_block = "Video Timing Range Data Block"; break;
+		case 0x0a: state.cur_block = "Product Serial Number Data Block"; break;
+		case 0x0b: state.cur_block = "GP ASCII String Data Block"; break;
+		case 0x0c: state.cur_block = "Display Device Data Data Block"; break;
+		case 0x0d: state.cur_block = "Interface Power Sequencing Data Block"; break;
+		case 0x0e: state.cur_block = "Transfer Characteristics Data Block"; break;
+		case 0x0f: state.cur_block = "Display Interface Data Block"; break;
+		case 0x10: state.cur_block = "Stereo Display Interface Data Block"; break;
+		case 0x12: state.cur_block = "Tiled Display Topology Data Block"; break;
+		default: state.cur_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")"; break;
+		}
+
+		printf("  %s\n", state.cur_block.c_str());
+
+		switch (tag) {
+		case 0x03:
 			for (i = 0; i < len / 20; i++) {
 				parse_displayid_detailed_timing(&x[offset + 3 + (i * 20)]);
 			}
 			break;
-		}
-		case 4:
-			printf("  Type 2 Detailed Timings Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 5:
-			printf("  Type 3 Short Timings Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 6:
-			printf("  Type 4 DMT Timings Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 7:
-			printf("  Type 1 VESA DMT Timings Block\n");
+
+		case 0x07:
 			for (i = 0; i < min(len, 10) * 8; i++)
 				if (x[offset + 3 + i / 8] & (1 << (i % 8)))
 					print_timings(state, "    ", find_dmt_id(i + 1), "DMT");
 			break;
-		case 8:
-			printf("  CTA Timings Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 9:
-			printf("  Video Timing Range Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 0xa:
-			printf("  Product Serial Number Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 0xb:
-			printf("  GP ASCII String Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 0xc:
-			printf("  Display Device Data Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 0xd:
-			printf("  Interface Power Sequencing Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 0xe:
-			printf("  Transfer Characteristics Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 0xf:
-			printf("  Display Interface Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
-		case 0x10:
-			printf("  Stereo Display Interface Block\n");
-			hex_block("    ", x + offset + 3, len);
-			break;
+
 		case 0x12: {
 			unsigned capabilities = x[offset + 3];
 			unsigned num_v_tile = (x[offset + 4] & 0xf) | (x[offset + 6] & 0x30);
@@ -191,7 +161,6 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 			unsigned tile_height = x[offset + 9] | (x[offset + 10] << 8);
 			unsigned pix_mult = x[offset + 11];
 
-			printf("  Tiled Display Topology Block\n");
 			printf("    Capabilities: 0x%08x\n", capabilities);
 			printf("    Num horizontal tiles: %u Num vertical tiles: %u\n", num_h_tile + 1, num_v_tile + 1);
 			printf("    Tile location: %u, %u\n", tile_h_location, tile_v_location);
@@ -215,8 +184,8 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 			}
 			break;
 		}
+
 		default:
-			printf("  Unknown DisplayID Data Block 0x%02x\n", tag);
 			hex_block("    ", x + offset + 3, len);
 			break;
 		}
@@ -229,6 +198,6 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 	 * but checksum is calculated over the entire structure
 	 * (excluding DisplayID-in-EDID magic byte)
 	 */
-	state.cur_block = "DisplayID";
+	state.cur_block = block_name(orig[0]);
 	do_checksum("  ", orig + 1, orig[2] + 5);
 }
