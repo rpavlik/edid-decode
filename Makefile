@@ -2,7 +2,8 @@ bindir ?= /usr/bin
 mandir ?= /usr/share/man
 
 SOURCES = edid-decode.cpp parse-base-block.cpp parse-cta-block.cpp \
-	  parse-displayid-block.cpp parse-ls-ext-block.cpp
+	  parse-displayid-block.cpp parse-ls-ext-block.cpp \
+	  parse-di-ext-block.cpp
 
 all: edid-decode
 

@@ -644,6 +644,9 @@ static void parse_extension(edid_state &state, const unsigned char *x)
 		printf("%s\n", state.cur_block.c_str());
 		fail("Deprecated extension block, do not use\n");
 		break;
+	case 0x40:
+		parse_di_ext_block(state, x);
+		break;
 	case 0x50:
 		parse_ls_ext_block(state, x);
 		break;

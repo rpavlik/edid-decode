@@ -96,6 +96,8 @@ void parse_cta_block(edid_state &state, const unsigned char *x);
 
 void parse_displayid_block(edid_state &state, const unsigned char *x);
 
+void parse_di_ext_block(edid_state &state, const unsigned char *x);
+
 void parse_ls_ext_block(edid_state &state, const unsigned char *x);
 
 #endif
