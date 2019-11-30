@@ -1345,14 +1345,14 @@ static void cta_block(edid_state &state, const unsigned char *x)
 			break;
 		default:
 			if (x[1] <= 12)
-				printf("Unknown CTA video-related");
+				printf("Unknown CTA Video-Related");
 			else if (x[1] <= 31)
-				printf("Unknown CTA audio-related");
+				printf("Unknown CTA Audio-Related");
 			else if (x[1] >= 120 && x[1] <= 127)
-				printf("Unknown CTA HDMI-related");
+				printf("Unknown CTA HDMI-Related");
 			else
 				printf("Unknown CTA");
-			printf(" tag 0x%02x, length %u\n", x[1], length - 1);
+			printf(" Data Block (tag 0x%02x, length %u)\n", x[1], length - 1);
 			hex_block("    ", x + 2, length - 1);
 			break;
 		}
@@ -1407,7 +1407,7 @@ void parse_cta_block(edid_state &state, const unsigned char *x)
 		if (version == 3) {
 			unsigned i;
 
-			printf("%u bytes of CTA data\n", offset - 4);
+			printf("%u bytes of CTA data blocks\n", offset - 4);
 			for (i = 4; i < offset; i += (x[i] & 0x1f) + 1) {
 				cta_block(state, x + i);
 			}
