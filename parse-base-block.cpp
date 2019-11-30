@@ -26,7 +26,7 @@ static char *manufacturer_name(const unsigned char *x)
 	name[3] = 0;
 
 	if (!isupper(name[0]) || !isupper(name[1]) || !isupper(name[2]))
-		fail("manufacturer name field contains garbage\n");
+		fail("Manufacturer name field contains garbage\n");
 
 	return name;
 }
@@ -554,23 +554,23 @@ static char *extract_string(const unsigned char *x, unsigned len)
 			if (x[i] == 0x0a) {
 				seen_newline = 1;
 				if (!i)
-					fail("empty string\n");
+					fail("Empty string\n");
 				else if (s[i - 1] == 0x20)
-					fail("one or more trailing spaces\n");
+					fail("One or more trailing spaces\n");
 			} else if (x[i] == 0x20) {
 				s[i] = x[i];
 			} else {
-				fail("non-printable character\n");
+				fail("Non-printable character\n");
 				return s;
 			}
 		} else if (x[i] != 0x20) {
-			fail("non-space after newline\n");
+			fail("Non-space after newline\n");
 			return s;
 		}
 	}
 	/* Does the string end with a space? */
 	if (!seen_newline && s[len - 1] == 0x20)
-		fail("one or more trailing spaces\n");
+		fail("One or more trailing spaces\n");
 
 	return s;
 }
@@ -676,7 +676,7 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 		return;
 
 	if (b1 == 0) {
-		fail("non-conformant standard timing (0 horiz)\n");
+		fail("Non-conformant standard timing (0 horiz)\n");
 		return;
 	}
 	t = find_std_id((b1 << 8) | b2);
@@ -833,17 +833,17 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 		}
 		break;
 	default: /* invalid */
-		fail("invalid range class 0x%02x\n", x[10]);
+		fail("Invalid range class 0x%02x\n", x[10]);
 		range_class = "invalid";
 		break;
 	}
 
 	if (x[5] + v_min_offset > x[6] + v_max_offset)
-		fail("min vertical rate > max vertical rate\n");
+		fail("Min vertical rate > max vertical rate\n");
 	state.min_display_vert_freq_hz = x[5] + v_min_offset;
 	state.max_display_vert_freq_hz = x[6] + v_max_offset;
 	if (x[7] + h_min_offset > x[8] + h_max_offset)
-		fail("min horizontal freq > max horizontal freq\n");
+		fail("Min horizontal freq > max horizontal freq\n");
 	state.min_display_hor_freq_hz = (x[7] + h_min_offset) * 1000;
 	state.max_display_hor_freq_hz = (x[8] + h_max_offset) * 1000;
 	printf("  Monitor ranges (%s): %d-%d Hz V, %d-%d kHz H",
@@ -921,7 +921,7 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 			break;
 		default:
 			printf("(broken)");
-			fail("invalid preferred aspect ratio\n");
+			fail("Invalid preferred aspect ratio\n");
 			break;
 		}
 		printf("\n");
@@ -1170,7 +1170,7 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 
 	pixclk_khz = (x[0] + (x[1] << 8)) * 10;
 	if (pixclk_khz < 10000)
-		fail("pixelclock < 10 MHz\n");
+		fail("Pixelclock < 10 MHz\n");
 	if ((ha + hbl) && (va + vbl))
 		refresh = (pixclk_khz * 1000.0) / ((ha + hbl) * (va + vbl));
 	else
@@ -1199,19 +1199,19 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 		fail("0 or negative vertical back porch\n");
 	if ((!state.max_display_width_mm && hor_mm) ||
 	    (!state.max_display_height_mm && vert_mm)) {
-		fail("mismatch of image size vs display size: image size is set, but not display size\n");
+		fail("Mismatch of image size vs display size: image size is set, but not display size\n");
 	} else if ((state.max_display_width_mm && !hor_mm) ||
 		   (state.max_display_height_mm && !vert_mm)) {
-		fail("mismatch of image size vs display size: image size is not set, but display size is\n");
+		fail("Mismatch of image size vs display size: image size is not set, but display size is\n");
 	} else if (!hor_mm && !vert_mm) {
 		/* this is valid */
 	} else if (hor_mm > state.max_display_width_mm + 9 ||
 		   vert_mm > state.max_display_height_mm + 9) {
-		fail("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
+		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
 		     hor_mm, vert_mm, state.max_display_width_mm, state.max_display_height_mm);
 	} else if (hor_mm < state.max_display_width_mm - 9 &&
 		   vert_mm < state.max_display_height_mm - 9) {
-		fail("mismatch of image size %ux%u mm vs display size %ux%u mm\n",
+		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
 		     hor_mm, vert_mm, state.max_display_width_mm, state.max_display_height_mm);
 	}
 	if (refresh) {
@@ -1246,11 +1246,11 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 	/* Monitor descriptor block, not detailed timing descriptor. */
 	if (x[2] != 0) {
 		/* 1.3, 3.10.3 */
-		fail("monitor descriptor block has byte 2 nonzero (0x%02x)\n", x[2]);
+		fail("Monitor descriptor block has byte 2 nonzero (0x%02x)\n", x[2]);
 	}
 	if ((state.edid_minor < 4 || x[3] != 0xfd) && x[4] != 0x00) {
 		/* 1.3, 3.10.3 */
-		fail("monitor descriptor block has byte 4 nonzero (0x%02x)\n", x[4]);
+		fail("Monitor descriptor block has byte 4 nonzero (0x%02x)\n", x[4]);
 	}
 
 	seen_non_detailed_descriptor = 1;
@@ -1260,7 +1260,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 	if (!memcmp(x, zero_descr, sizeof(zero_descr))) {
 		state.cur_block = "Empty Descriptor";
 		printf("%s\n", state.cur_block.c_str());
-		fail("use Dummy Descriptor instead of all zeroes\n");
+		fail("Use Dummy Descriptor instead of all zeroes\n");
 	}
 
 	switch (x[3]) {
@@ -1272,7 +1272,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		printf("%s\n", state.cur_block.c_str());
 		for (i = 5; i < 18; i++) {
 			if (x[i]) {
-				fail("dummy block filled with garbage\n");
+				fail("Dummy block filled with garbage\n");
 				break;
 			}
 		}
@@ -1367,7 +1367,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 			state.cur_block = "SPWG Descriptor #3";
 			memcpy(buf, x + 5, 5);
 			if (strlen(buf) != 5)
-				fail("invalid PC Maker P/N\n");
+				fail("Invalid PC Maker P/N\n");
 			printf("SPWG PC Maker P/N: %s\n", buf);
 			printf("SPWG LCD Supplier EEDID Revision: %hhu\n", x[10]);
 			printf("SPWG Manufacturer P/N: %s\n", extract_string(x + 11, 7));
@@ -1438,7 +1438,7 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 		// No idea why there is a difference.
 		if ((state.edid_minor <= 3 && week > 53) ||
 		    (week != 0xff && week > 54))
-			fail("invalid week %u of manufacture\n", week);
+			fail("Invalid week %u of manufacture\n", week);
 		if (week != 0xff)
 			printf("Made in week %hhu of %d\n", week, year);
 	}
@@ -1521,9 +1521,9 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 		state.max_display_height_mm = edid[0x16] * 10;
 		if ((state.max_display_height_mm && !state.max_display_width_mm) ||
 		    (state.max_display_width_mm && !state.max_display_height_mm))
-			fail("invalid maximum image size\n");
+			fail("Invalid maximum image size\n");
 		else if (state.max_display_width_mm < 100 || state.max_display_height_mm < 100)
-			warn("dubious maximum image size (smaller than 10x10 cm)\n");
+			warn("Dubious maximum image size (smaller than 10x10 cm)\n");
 	}
 	else if (state.edid_minor >= 4 && (edid[0x15] || edid[0x16])) {
 		if (edid[0x15])

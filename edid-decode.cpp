@@ -140,7 +140,7 @@ void print_timings(edid_state &state, const char *prefix,
 {
 	if (!t) {
 		// Should not happen
-		fail("unknown short timings\n");
+		fail("Unknown short timings\n");
 		return;
 	}
 	state.min_vert_freq_hz = min(state.min_vert_freq_hz, t->refresh);
@@ -598,7 +598,7 @@ static void parse_block_map(edid_state &state, const unsigned char *x)
 	if (state.cur_block_nr == 1)
 		saw_block_1 = true;
 	else if (!saw_block_1)
-		fail("no EDID Block Map Extension found in block 1\n");
+		fail("No EDID Block Map Extension found in block 1\n");
 
 	if (state.cur_block_nr > 1)
 		offset = 128;
@@ -609,12 +609,12 @@ static void parse_block_map(edid_state &state, const unsigned char *x)
 		if (x[i]) {
 			last_valid_block_tag++;
 			if (i != last_valid_block_tag && !fail_once) {
-				fail("valid block tags are not consecutive\n");
+				fail("Valid block tags are not consecutive\n");
 				fail_once = true;
 			}
 			printf("  Block %3u: %s\n", block, block_name(block).c_str());
 			if (block >= state.num_blocks && !fail_once) {
-				fail("invalid block number\n");
+				fail("Invalid block number\n");
 				fail_once = true;
 			}
 		}
@@ -642,7 +642,7 @@ static void parse_extension(edid_state &state, const unsigned char *x)
 	case 0xf0:
 		parse_block_map(state, x);
 		if (state.cur_block_nr != 1 && state.cur_block_nr != 128)
-			fail("must be used in block 1 and 128\n");
+			fail("Must be used in block 1 and 128\n");
 		break;
 	default:
 		hex_block("  ", x + 2, 125);
@@ -683,7 +683,7 @@ static int edid_from_file(const char *from_file, const char *to_file,
 
 	edid = extract_edid(fd);
 	if (!edid) {
-		fprintf(stderr, "edid extract of '%s' failed\n", from_file);
+		fprintf(stderr, "EDID extract of '%s' failed\n", from_file);
 		return -1;
 	}
 	if (fd != 0)

@@ -430,7 +430,7 @@ static void cta_svd(edid_state &state, const unsigned char *x, unsigned n, int f
 			print_timings(state, "    ", t, suffix);
 		} else {
 			printf("    VIC %3u (Unknown)\n", vic);
-			fail("unknown VIC %u\n", vic);
+			fail("Unknown VIC %u\n", vic);
 		}
 
 		if (vic == 1 && !for_ycbcr420)
