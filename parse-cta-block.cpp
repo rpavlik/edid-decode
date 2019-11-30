@@ -473,10 +473,12 @@ static void cta_vfpdb(edid_state &state, const unsigned char *x, unsigned length
 			sprintf(suffix, "VIC %3u", vic);
 
 			t = vic_to_mode(vic);
-			if (t)
+			if (t) {
 				print_timings(state, "    ", t, suffix);
-			else
+			} else {
 				printf("    Unknown (VIC %3u)\n", vic);
+				fail("Unknown VIC %u\n", vic);
+			}
 
 		} else if (svr > 128 && svr < 145) {
 			printf("    DTD number %02u\n", svr - 128);
@@ -587,6 +589,7 @@ static void cta_hdmi_block(edid_state &state, const unsigned char *x, unsigned l
 	if (len_vic) {
 		unsigned i;
 
+		printf("      HDMI VICs:\n");
 		for (i = 0; i < len_vic; i++) {
 			unsigned char vic = x[8 + b + i];
 			const struct timings *t;
@@ -595,9 +598,10 @@ static void cta_hdmi_block(edid_state &state, const unsigned char *x, unsigned l
 				std::string suffix = "HDMI VIC " + std::to_string(vic);
 				state.supported_hdmi_vic_codes |= 1 << (vic - 1);
 				t = &edid_hdmi_modes[vic - 1];
-				print_timings(state, "      ", t, suffix.c_str());
+				print_timings(state, "        ", t, suffix.c_str());
 			} else {
-				printf("      Unknown (HDMI VIC %u)\n", vic);
+				printf("         Unknown (HDMI VIC %u)\n", vic);
+				fail("Unknown HDMI VIC %u\n", vic);
 			}
 		}
 
@@ -734,10 +738,12 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 		unsigned max_frl_rate = x[3] >> 4;
 
 		printf("    Max Fixed Rate Link: ");
-		if (max_frl_rate < ARRAY_SIZE(max_frl_rates))
+		if (max_frl_rate < ARRAY_SIZE(max_frl_rates)) {
 			printf("%s\n", max_frl_rates[max_frl_rate]);
-		else
+		} else {
 			printf("Unknown (0x%02x)\n", max_frl_rate);
+			fail("Unknown Max Fixed Rate Link (0x%02x)\n", max_frl_rate);
+		}
 		if (max_frl_rate == 1 && rate < 300)
 			fail("Max Fixed Rate Link is 1, but Max TMDS rate < 300\n");
 		else if (max_frl_rate >= 2 && rate < 600)
@@ -793,19 +799,23 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 		unsigned max_slices = x[8] & 0xf;
 
 		printf("    DSC Max Slices: ");
-		if (max_slices < ARRAY_SIZE(dsc_max_slices))
+		if (max_slices < ARRAY_SIZE(dsc_max_slices)) {
 			printf("%s\n", dsc_max_slices[max_slices]);
-		else
+		} else {
 			printf("Unknown (0x%02x)\n", max_slices);
+			fail("Unknown DSC Max Slices (0x%02x)\n", max_slices);
+		}
 	}
 	if (x[8] & 0xf0) {
 		unsigned max_frl_rate = x[8] >> 4;
 
 		printf("    DSC Max Fixed Rate Link: ");
-		if (max_frl_rate < ARRAY_SIZE(max_frl_rates))
+		if (max_frl_rate < ARRAY_SIZE(max_frl_rates)) {
 			printf("%s\n", max_frl_rates[max_frl_rate]);
-		else
+		} else {
 			printf("Unknown (0x%02x)\n", max_frl_rate);
+			fail("Unknown DSC Max Fixed Rate Link (0x%02x)\n", max_frl_rate);
+		}
 	}
 	if (x[9] & 0x3f)
 		printf("    Maximum number of bytes in a line of chunks: %u\n",
@@ -1024,10 +1034,12 @@ static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned lengt
 		printf("    Electro optical transfer functions:\n");
 		for (i = 0; i < 6; i++) {
 			if (x[0] & (1 << i)) {
-				if (i < ARRAY_SIZE(eotf_map))
+				if (i < ARRAY_SIZE(eotf_map)) {
 					printf("      %s\n", eotf_map[i]);
-				else
+				} else {
 					printf("      Unknown (%u)\n", i);
+					fail("Unknown EOTF (%u)\n", i);
+				}
 			}
 		}
 		printf("    Supported static metadata descriptors:\n");
