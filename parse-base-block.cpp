@@ -152,6 +152,95 @@ static const struct {
 	{ 0x58, 0x0000, 0x000000, { 4096, 2160, 59, 256, 135, 133187, 556188, 1 } },
 };
 
+static const struct {
+	unsigned dmt_id;
+	struct timings t;
+	const char *std_name;
+} established_timings12[] = {
+	// For IBM formats see: http://www.mcamafia.de/pdf/pdfref.htm:
+	// VGA / XGA / XGA-2 Technical Reference Manual
+	//
+	// For Apple formats (mac6, mac13 and mac18) see
+	// drivers/video/fbdev/macmodes.c in the linux kernel.
+
+	/* 0x23 bit 7 - 0 */
+	// 720x400p70: +vsync -hsync 
+	{ 0x00, { 720, 400, 70, 9, 5, 31469, 28250 }, "IBM" },
+	{ 0x00, { 720, 400, 88, 9, 5, 39500, 35500 }, "IBM" },
+	{ 0x04 },
+	{ 0x00, { 640, 480, 67, 4, 3, 35000, 30240 }, "Apple" },
+	{ 0x05 },
+	{ 0x06 },
+	{ 0x08 },
+	{ 0x09 },
+	/* 0x24 bit 7 - 0 */
+	{ 0x0a },
+	{ 0x0b },
+	{ 0x00, { 832, 624, 75, 4, 3, 49107, 55000 }, "Apple" },
+	{ 0x00, { 1024, 768, 87, 4, 3, 35522, 44900, 0, 1 }, "IBM" },
+	{ 0x10 },
+	{ 0x11 },
+	{ 0x12 },
+	{ 0x24 },
+	/* 0x25 bit 7 */
+	{ 0x00, { 1152, 870, 75, 192, 145, 67500, 108000 }, "Apple" },
+};
+
+// The bits in the Established Timings III map to DMT timings,
+// this array has the DMT IDs.
+static const unsigned char established_timings3_dmt_ids[] = {
+	/* 0x06 bit 7 - 0 */
+	0x01, // 640x350@85
+	0x02, // 640x400@85
+	0x03, // 720x400@85
+	0x07, // 640x480@85
+	0x0e, // 848x480@60
+	0x0c, // 800x600@85
+	0x13, // 1024x768@85
+	0x15, // 1152x864@75
+	/* 0x07 bit 7 - 0 */
+	0x16, // 1280x768@60 RB
+	0x17, // 1280x768@60
+	0x18, // 1280x768@75
+	0x19, // 1280x768@85
+	0x20, // 1280x960@60
+	0x21, // 1280x960@85
+	0x23, // 1280x1024@60
+	0x25, // 1280x1024@85
+	/* 0x08 bit 7 - 0 */
+	0x27, // 1360x768@60
+	0x2e, // 1440x900@60 RB
+	0x2f, // 1440x900@60
+	0x30, // 1440x900@75
+	0x31, // 1440x900@85
+	0x29, // 1400x1050@60 RB
+	0x2a, // 1400x1050@60
+	0x2b, // 1400x1050@75
+	/* 0x09 bit 7 - 0 */
+	0x2c, // 1400x1050@85
+	0x39, // 1680x1050@60 RB
+	0x3a, // 1680x1050@60
+	0x3b, // 1680x1050@75
+	0x3c, // 1680x1050@85
+	0x33, // 1600x1200@60
+	0x34, // 1600x1200@65
+	0x35, // 1600x1200@70
+	/* 0x0a bit 7 - 0 */
+	0x36, // 1600x1200@75
+	0x37, // 1600x1200@85
+	0x3e, // 1792x1344@60
+	0x3f, // 1792x1344@75
+	0x41, // 1856x1392@60
+	0x42, // 1856x1392@75
+	0x44, // 1920x1200@60 RB
+	0x45, // 1920x1200@60
+	/* 0x0b bit 7 - 4 */
+	0x46, // 1920x1200@75
+	0x47, // 1920x1200@85
+	0x49, // 1920x1440@60
+	0x4a, // 1920x1440@75
+};
+
 const struct timings *find_dmt_id(unsigned char dmt_id)
 {
 	unsigned i;
@@ -572,95 +661,6 @@ static char *extract_string(const unsigned char *x, unsigned len)
 
 	return s;
 }
-
-static const struct {
-	unsigned dmt_id;
-	struct timings t;
-	const char *std_name;
-} established_timings12[] = {
-	// For IBM formats see: http://www.mcamafia.de/pdf/pdfref.htm:
-	// VGA / XGA / XGA-2 Technical Reference Manual
-	//
-	// For Apple formats (mac6, mac13 and mac18) see
-	// drivers/video/fbdev/macmodes.c in the linux kernel.
-
-	/* 0x23 bit 7 - 0 */
-	// 720x400p70: +vsync -hsync 
-	{ 0x00, { 720, 400, 70, 9, 5, 31469, 28250 }, "IBM" },
-	{ 0x00, { 720, 400, 88, 9, 5, 39500, 35500 }, "IBM" },
-	{ 0x04 },
-	{ 0x00, { 640, 480, 67, 4, 3, 35000, 30240 }, "Apple" },
-	{ 0x05 },
-	{ 0x06 },
-	{ 0x08 },
-	{ 0x09 },
-	/* 0x24 bit 7 - 0 */
-	{ 0x0a },
-	{ 0x0b },
-	{ 0x00, { 832, 624, 75, 4, 3, 49107, 55000 }, "Apple" },
-	{ 0x00, { 1024, 768, 87, 4, 3, 35522, 44900, 0, 1 }, "IBM" },
-	{ 0x10 },
-	{ 0x11 },
-	{ 0x12 },
-	{ 0x24 },
-	/* 0x25 bit 7 */
-	{ 0x00, { 1152, 870, 75, 192, 145, 67500, 108000 }, "Apple" },
-};
-
-// The bits in the Established Timings III map to DMT timings,
-// this array has the DMT IDs.
-static const unsigned char established_timings3_dmt_ids[] = {
-	/* 0x06 bit 7 - 0 */
-	0x01, // 640x350@85
-	0x02, // 640x400@85
-	0x03, // 720x400@85
-	0x07, // 640x480@85
-	0x0e, // 848x480@60
-	0x0c, // 800x600@85
-	0x13, // 1024x768@85
-	0x15, // 1152x864@75
-	/* 0x07 bit 7 - 0 */
-	0x16, // 1280x768@60 RB
-	0x17, // 1280x768@60
-	0x18, // 1280x768@75
-	0x19, // 1280x768@85
-	0x20, // 1280x960@60
-	0x21, // 1280x960@85
-	0x23, // 1280x1024@60
-	0x25, // 1280x1024@85
-	/* 0x08 bit 7 - 0 */
-	0x27, // 1360x768@60
-	0x2e, // 1440x900@60 RB
-	0x2f, // 1440x900@60
-	0x30, // 1440x900@75
-	0x31, // 1440x900@85
-	0x29, // 1400x1050@60 RB
-	0x2a, // 1400x1050@60
-	0x2b, // 1400x1050@75
-	/* 0x09 bit 7 - 0 */
-	0x2c, // 1400x1050@85
-	0x39, // 1680x1050@60 RB
-	0x3a, // 1680x1050@60
-	0x3b, // 1680x1050@75
-	0x3c, // 1680x1050@85
-	0x33, // 1600x1200@60
-	0x34, // 1600x1200@65
-	0x35, // 1600x1200@70
-	/* 0x0a bit 7 - 0 */
-	0x36, // 1600x1200@75
-	0x37, // 1600x1200@85
-	0x3e, // 1792x1344@60
-	0x3f, // 1792x1344@75
-	0x41, // 1856x1392@60
-	0x42, // 1856x1392@75
-	0x44, // 1920x1200@60 RB
-	0x45, // 1920x1200@60
-	/* 0x0b bit 7 - 4 */
-	0x46, // 1920x1200@75
-	0x47, // 1920x1200@85
-	0x49, // 1920x1440@60
-	0x4a, // 1920x1440@75
-};
 
 void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 {

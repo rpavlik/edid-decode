@@ -80,132 +80,6 @@ static void _decode(const struct field **fields, unsigned n_fields,
 #define decode(fields, data, prefix)    \
 	_decode(fields, ARRAY_SIZE(fields), data, prefix)
 
-static std::string audio_ext_format(unsigned char x)
-{
-	switch (x) {
-	case 4: return "MPEG-4 HE AAC";
-	case 5: return "MPEG-4 HE AAC v2";
-	case 6: return "MPEG-4 AAC LC";
-	case 7: return "DRA";
-	case 8: return "MPEG-4 HE AAC + MPEG Surround";
-	case 10: return "MPEG-4 AAC LC + MPEG Surround";
-	case 11: return "MPEG-H 3D Audio";
-	case 12: return "AC-4";
-	case 13: return "L-PCM 3D Audio";
-	default: break;
-	}
-	fail("Unknown Audio Ext Format 0x%02x\n", x);
-	return std::string("Unknown Audio Ext Format (") + utohex(x) + ")";
-}
-
-static std::string audio_format(unsigned char x)
-{
-	switch (x) {
-	case 1: return "Linear PCM";
-	case 2: return "AC-3";
-	case 3: return "MPEG 1 (Layers 1 & 2)";
-	case 4: return "MPEG 1 Layer 3 (MP3)";
-	case 5: return "MPEG2 (multichannel)";
-	case 6: return "AAC";
-	case 7: return "DTS";
-	case 8: return "ATRAC";
-	case 9: return "One Bit Audio";
-	case 10: return "Dolby Digital+";
-	case 11: return "DTS-HD";
-	case 12: return "MAT (MLP)";
-	case 13: return "DST";
-	case 14: return "WMA Pro";
-	default: break;
-	}
-	fail("Unknown Audio Format 0x%02x\n", x);
-	return std::string("Unknown Audio Format (") + utohex(x) + ")";
-}
-
-static std::string mpeg_h_3d_audio_level(unsigned char x)
-{
-	switch (x) {
-	case 0: return "Unspecified";
-	case 1: return "Level 1";
-	case 2: return "Level 2";
-	case 3: return "Level 3";
-	case 4: return "Level 4";
-	case 5: return "Level 5";
-	default: break;
-	}
-	fail("Unknown MPEG-H 3D Audio Level 0x%02x\n", x);
-	return std::string("Unknown MPEG-H 3D Audio Level (") + utohex(x) + ")";
-}
-
-static void cta_audio_block(const unsigned char *x, unsigned length)
-{
-	unsigned i, format, ext_format = 0;
-
-	if (length % 3) {
-		fail("Broken CTA audio block length %d\n", length);
-		return;
-	}
-
-	for (i = 0; i < length; i += 3) {
-		format = (x[i] & 0x78) >> 3;
-		ext_format = (x[i + 2] & 0xf8) >> 3;
-		if (format == 0) {
-			printf("    Reserved (0x00)\n");
-			fail("Audio Format Code 0x00 is reserved\n");
-			continue;
-		}
-		if (format != 15)
-			printf("    %s, max channels %u\n", audio_format(format).c_str(),
-			       (x[i] & 0x07)+1);
-		else if (ext_format == 11)
-			printf("    %s, MPEG-H 3D Audio Level: %s\n", audio_ext_format(ext_format).c_str(),
-			       mpeg_h_3d_audio_level(x[i] & 0x07).c_str());
-		else if (ext_format == 13)
-			printf("    %s, max channels %u\n", audio_ext_format(ext_format).c_str(),
-			       (((x[i + 1] & 0x80) >> 3) | ((x[i] & 0x80) >> 4) |
-				(x[i] & 0x07))+1);
-		else
-			printf("    %s, max channels %u\n", audio_ext_format(ext_format).c_str(),
-			       (x[i] & 0x07)+1);
-		printf("      Supported sample rates (kHz):%s%s%s%s%s%s%s\n",
-		       (x[i+1] & 0x40) ? " 192" : "",
-		       (x[i+1] & 0x20) ? " 176.4" : "",
-		       (x[i+1] & 0x10) ? " 96" : "",
-		       (x[i+1] & 0x08) ? " 88.2" : "",
-		       (x[i+1] & 0x04) ? " 48" : "",
-		       (x[i+1] & 0x02) ? " 44.1" : "",
-		       (x[i+1] & 0x01) ? " 32" : "");
-		if (format == 1 || ext_format == 13) {
-			printf("      Supported sample sizes (bits):%s%s%s\n",
-			       (x[i+2] & 0x04) ? " 24" : "",
-			       (x[i+2] & 0x02) ? " 20" : "",
-			       (x[i+2] & 0x01) ? " 16" : "");
-		} else if (format <= 8) {
-			printf("      Maximum bit rate: %u kb/s\n", x[i+2] * 8);
-		} else if (format == 10) {
-			// As specified by the "Dolby Audio and Dolby Atmos over HDMI"
-			// specification (v1.0).
-			if(x[i+2] & 1)
-				printf("      Supports Joint Object Coding\n");
-			if(x[i+2] & 2)
-				printf("      Supports Joint Object Coding with ACMOD28\n");
-		} else if (format == 14) {
-			printf("      Profile: %u\n", x[i+2] & 7);
-		} else if (ext_format == 11 && (x[i+2] & 1)) {
-			printf("      Supports MPEG-H 3D Audio Low Complexity Profile\n");
-		} else if ((ext_format >= 4 && ext_format <= 6) ||
-			   ext_format == 8 || ext_format == 10) {
-			printf("      AAC audio frame lengths:%s%s\n",
-			       (x[i+2] & 4) ? " 1024_TL" : "",
-			       (x[i+2] & 2) ? " 960_TL" : "");
-			if (ext_format >= 8 && (x[i+2] & 1))
-				printf("      Supports %s signaled MPEG Surround data\n",
-				       (x[i+2] & 1) ? "implicitly and explicitly" : "only implicitly");
-			if (ext_format == 6 && (x[i+2] & 1))
-				printf("      Supports 22.2ch System H\n");
-		}
-	}
-}
-
 static const struct timings edid_cta_modes1[] = {
 	/* VIC 1 */
 	{ 640, 480, 60, 4, 3, 31469, 25175 },
@@ -382,6 +256,8 @@ static const struct timings edid_cta_modes2[] = {
 	{ 4096, 2160, 120, 256, 135, 270000, 1188000 },
 };
 
+static const unsigned char edid_hdmi_mode_map[] = { 95, 94, 93, 98 };
+
 static const struct timings *vic_to_mode(unsigned char vic)
 {
 	if (vic > 0 && vic <= ARRAY_SIZE(edid_cta_modes1))
@@ -389,6 +265,132 @@ static const struct timings *vic_to_mode(unsigned char vic)
 	if (vic >= 193 && vic <= ARRAY_SIZE(edid_cta_modes2) + 193)
 		return edid_cta_modes2 + vic - 193;
 	return NULL;
+}
+
+static std::string audio_ext_format(unsigned char x)
+{
+	switch (x) {
+	case 4: return "MPEG-4 HE AAC";
+	case 5: return "MPEG-4 HE AAC v2";
+	case 6: return "MPEG-4 AAC LC";
+	case 7: return "DRA";
+	case 8: return "MPEG-4 HE AAC + MPEG Surround";
+	case 10: return "MPEG-4 AAC LC + MPEG Surround";
+	case 11: return "MPEG-H 3D Audio";
+	case 12: return "AC-4";
+	case 13: return "L-PCM 3D Audio";
+	default: break;
+	}
+	fail("Unknown Audio Ext Format 0x%02x\n", x);
+	return std::string("Unknown Audio Ext Format (") + utohex(x) + ")";
+}
+
+static std::string audio_format(unsigned char x)
+{
+	switch (x) {
+	case 1: return "Linear PCM";
+	case 2: return "AC-3";
+	case 3: return "MPEG 1 (Layers 1 & 2)";
+	case 4: return "MPEG 1 Layer 3 (MP3)";
+	case 5: return "MPEG2 (multichannel)";
+	case 6: return "AAC";
+	case 7: return "DTS";
+	case 8: return "ATRAC";
+	case 9: return "One Bit Audio";
+	case 10: return "Dolby Digital+";
+	case 11: return "DTS-HD";
+	case 12: return "MAT (MLP)";
+	case 13: return "DST";
+	case 14: return "WMA Pro";
+	default: break;
+	}
+	fail("Unknown Audio Format 0x%02x\n", x);
+	return std::string("Unknown Audio Format (") + utohex(x) + ")";
+}
+
+static std::string mpeg_h_3d_audio_level(unsigned char x)
+{
+	switch (x) {
+	case 0: return "Unspecified";
+	case 1: return "Level 1";
+	case 2: return "Level 2";
+	case 3: return "Level 3";
+	case 4: return "Level 4";
+	case 5: return "Level 5";
+	default: break;
+	}
+	fail("Unknown MPEG-H 3D Audio Level 0x%02x\n", x);
+	return std::string("Unknown MPEG-H 3D Audio Level (") + utohex(x) + ")";
+}
+
+static void cta_audio_block(const unsigned char *x, unsigned length)
+{
+	unsigned i, format, ext_format = 0;
+
+	if (length % 3) {
+		fail("Broken CTA audio block length %d\n", length);
+		return;
+	}
+
+	for (i = 0; i < length; i += 3) {
+		format = (x[i] & 0x78) >> 3;
+		ext_format = (x[i + 2] & 0xf8) >> 3;
+		if (format == 0) {
+			printf("    Reserved (0x00)\n");
+			fail("Audio Format Code 0x00 is reserved\n");
+			continue;
+		}
+		if (format != 15)
+			printf("    %s, max channels %u\n", audio_format(format).c_str(),
+			       (x[i] & 0x07)+1);
+		else if (ext_format == 11)
+			printf("    %s, MPEG-H 3D Audio Level: %s\n", audio_ext_format(ext_format).c_str(),
+			       mpeg_h_3d_audio_level(x[i] & 0x07).c_str());
+		else if (ext_format == 13)
+			printf("    %s, max channels %u\n", audio_ext_format(ext_format).c_str(),
+			       (((x[i + 1] & 0x80) >> 3) | ((x[i] & 0x80) >> 4) |
+				(x[i] & 0x07))+1);
+		else
+			printf("    %s, max channels %u\n", audio_ext_format(ext_format).c_str(),
+			       (x[i] & 0x07)+1);
+		printf("      Supported sample rates (kHz):%s%s%s%s%s%s%s\n",
+		       (x[i+1] & 0x40) ? " 192" : "",
+		       (x[i+1] & 0x20) ? " 176.4" : "",
+		       (x[i+1] & 0x10) ? " 96" : "",
+		       (x[i+1] & 0x08) ? " 88.2" : "",
+		       (x[i+1] & 0x04) ? " 48" : "",
+		       (x[i+1] & 0x02) ? " 44.1" : "",
+		       (x[i+1] & 0x01) ? " 32" : "");
+		if (format == 1 || ext_format == 13) {
+			printf("      Supported sample sizes (bits):%s%s%s\n",
+			       (x[i+2] & 0x04) ? " 24" : "",
+			       (x[i+2] & 0x02) ? " 20" : "",
+			       (x[i+2] & 0x01) ? " 16" : "");
+		} else if (format <= 8) {
+			printf("      Maximum bit rate: %u kb/s\n", x[i+2] * 8);
+		} else if (format == 10) {
+			// As specified by the "Dolby Audio and Dolby Atmos over HDMI"
+			// specification (v1.0).
+			if(x[i+2] & 1)
+				printf("      Supports Joint Object Coding\n");
+			if(x[i+2] & 2)
+				printf("      Supports Joint Object Coding with ACMOD28\n");
+		} else if (format == 14) {
+			printf("      Profile: %u\n", x[i+2] & 7);
+		} else if (ext_format == 11 && (x[i+2] & 1)) {
+			printf("      Supports MPEG-H 3D Audio Low Complexity Profile\n");
+		} else if ((ext_format >= 4 && ext_format <= 6) ||
+			   ext_format == 8 || ext_format == 10) {
+			printf("      AAC audio frame lengths:%s%s\n",
+			       (x[i+2] & 4) ? " 1024_TL" : "",
+			       (x[i+2] & 2) ? " 960_TL" : "");
+			if (ext_format >= 8 && (x[i+2] & 1))
+				printf("      Supports %s signaled MPEG Surround data\n",
+				       (x[i+2] & 1) ? "implicitly and explicitly" : "only implicitly");
+			if (ext_format == 6 && (x[i+2] & 1))
+				printf("      Supports 22.2ch System H\n");
+		}
+	}
 }
 
 void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
@@ -509,13 +511,6 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 	}
 }
 
-static const struct timings edid_hdmi_modes[] = {
-	{ 3840, 2160, 30, 16, 9, 67500, 297000 },
-	{ 3840, 2160, 25, 16, 9, 56250, 297000 },
-	{ 3840, 2160, 24, 16, 9, 54000, 297000 },
-	{ 4096, 2160, 24, 256, 135, 54000, 297000 },
-};
-
 void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 {
 	unsigned mask = 0, formats = 0;
@@ -617,10 +612,10 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 			unsigned char vic = x[8 + b + i];
 			const struct timings *t;
 
-			if (vic && vic <= ARRAY_SIZE(edid_hdmi_modes)) {
+			if (vic && vic <= ARRAY_SIZE(edid_hdmi_mode_map)) {
 				std::string suffix = "HDMI VIC " + std::to_string(vic);
 				supported_hdmi_vic_codes |= 1 << (vic - 1);
-				t = &edid_hdmi_modes[vic - 1];
+				t = vic_to_mode(edid_hdmi_mode_map[vic - 1]);
 				print_timings("        ", t, suffix.c_str());
 			} else {
 				printf("         Unknown (HDMI VIC %u)\n", vic);
