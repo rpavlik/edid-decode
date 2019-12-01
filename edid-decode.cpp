@@ -182,9 +182,8 @@ std::string utohex(unsigned char x)
 }
 
 void hex_block(const char *prefix, const unsigned char *x,
-	       unsigned length, bool show_ascii, bool no_line_break)
+	       unsigned length, bool show_ascii, unsigned step)
 {
-	unsigned step = no_line_break ? length : 16;
 	unsigned i, j;
 
 	if (!length)

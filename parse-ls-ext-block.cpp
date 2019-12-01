@@ -12,7 +12,7 @@ static void parse_string(const char *name, const unsigned char *x)
 	if (!*x)
 		return;
 	printf("  %s: ", name);
-	hex_block("", x + 1, *x, true, true);
+	hex_block("", x + 1, *x, true, *x);
 }
 
 static void parse_string_table(const unsigned char *x)

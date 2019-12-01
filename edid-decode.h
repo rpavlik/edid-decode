@@ -84,7 +84,7 @@ void fail(const char *fmt, ...);
 void do_checksum(const char *prefix, const unsigned char *x, size_t len);
 std::string utohex(unsigned char x);
 void hex_block(const char *prefix, const unsigned char *x, unsigned length,
-	       bool show_ascii = true, bool no_line_break = false);
+	       bool show_ascii = true, unsigned step = 16);
 std::string block_name(unsigned char block);
 void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
 
