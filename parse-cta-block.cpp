@@ -704,7 +704,9 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 						printf("side-by-side (half, horizontal)");
 						break;
 					}
-				default: printf("unknown");
+				default:
+					printf("Unknown (0x%02x)", x[8 + b] & 0x0f);
+					break;
 				}
 				printf("\n");
 
@@ -1215,12 +1217,28 @@ static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 	}
 }
 
+static const char *oui_name(unsigned oui)
+{
+	switch (oui) {
+	case 0x00001a: return "AMD";
+	case 0x00044b: return "NVIDIA";
+	case 0x000c6e: return "ASUS";
+	case 0x0010fa: return "Apple";
+	case 0x0014b9: return "MSTAR";
+	case 0x00d046: return "Dolby";
+	case 0x00e047: return "InFocus";
+	case 0xca125c: return "Microsoft";
+	default: return NULL;
+	}
+}
+
 void edid_state::cta_block(const unsigned char *x)
 {
 	static int last_block_was_hdmi_vsdb;
 	static int have_hf_vsdb, have_hf_scdb;
 	static int first_block = 1;
 	unsigned length = x[0] & 0x1f;
+	const char *name;
 	unsigned oui;
 
 	switch ((x[0] & 0xe0) >> 5) {
@@ -1237,6 +1255,7 @@ void edid_state::cta_block(const unsigned char *x)
 	case 0x03:
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
 		printf("  Vendor-Specific Data Block, OUI 0x%06x", oui);
+		name = oui_name(oui);
 		if (oui == 0x000c03) {
 			data_block = "Vendor-Specific Data Block (HDMI)";
 			cta_hdmi_block(x + 1, length);
@@ -1255,9 +1274,15 @@ void edid_state::cta_block(const unsigned char *x)
 			printf(" (HDMI Forum)\n");
 			cta_hf_scdb(x + 4, length - 3);
 			have_hf_vsdb = 1;
-		} else {
-			printf(" (unknown)\n");
+		} else if (name) {
+			data_block = std::string("Vendor-Specific Data Block (") + name + ")";
+			printf(" (%s)\n", name);
 			hex_block("    ", x + 4, length - 3);
+		} else {
+			printf("\n");
+			hex_block("    ", x + 4, length - 3);
+			data_block.clear();
+			warn("Unknown Vendor-Specific Data Block, OUI 0x%06x\n", oui);
 		}
 		break;
 	case 0x04:
@@ -1280,14 +1305,20 @@ void edid_state::cta_block(const unsigned char *x)
 		case 0x01:
 			oui = (x[4] << 16) + (x[3] << 8) + x[2];
 			printf("Vendor-Specific Video Data Block, OUI 0x%06x", oui);
+			name = oui_name(oui);
 			if (oui == 0x90848b) {
 				data_block = "Vendor-Specific Video Data Block (HDR10+)";
 				printf(" (HDR10+)\n");
 				cta_hdr10plus(x + 5, length - 4);
-			} else {
-				printf(" (unknown)\n");
-				printf("    ");
+			} else if (name) {
+				data_block = std::string("Vendor-Specific Data Block (") + name + ")";
+				printf(" (%s)\n", name);
 				hex_block("    ", x + 5, length - 4);
+			} else {
+				printf("\n");
+				hex_block("    ", x + 5, length - 4);
+				data_block.clear();
+				warn("Unknown Extended Vendor-Specific Data Block, OUI 0x%06x\n", oui);
 			}
 			break;
 		case 0x02:
@@ -1388,8 +1419,10 @@ void edid_state::cta_block(const unsigned char *x)
 				printf("Unknown CTA HDMI-Related");
 			else
 				printf("Unknown CTA");
-			printf(" Data Block (tag 0x%02x, length %u)\n", x[1], length - 1);
+			printf(" Data Block (extended tag 0x%02x, length %u)\n", x[1], length - 1);
 			hex_block("    ", x + 2, length - 1);
+			data_block.clear();
+			warn("Unknown Extended CTA Data Block 0x%02x\n", x[1]);
 			break;
 		}
 		break;
@@ -1398,6 +1431,8 @@ void edid_state::cta_block(const unsigned char *x)
 		unsigned length = *x & 0x1f;
 		printf("  Unknown CTA tag 0x%02x, length %u\n", tag, length);
 		hex_block("    ", x + 1, length);
+		data_block.clear();
+		warn("Unknown CTA Data Block %u\n", tag);
 		break;
 	}
 	}
