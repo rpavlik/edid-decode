@@ -736,7 +736,7 @@ int edid_state::parse_edid()
 			     max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
 		}
 	}
-	if (svds.size() < y420cmdb_max_idx)
+	if (svds.size() <= y420cmdb_max_idx)
 		fail("YCbCr 4:2:0 Capability Map Data Block max index %u >= %u (#SVDs)\n",
 		     y420cmdb_max_idx, svds.size());
 
