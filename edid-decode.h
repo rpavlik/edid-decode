@@ -22,11 +22,11 @@
 
 // Video Timings
 struct timings {
-	unsigned x, y;
+	unsigned w, h;
 	unsigned refresh;
 	unsigned ratio_w, ratio_h;
 	unsigned hor_freq_hz, pixclk_khz;
-	unsigned rb, interlaced;
+	bool rb, interlaced;
 };
 
 struct edid_state {

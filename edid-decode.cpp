@@ -166,10 +166,10 @@ void edid_state::print_timings(const char *prefix,
 		s = " (" + s + ")";
 
 	char buf[10];
-	sprintf(buf, "%u%s", t->y, t->interlaced ? "i" : "");
+	sprintf(buf, "%u%s", t->h, t->interlaced ? "i" : "");
 	printf("%s%5ux%-5s %3u Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
 	       prefix,
-	       t->x, buf,
+	       t->w, buf,
 	       t->refresh,
 	       t->ratio_w, t->ratio_h,
 	       t->hor_freq_hz / 1000.0,
