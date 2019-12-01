@@ -66,8 +66,9 @@ struct edid_state {
 	// Global state
 	unsigned edid_size;
 	unsigned num_blocks;
-	std::string cur_block;
-	unsigned cur_block_nr;
+	unsigned block_nr;
+	std::string block;
+	std::string data_block;
 
 	unsigned min_hor_freq_hz;
 	unsigned max_hor_freq_hz;
@@ -113,8 +114,11 @@ struct edid_state {
 	int parse_edid();
 };
 
-void warn(const char *fmt, ...);
-void fail(const char *fmt, ...);
+void msg(bool is_warn, const char *fmt, ...);
+
+#define warn(fmt, args...) msg(true, fmt, ##args)
+#define fail(fmt, args...) msg(false, fmt, ##args)
+
 void do_checksum(const char *prefix, const unsigned char *x, size_t len);
 std::string utohex(unsigned char x);
 bool memchk(const unsigned char *x, unsigned len, unsigned char v = 0);

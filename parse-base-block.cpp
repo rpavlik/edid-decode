@@ -773,8 +773,8 @@ void edid_state::detailed_display_range_limits(const unsigned char *x)
 	bool has_sec_gtf = false;
 	std::string range_class;
 
-	cur_block = "Display Range Limits";
-	printf("%s\n", cur_block.c_str());
+	data_block = "Display Range Limits";
+	printf("%s\n", data_block.c_str());
 	has_display_range_descriptor = 1;
 	/* 
 	 * XXX todo: implement feature flags, vtd blocks
@@ -966,8 +966,8 @@ void edid_state::detailed_display_range_limits(const unsigned char *x)
 
 void edid_state::detailed_epi(const unsigned char *x)
 {
-	cur_block = "EPI Descriptor";
-	printf("%s\n", cur_block.c_str());
+	data_block = "EPI Descriptor";
+	printf("%s\n", data_block.c_str());
 
 	unsigned v = x[5] & 0x07;
 
@@ -1079,7 +1079,6 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	double refresh;
 	std::string s_sync, s_flags;
 
-	cur_block = "Detailed Timings";
 	if (x[0] == 0 && x[1] == 0) {
 		fail("First two bytes are 0, invalid data\n");
 		return;
@@ -1160,7 +1159,7 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	}
 
 	if (!ha || !hbl || !hso || !hspw || !va || !vbl || !vso || !vspw)
-		fail("\n  0 values in the detailed timings:\n"
+		fail("0 values in the detailed timings:\n"
 		     "    Horizontal Active/Blanking %u/%u\n"
 		     "    Horizontal Sync Offset/Width %u/%u\n"
 		     "    Vertical Active/Blanking %u/%u\n"
@@ -1235,13 +1234,14 @@ void edid_state::detailed_block(const unsigned char *x)
 
 	timing_descr_cnt++;
 	if (x[0] || x[1]) {
+		data_block = "Detailed Timings #" + std::to_string(timing_descr_cnt);
 		detailed_timings("", x);
 		if (seen_non_detailed_descriptor)
 			fail("Invalid detailed timing descriptor ordering\n");
 		return;
 	}
 
-	cur_block = "Display Descriptor";
+	data_block = "Display Descriptor";
 	/* Monitor descriptor block, not detailed timing descriptor. */
 	if (x[2] != 0) {
 		/* 1.3, 3.10.3 */
@@ -1257,8 +1257,8 @@ void edid_state::detailed_block(const unsigned char *x)
 		fail("Has descriptor blocks other than detailed timings\n");
 
 	if (!memcmp(x, zero_descr, sizeof(zero_descr))) {
-		cur_block = "Empty Descriptor";
-		printf("%s\n", cur_block.c_str());
+		data_block = "Empty Descriptor";
+		printf("%s\n", data_block.c_str());
 		fail("Use Dummy Descriptor instead of all zeroes\n");
 	}
 
@@ -1267,8 +1267,8 @@ void edid_state::detailed_block(const unsigned char *x)
 		detailed_epi(x);
 		return;
 	case 0x10:
-		cur_block = "Dummy Descriptor";
-		printf("%s\n", cur_block.c_str());
+		data_block = "Dummy Descriptor";
+		printf("%s\n", data_block.c_str());
 		for (i = 5; i < 18; i++) {
 			if (x[i]) {
 				fail("Dummy block filled with garbage\n");
@@ -1277,15 +1277,15 @@ void edid_state::detailed_block(const unsigned char *x)
 		}
 		return;
 	case 0xf7:
-		cur_block = "Established timings III";
-		printf("%s\n", cur_block.c_str());
+		data_block = "Established timings III";
+		printf("%s\n", data_block.c_str());
 		for (i = 0; i < 44; i++)
 			if (x[6 + i / 8] & (1 << (7 - i % 8)))
 				print_timings("  ", find_dmt_id(established_timings3_dmt_ids[i]), "DMT");
 		return;
 	case 0xf8:
-		cur_block = "CVT 3 Byte Timing Codes";
-		printf("%s\n", cur_block.c_str());
+		data_block = "CVT 3 Byte Timing Codes";
+		printf("%s\n", data_block.c_str());
 		if (x[5] != 0x01) {
 			fail("Invalid version number %u\n", x[5]);
 			return;
@@ -1294,8 +1294,8 @@ void edid_state::detailed_block(const unsigned char *x)
 			detailed_cvt_descriptor(x + 6 + (i * 3), !i);
 		return;
 	case 0xf9:
-		cur_block = "Display Color Management Data";
-		printf("%s\n", cur_block.c_str());
+		data_block = "Display Color Management Data";
+		printf("%s\n", data_block.c_str());
 		printf("  Version:  %d\n", x[5]);
 		printf("  Red a3:   %.2f\n", (short)(x[6] | (x[7] << 8)) / 100.0);
 		printf("  Red a2:   %.2f\n", (short)(x[8] | (x[9] << 8)) / 100.0);
@@ -1305,22 +1305,22 @@ void edid_state::detailed_block(const unsigned char *x)
 		printf("  Blue a2:  %.2f\n", (short)(x[16] | (x[17] << 8)) / 100.0);
 		return;
 	case 0xfa:
-		cur_block = "Standard Timing Identifications";
-		printf("%s\n", cur_block.c_str());
+		data_block = "Standard Timing Identifications";
+		printf("%s\n", data_block.c_str());
 		for (cnt = i = 0; i < 6; i++) {
 			if (x[5 + i * 2] != 0x01 || x[5 + i * 2 + 1] != 0x01)
 				cnt++;
 			print_standard_timing(x[5 + i * 2], x[5 + i * 2 + 1]);
 		}
 		if (!cnt)
-			warn("%s block without any timings\n", cur_block.c_str());
+			warn("%s block without any timings\n", data_block.c_str());
 		return;
 	case 0xfb: {
 		unsigned w_x, w_y;
 		unsigned gamma;
 
-		cur_block = "Color Point Data";
-		printf("%s\n", cur_block.c_str());
+		data_block = "Color Point Data";
+		printf("%s\n", data_block.c_str());
 		w_x = (x[7] << 2) | ((x[6] >> 2) & 3);
 		w_y = (x[8] << 2) | (x[6] & 3);
 		gamma = x[9];
@@ -1346,24 +1346,24 @@ void edid_state::detailed_block(const unsigned char *x)
 		return;
 	}
 	case 0xfc:
-		cur_block = "Display Product Name";
+		data_block = "Display Product Name";
 		has_name_descriptor = 1;
-		printf("%s: %s\n", cur_block.c_str(), extract_string(x + 5, 13));
+		printf("%s: %s\n", data_block.c_str(), extract_string(x + 5, 13));
 		return;
 	case 0xfd:
 		detailed_display_range_limits(x);
 		return;
 	case 0xfe:
 		if (!has_spwg || timing_descr_cnt < 3) {
-			cur_block = "Alphanumeric Data String";
-			printf("%s: %s\n", cur_block.c_str(),
+			data_block = "Alphanumeric Data String";
+			printf("%s: %s\n", data_block.c_str(),
 			       extract_string(x + 5, 13));
 			return;
 		}
 		if (timing_descr_cnt == 3) {
 			char buf[6] = { 0 };
 
-			cur_block = "SPWG Descriptor #3";
+			data_block = "SPWG Descriptor #3";
 			memcpy(buf, x + 5, 5);
 			if (strlen(buf) != 5)
 				fail("Invalid PC Maker P/N length\n");
@@ -1371,7 +1371,7 @@ void edid_state::detailed_block(const unsigned char *x)
 			printf("SPWG LCD Supplier EEDID Revision: %hhu\n", x[10]);
 			printf("SPWG Manufacturer P/N: %s\n", extract_string(x + 11, 7));
 		} else {
-			cur_block = "SPWG Descriptor #4";
+			data_block = "SPWG Descriptor #4";
 			printf("SMBUS Values: 0x%02hhx 0x%02hhx 0x%02hhx 0x%02hhx"
 			       " 0x%02hhx 0x%02hhx 0x%02hhx 0x%02hhx\n",
 			       x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12]);
@@ -1382,8 +1382,8 @@ void edid_state::detailed_block(const unsigned char *x)
 		}
 		return;
 	case 0xff:
-		cur_block = "Display Product Serial Number";
-		printf("%s: %s\n", cur_block.c_str(),
+		data_block = "Display Product Serial Number";
+		printf("%s: %s\n", data_block.c_str(),
 		       extract_string(x + 5, 13));
 		has_serial_string = 1;
 		return;
@@ -1405,7 +1405,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 	unsigned col_x, col_y;
 	int has_preferred_timing = 0;
 
-	cur_block = "EDID Structure Version & Revision";
+	data_block = "EDID Structure Version & Revision";
 	printf("EDID version: %hhu.%hhu\n", x[0x12], x[0x13]);
 	if (x[0x12] == 1) {
 		edid_minor = x[0x13];
@@ -1417,7 +1417,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 		fail("Unknown EDID major version\n");
 	}
 
-	cur_block = "Vendor & Product Identification";
+	data_block = "Vendor & Product Identification";
 	printf("Manufacturer: %s Model %u Serial Number %u\n",
 	       manufacturer_name(x + 0x08),
 	       (unsigned short)(x[0x0a] + (x[0x0b] << 8)),
@@ -1453,7 +1453,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 
 	/* display section */
 
-	cur_block = "Basic Display Parameters & Features";
+	data_block = "Basic Display Parameters & Features";
 	if (x[0x14] & 0x80) {
 		analog = 0;
 		printf("Digital display\n");
@@ -1608,8 +1608,8 @@ void edid_state::parse_base_block(const unsigned char *x)
 		}
 	}
 
-	cur_block = "Color Characteristics";
-	printf("%s\n", cur_block.c_str());
+	data_block = "Color Characteristics";
+	printf("%s\n", data_block.c_str());
 	col_x = (x[0x1b] << 2) | (x[0x19] >> 6);
 	col_y = (x[0x1c] << 2) | ((x[0x19] >> 4) & 3);
 	printf("  Red:   0.%04u, 0.%04u\n",
@@ -1627,9 +1627,9 @@ void edid_state::parse_base_block(const unsigned char *x)
 	printf("  White: 0.%04u, 0.%04u\n",
 	       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
 
-	cur_block = "Established Timings I & II";
+	data_block = "Established Timings I & II";
 	if (x[0x23] || x[0x24] || x[0x25]) {
-		printf("%s\n", cur_block.c_str());
+		printf("%s\n", data_block.c_str());
 		for (i = 0; i < 17; i++) {
 			if (x[0x23 + i / 8] & (1 << (7 - i % 8))) {
 				const struct timings *t;
@@ -1645,11 +1645,11 @@ void edid_state::parse_base_block(const unsigned char *x)
 			}
 		}
 	} else {
-		printf("%s: none\n", cur_block.c_str());
+		printf("%s: none\n", data_block.c_str());
 	}
 	has_640x480p60_est_timing = x[0x23] & 0x20;
 
-	cur_block = "Standard Timings";
+	data_block = "Standard Timings";
 	bool found = false;
 	for (i = 0; i < 8; i++) {
 		if (x[0x26 + i * 2] != 0x01 || x[0x26 + i * 2 + 1] != 0x01) {
@@ -1657,11 +1657,11 @@ void edid_state::parse_base_block(const unsigned char *x)
 		}
 	}
 	if (found) {
-		printf("%s\n", cur_block.c_str());
+		printf("%s\n", data_block.c_str());
 		for (i = 0; i < 8; i++)
 			print_standard_timing(x[0x26 + i * 2], x[0x26 + i * 2 + 1]);
 	} else {
-		printf("%s: none\n", cur_block.c_str());
+		printf("%s: none\n", data_block.c_str());
 	}
 
 	/* 18 byte descriptors */
@@ -1685,7 +1685,8 @@ void edid_state::parse_base_block(const unsigned char *x)
 	if (x[0x7e])
 		printf("Has %u extension block%s\n", x[0x7e], x[0x7e] > 1 ? "s" : "");
 
-	cur_block = "Base Block";
+	block = block_name(0x00);
+	data_block.clear();
 	do_checksum("", x, EDID_PAGE_SIZE);
 	if (edid_minor >= 3) {
 		if (!has_name_descriptor)

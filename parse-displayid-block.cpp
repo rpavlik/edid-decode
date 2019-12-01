@@ -97,7 +97,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 	unsigned i;
 
 	printf("%s Version %u.%u Length %u Extension Count %u\n",
-	       cur_block.c_str(), version >> 4, version & 0xf,
+	       block.c_str(), version >> 4, version & 0xf,
 	       length, ext_count);
 
 	unsigned offset = 5;
@@ -115,28 +115,28 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			break;
 		}
 		switch (tag) {
-		case 0x00: cur_block = "Product ID Data Block"; break;
-		case 0x01: cur_block = "Display Parameters Data Block"; break;
-		case 0x02: cur_block = "Color Characteristics Data Block"; break;
-		case 0x03: cur_block = "Type 1 Detailed Timings Data Block"; break;
-		case 0x04: cur_block = "Type 2 Detailed Timings Data Block"; break;
-		case 0x05: cur_block = "Type 3 Short Timings Data Block"; break;
-		case 0x06: cur_block = "Type 4 DMT Timings Data Block"; break;
-		case 0x07: cur_block = "Type 1 VESA DMT Timings Data Block"; break;
-		case 0x08: cur_block = "CTA Timings Data Block"; break;
-		case 0x09: cur_block = "Video Timing Range Data Block"; break;
-		case 0x0a: cur_block = "Product Serial Number Data Block"; break;
-		case 0x0b: cur_block = "GP ASCII String Data Block"; break;
-		case 0x0c: cur_block = "Display Device Data Data Block"; break;
-		case 0x0d: cur_block = "Interface Power Sequencing Data Block"; break;
-		case 0x0e: cur_block = "Transfer Characteristics Data Block"; break;
-		case 0x0f: cur_block = "Display Interface Data Block"; break;
-		case 0x10: cur_block = "Stereo Display Interface Data Block"; break;
-		case 0x12: cur_block = "Tiled Display Topology Data Block"; break;
-		default: cur_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")"; break;
+		case 0x00: data_block = "Product ID Data Block"; break;
+		case 0x01: data_block = "Display Parameters Data Block"; break;
+		case 0x02: data_block = "Color Characteristics Data Block"; break;
+		case 0x03: data_block = "Type 1 Detailed Timings Data Block"; break;
+		case 0x04: data_block = "Type 2 Detailed Timings Data Block"; break;
+		case 0x05: data_block = "Type 3 Short Timings Data Block"; break;
+		case 0x06: data_block = "Type 4 DMT Timings Data Block"; break;
+		case 0x07: data_block = "Type 1 VESA DMT Timings Data Block"; break;
+		case 0x08: data_block = "CTA Timings Data Block"; break;
+		case 0x09: data_block = "Video Timing Range Data Block"; break;
+		case 0x0a: data_block = "Product Serial Number Data Block"; break;
+		case 0x0b: data_block = "GP ASCII String Data Block"; break;
+		case 0x0c: data_block = "Display Device Data Data Block"; break;
+		case 0x0d: data_block = "Interface Power Sequencing Data Block"; break;
+		case 0x0e: data_block = "Transfer Characteristics Data Block"; break;
+		case 0x0f: data_block = "Display Interface Data Block"; break;
+		case 0x10: data_block = "Stereo Display Interface Data Block"; break;
+		case 0x12: data_block = "Tiled Display Topology Data Block"; break;
+		default: data_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")"; break;
 		}
 
-		printf("  %s\n", cur_block.c_str());
+		printf("  %s\n", data_block.c_str());
 
 		switch (tag) {
 		case 0x03:
@@ -198,6 +198,6 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 	 * but checksum is calculated over the entire structure
 	 * (excluding DisplayID-in-EDID magic byte)
 	 */
-	cur_block = block_name(orig[0]);
+	data_block.clear();
 	do_checksum("  ", orig + 1, orig[2] + 5);
 }

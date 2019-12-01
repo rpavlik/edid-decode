@@ -87,9 +87,9 @@ static void usage(void)
 	       "  -h, --help            display this help message\n");
 }
 
-static std::string s_warn, s_fail;
+static std::string s_msgs[EDID_MAX_BLOCKS + 1][2];
 
-void warn(const char *fmt, ...)
+void msg(bool is_warn, const char *fmt, ...)
 {
 	char buf[256] = "";
 	va_list ap;
@@ -97,25 +97,36 @@ void warn(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsprintf(buf, fmt, ap);
 	va_end(ap);
-	state.warnings++;
-	s_warn += std::string(state.cur_block) + ": " + buf;
+
+	if (is_warn)
+		state.warnings++;
+	else
+		state.failures++;
+	if (state.data_block.empty())
+		s_msgs[state.block_nr][is_warn] += std::string("  ") + buf;
+	else
+		s_msgs[state.block_nr][is_warn] += "  " + state.data_block + ": " + buf;
+
 	if (options[OptCheckInline])
-		printf("WARN: %s", buf);
+		printf("%s: %s", is_warn ? "WARN" : "FAIL", buf);
 }
 
-void fail(const char *fmt, ...)
+static void show_msgs(bool is_warn)
 {
-	char buf[256] = "";
-	va_list ap;
-
-	va_start(ap, fmt);
-	vsprintf(buf, fmt, ap);
-	va_end(ap);
-	state.failures++;
-	s_fail += std::string(state.cur_block) + ": " + buf;
-	if (options[OptCheckInline])
-		printf("FAIL: %s", buf);
+	printf("\n%s:\n\n", is_warn ? "Warnings" : "Failures");
+	for (unsigned i = 0; i < state.num_blocks; i++) {
+		if (s_msgs[i][is_warn].empty())
+			continue;
+		printf("Block %u (%s):\n%s",
+		       i, block_name(edid[i * EDID_PAGE_SIZE]).c_str(),
+		       s_msgs[i][is_warn].c_str());
+	}
+	if (s_msgs[EDID_MAX_BLOCKS][is_warn].empty())
+		return;
+	printf("All Blocks:\n%s",
+	       s_msgs[EDID_MAX_BLOCKS][is_warn].c_str());
 }
+
 
 void do_checksum(const char *prefix, const unsigned char *x, size_t len)
 {
@@ -582,20 +593,14 @@ std::string block_name(unsigned char block)
 	char buf[10];
 
 	switch (block) {
-	case 0x02:
-		return "CTA-861 Extension Block";
-	case 0x10:
-		return "VTB Extension Block";
-	case 0x40:
-		return "Display Information Extension Block";
-	case 0x50:
-		return "Localized String Extension Block";
-	case 0x70:
-		return "Display ID Extension Block";
-	case 0xf0:
-		return "Block Map Extension Block";
-	case 0xff:
-		return "Manufacturer-Specific Extension Block";
+	case 0x00: return "Base Block";
+	case 0x02: return "CTA-861 Extension Block";
+	case 0x10: return "VTB Extension Block";
+	case 0x40: return "Display Information Extension Block";
+	case 0x50: return "Localized String Extension Block";
+	case 0x70: return "Display ID Extension Block";
+	case 0xf0: return "Block Map Extension Block";
+	case 0xff: return "Manufacturer-Specific Extension Block";
 	default:
 		sprintf(buf, " (0x%02x)", block);
 		return std::string("Unknown EDID Extension Block") + buf;
@@ -610,13 +615,13 @@ void edid_state::parse_block_map(const unsigned char *x)
 	unsigned offset = 1;
 	unsigned i;
 
-	printf("%s\n", cur_block.c_str());
-	if (cur_block_nr == 1)
+	printf("%s\n", block.c_str());
+	if (block_nr == 1)
 		saw_block_1 = true;
 	else if (!saw_block_1)
 		fail("No EDID Block Map Extension found in block 1\n");
 
-	if (cur_block_nr > 1)
+	if (block_nr > 1)
 		offset = 128;
 
 	for (i = 1; i < 127; i++) {
@@ -639,7 +644,8 @@ void edid_state::parse_block_map(const unsigned char *x)
 
 void edid_state::parse_extension(const unsigned char *x)
 {
-	cur_block = block_name(x[0]);
+	block = block_name(x[0]);
+	data_block.clear();
 
 	printf("\n");
 
@@ -648,7 +654,7 @@ void edid_state::parse_extension(const unsigned char *x)
 		parse_cta_block(x);
 		break;
 	case 0x20:
-		printf("%s\n", cur_block.c_str());
+		printf("%s\n", block.c_str());
 		fail("Deprecated extension block, do not use\n");
 		break;
 	case 0x40:
@@ -662,16 +668,16 @@ void edid_state::parse_extension(const unsigned char *x)
 		break;
 	case 0xf0:
 		parse_block_map(x);
-		if (cur_block_nr != 1 && cur_block_nr != 128)
+		if (block_nr != 1 && block_nr != 128)
 			fail("Must be used in block 1 and 128\n");
 		break;
 	default:
-		printf("%s\n", cur_block.c_str());
+		printf("%s\n", block.c_str());
 		hex_block("  ", x + 2, 125);
 		break;
 	}
 
-	cur_block = block_name(x[0]);
+	data_block.clear();
 	do_checksum("", x, EDID_PAGE_SIZE);
 }
 
@@ -689,15 +695,17 @@ int edid_state::parse_edid()
 	if (options[OptExtract])
 		dump_breakdown(edid);
 
+	block = block_name(0x00);
 	parse_base_block(edid);
 
 	for (unsigned i = 1; i < num_blocks; i++) {
-		cur_block_nr++;
+		block_nr++;
 		printf("\n----------------\n");
 		parse_extension(edid + i * EDID_PAGE_SIZE);
 	}
 
-	cur_block = "EDID";
+	block = "";
+	block_nr = EDID_MAX_BLOCKS;
 	if (uses_gtf && !supports_gtf)
 		fail("GTF timings are used, but the EDID does not signal GTF support\n");
 	if (uses_cvt && !supports_cvt)
@@ -713,7 +721,7 @@ int edid_state::parse_edid()
 		 * timings supersede the monitor range definition.
 		 */
 		if (edid_minor < 4) {
-			fail("\n  One or more of the timings is out of range of the Monitor Ranges:\n"
+			fail("One or more of the timings is out of range of the Monitor Ranges:\n"
 			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
@@ -723,7 +731,7 @@ int edid_state::parse_edid()
 			     min_display_hor_freq_hz, max_display_hor_freq_hz,
 			     max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
 		} else {
-			warn("\n  One or more of the timings is out of range of the Monitor Ranges:\n"
+			warn("One or more of the timings is out of range of the Monitor Ranges:\n"
 			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
@@ -750,9 +758,9 @@ int edid_state::parse_edid()
 
 	if (options[OptCheck]) {
 		if (warnings)
-			printf("\nWarnings:\n\n%s", s_warn.c_str());
+			show_msgs(true);
 		if (failures)
-			printf("\nFailures:\n\n%s", s_fail.c_str());
+			show_msgs(false);
 	}
 	printf("\nEDID conformity: %s\n", failures ? "FAIL" : "PASS");
 	return failures ? -2 : 0;

@@ -1179,20 +1179,20 @@ void edid_state::cta_block(const unsigned char *x)
 
 	switch ((x[0] & 0xe0) >> 5) {
 	case 0x01:
-		cur_block = "Audio Data Block";
-		printf("  Audio Data Block\n");
+		data_block = "Audio Data Block";
+		printf("  %s\n", data_block.c_str());
 		cta_audio_block(x + 1, length);
 		break;
 	case 0x02:
-		cur_block = "Video Data Block";
-		printf("  Video Data Block\n");
+		data_block = "Video Data Block";
+		printf("  %s\n", data_block.c_str());
 		cta_svd(x + 1, length, 0);
 		break;
 	case 0x03:
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
 		printf("  Vendor-Specific Data Block, OUI 0x%06x", oui);
 		if (oui == 0x000c03) {
-			cur_block = "Vendor-Specific Data Block (HDMI)";
+			data_block = "Vendor-Specific Data Block (HDMI)";
 			cta_hdmi_block(x + 1, length);
 			last_block_was_hdmi_vsdb = 1;
 			first_block = 0;
@@ -1201,7 +1201,7 @@ void edid_state::cta_block(const unsigned char *x)
 			return;
 		}
 		if (oui == 0xc45dd8) {
-			cur_block = "Vendor-Specific Data Block (HDMI Forum)";
+			data_block = "Vendor-Specific Data Block (HDMI Forum)";
 			if (!last_block_was_hdmi_vsdb)
 				fail("HDMI Forum VSDB did not immediately follow the HDMI VSDB\n");
 			if (have_hf_scdb || have_hf_vsdb)
@@ -1215,8 +1215,8 @@ void edid_state::cta_block(const unsigned char *x)
 		}
 		break;
 	case 0x04:
-		cur_block = "Speaker Allocation Data Block";
-		printf("  Speaker Allocation Data Block\n");
+		data_block = "Speaker Allocation Data Block";
+		printf("  %s\n", data_block.c_str());
 		cta_sadb(x + 1, length);
 		break;
 	case 0x05:
@@ -1227,15 +1227,15 @@ void edid_state::cta_block(const unsigned char *x)
 		printf("  Extended tag: ");
 		switch (x[1]) {
 		case 0x00:
-			cur_block = "Video Capability Data Block";
-			printf("Video Capability Data Block\n");
+			data_block = "Video Capability Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_vcdb(x + 2, length - 1);
 			break;
 		case 0x01:
 			oui = (x[4] << 16) + (x[3] << 8) + x[2];
 			printf("Vendor-Specific Video Data Block, OUI 0x%06x", oui);
 			if (oui == 0x90848b) {
-				cur_block = "Vendor-Specific Video Data Block (HDR10+)";
+				data_block = "Vendor-Specific Video Data Block (HDR10+)";
 				printf(" (HDR10+)\n");
 				cta_hdr10plus(x + 5, length - 4);
 			} else {
@@ -1257,33 +1257,33 @@ void edid_state::cta_block(const unsigned char *x)
 			hex_block("  ", x + 2, length - 1);
 			break;
 		case 0x05:
-			cur_block = "Colorimetry Data Block";
-			printf("Colorimetry Data Block\n");
+			data_block = "Colorimetry Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_colorimetry_block(x + 2, length - 1);
 			break;
 		case 0x06:
-			cur_block = "HDR Static Metadata Data Block";
-			printf("HDR Static Metadata Data Block\n");
+			data_block = "HDR Static Metadata Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_hdr_static_metadata_block(x + 2, length - 1);
 			break;
 		case 0x07:
-			cur_block = "HDR Dynamic Metadata Data Block";
-			printf("HDR Dynamic Metadata Data Block\n");
+			data_block = "HDR Dynamic Metadata Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_hdr_dyn_metadata_block(x + 2, length - 1);
 			break;
 		case 0x0d:
-			cur_block = "Video Format Preference Data Block";
-			printf("Video Format Preference Data Block\n");
+			data_block = "Video Format Preference Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_vfpdb(x + 2, length - 1);
 			break;
 		case 0x0e:
-			cur_block = "YCbCr 4:2:0 Video Data Block";
-			printf("YCbCr 4:2:0 Video Data Block\n");
+			data_block = "YCbCr 4:2:0 Video Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_svd(x + 2, length - 1, 1);
 			break;
 		case 0x0f:
-			cur_block = "YCbCr 4:2:0 Capability Map Data Block";
-			printf("YCbCr 4:2:0 Capability Map Data Block\n");
+			data_block = "YCbCr 4:2:0 Capability Map Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_y420cmdb(x + 2, length - 1);
 			break;
 		case 0x10:
@@ -1295,18 +1295,18 @@ void edid_state::cta_block(const unsigned char *x)
 			hex_block("  ", x + 2, length - 1);
 			break;
 		case 0x12:
-			cur_block = "HDMI Audio Data Block";
-			printf("HDMI Audio Data Block\n");
+			data_block = "HDMI Audio Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_hdmi_audio_block(x + 2, length - 1);
 			break;
 		case 0x13:
-			cur_block = "Room Configuration Data Block";
-			printf("Room Configuration Data Block\n");
+			data_block = "Room Configuration Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_rcdb(x + 2, length - 1);
 			break;
 		case 0x14:
-			cur_block = "Speaker Location Data Block";
-			printf("Speaker Location Data Block\n");
+			data_block = "Speaker Location Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_sldb(x + 2, length - 1);
 			break;
 		case 0x20:
@@ -1314,16 +1314,16 @@ void edid_state::cta_block(const unsigned char *x)
 			cta_ifdb(x + 2, length - 1);
 			break;
 		case 0x78:
-			cur_block = "HDMI Forum EDID Extension Override Data Block";
-			printf("HDMI Forum EDID Extension Override Data Block\n");
+			data_block = "HDMI Forum EDID Extension Override Data Block";
+			printf("%s\n", data_block.c_str());
 			cta_hf_eeodb(x + 2, length - 1);
 			// This must be the first CTA block
 			if (!first_block)
 				fail("Block starts at a wrong offset\n");
 			break;
 		case 0x79:
-			cur_block = "HDMI Forum Sink Capability Data Block";
-			printf("HDMI Forum Sink Capability Data Block\n");
+			data_block = "HDMI Forum Sink Capability Data Block";
+			printf("%s\n", data_block.c_str());
 			if (!last_block_was_hdmi_vsdb)
 				fail("HDMI Forum SCDB did not immediately follow the HDMI VSDB\n");
 			if (have_hf_scdb || have_hf_vsdb)
@@ -1365,10 +1365,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 	unsigned offset = x[2];
 	const unsigned char *detailed;
 
-	printf("%s Revision %u\n", cur_block.c_str(), version);
-
-	if (has_serial_number && has_serial_string)
-		fail("Both the serial number and the serial string are set\n");
+	printf("%s Revision %u\n", block.c_str(), version);
 
 	if (version >= 1) do {
 		if (version == 1 && x[3] != 0)
@@ -1402,12 +1399,23 @@ void edid_state::parse_cta_block(const unsigned char *x)
 				cta_block(x + i);
 		}
 
-		cur_block = "CTA-861 Detailed Timings";
-		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18)
-			if (detailed[0])
-				detailed_timings("", detailed);
+		unsigned cnt;
+		for (detailed = x + offset, cnt = 1; detailed + 18 < x + 127; detailed += 18, cnt++) {
+			if (!detailed[0] && !detailed[1]) {
+				break;
+			}
+			data_block = "Detailed Timings #" + std::to_string(cnt);
+			detailed_timings("", detailed);
+		}
+		if (!memchk(detailed, x + 0x7f - detailed)) {
+			data_block = "Padding";
+			fail("CTA-861 padding contains non-zero bytes\n");
+		}
 	} while (0);
 
+	data_block.clear();
+	if (has_serial_number && has_serial_string)
+		fail("Both the serial number and the serial string are set\n");
 	if (!has_cta861_vic_1 && !has_640x480p60_est_timing)
 		fail("Required 640x480p60 timings are missing in the established timings"
 		     "and the SVD list (VIC 1)\n");
