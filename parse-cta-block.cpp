@@ -94,6 +94,7 @@ static std::string audio_ext_format(unsigned char x)
 	case 13: return "L-PCM 3D Audio";
 	default: break;
 	}
+	fail("Unknown Audio Ext Format 0x%02x\n", x);
 	return std::string("Unknown Audio Ext Format (") + utohex(x) + ")";
 }
 
@@ -116,6 +117,7 @@ static std::string audio_format(unsigned char x)
 	case 14: return "WMA Pro";
 	default: break;
 	}
+	fail("Unknown Audio Format 0x%02x\n", x);
 	return std::string("Unknown Audio Format (") + utohex(x) + ")";
 }
 
@@ -130,6 +132,7 @@ static std::string mpeg_h_3d_audio_level(unsigned char x)
 	case 5: return "Level 5";
 	default: break;
 	}
+	fail("Unknown MPEG-H 3D Audio Level 0x%02x\n", x);
 	return std::string("Unknown MPEG-H 3D Audio Level (") + utohex(x) + ")";
 }
 
@@ -145,6 +148,11 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 	for (i = 0; i < length; i += 3) {
 		format = (x[i] & 0x78) >> 3;
 		ext_format = (x[i + 2] & 0xf8) >> 3;
+		if (format == 0) {
+			printf("    Reserved (0x00)\n");
+			fail("Audio Format Code 0x00 is reserved\n");
+			continue;
+		}
 		if (format != 15)
 			printf("    %s, max channels %u\n", audio_format(format).c_str(),
 			       (x[i] & 0x07)+1);
