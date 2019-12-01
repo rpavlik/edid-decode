@@ -11,6 +11,7 @@
 #define __EDID_DECODE_H_
 
 #include <string>
+#include <vector>
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -62,6 +63,8 @@ struct edid_state {
 	bool has_cta861_vic_1;
 	unsigned supported_hdmi_vic_codes;
 	unsigned supported_hdmi_vic_vsb_codes;
+	std::vector<unsigned char> svds;
+	unsigned y420cmdb_max_idx;
 
 	// Global state
 	unsigned edid_size;
@@ -85,7 +88,7 @@ struct edid_state {
 	void edid_gtf_mode(const char *prefix, struct timings *t);
 	void edid_cvt_mode(const char *prefix, struct timings *t, bool preferred);
 	void detailed_cvt_descriptor(const unsigned char *x, bool first);
-	void print_standard_timing(uint8_t b1, uint8_t b2);
+	void print_standard_timing(unsigned char b1, unsigned char b2);
 	void detailed_display_range_limits(const unsigned char *x);
 	void detailed_epi(const unsigned char *x);
 	void detailed_timings(const char *prefix, const unsigned char *x);
@@ -93,6 +96,7 @@ struct edid_state {
 	void parse_base_block(const unsigned char *x);
 
 	void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420);
+	void cta_y420cmdb(const unsigned char *x, unsigned length);
 	void cta_vfpdb(const unsigned char *x, unsigned length);
 	void cta_hdmi_block(const unsigned char *x, unsigned length);
 	void cta_block(const unsigned char *x);

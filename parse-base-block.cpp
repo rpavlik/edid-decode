@@ -662,7 +662,7 @@ static const unsigned char established_timings3_dmt_ids[] = {
 	0x4a, // 1920x1440@75
 };
 
-void edid_state::print_standard_timing(uint8_t b1, uint8_t b2)
+void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 {
 	const struct timings *t;
 	struct timings formula = {};

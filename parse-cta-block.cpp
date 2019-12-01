@@ -436,23 +436,43 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 			printf("    Unknown (VIC %3u)\n", vic);
 			fail("Unknown VIC %u\n", vic);
 		}
+		if (!for_ycbcr420)
+			svds.push_back(vic);
 
 		if (vic == 1 && !for_ycbcr420)
 			has_cta861_vic_1 = 1;
 	}
 }
 
-static void cta_y420cmdb(const unsigned char *x, unsigned length)
+void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 {
 	unsigned i;
 
 	for (i = 0; i < length; i++) {
-		uint8_t v = x[0 + i];
+		unsigned char v = x[0 + i];
 		unsigned j;
 
-		for (j = 0; j < 8; j++)
-			if (v & (1 << j))
-				printf("    VSD Index %u\n", i * 8 + j);
+		for (j = 0; j < 8; j++) {
+			if (!(v & (1 << j)))
+				continue;
+
+			unsigned idx = i * 8 + j;
+
+			printf("    VDB SVD Index %u", idx);
+
+			if (idx < svds.size()) {
+				unsigned char vic = svds[idx];
+				const struct timings *t = vic_to_mode(vic);
+
+				if (t)
+					print_timings(": ", t, "");
+				else
+					printf("\n");
+			} else {
+				printf("\n");
+			}
+			y420cmdb_max_idx = idx;
+		}
 	}
 }
 
@@ -881,7 +901,7 @@ static const char *speaker_map[] = {
 
 static void cta_sadb(const unsigned char *x, unsigned length)
 {
-	uint32_t sad;
+	unsigned sad;
 	unsigned i;
 
 	if (length < 3)
@@ -906,7 +926,7 @@ static float decode_uchar_as_float(unsigned char x)
 
 static void cta_rcdb(const unsigned char *x, unsigned length)
 {
-	uint32_t spm = ((x[3] << 16) | (x[2] << 8) | x[1]);
+	unsigned spm = ((x[3] << 16) | (x[2] << 8) | x[1]);
 	unsigned i;
 
 	if (length < 4)
@@ -1149,7 +1169,7 @@ static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 				       (x[3] & 0x02) ? " 20" : "",
 				       (x[3] & 0x01) ? " 16" : "");
 		} else {
-			uint32_t sad = ((x[2] << 16) | (x[1] << 8) | x[0]);
+			unsigned sad = ((x[2] << 16) | (x[1] << 8) | x[0]);
 			unsigned i;
 
 			switch (x[3] >> 4) {

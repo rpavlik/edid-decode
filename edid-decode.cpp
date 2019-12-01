@@ -7,21 +7,14 @@
  * Maintainer: Hans Verkuil <hverkuil-cisco@xs4all.nl>
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <getopt.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdarg.h>
-#include <time.h>
-#include <ctype.h>
-#include <math.h>
-
-#include <vector>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "edid-decode.h"
 #include "version.h"
@@ -742,6 +735,9 @@ int edid_state::parse_edid()
 			     max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
 		}
 	}
+	if (svds.size() < y420cmdb_max_idx)
+		fail("YCbCr 4:2:0 Capability Map Data Block max index %u >= %u (#SVDs)\n",
+		     y420cmdb_max_idx, svds.size());
 
 	if (!options[OptCheck] && !options[OptCheckInline])
 		return 0;
