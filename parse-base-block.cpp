@@ -1377,7 +1377,7 @@ void edid_state::detailed_block(const unsigned char *x)
 			       " 0x%02hhx 0x%02hhx 0x%02hhx 0x%02hhx\n",
 			       x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12]);
 			printf("LVDS Channels: %hhu\n", x[13]);
-			printf("Panel Self Test %sPresent\n", x[14] ? "" : "Not");
+			printf("Panel Self Test %sPresent\n", x[14] ? "" : "Not ");
 			if (x[15] != 0x0a || x[16] != 0x20 || x[17] != 0x20)
 				fail("Invalid trailing data\n");
 		}
