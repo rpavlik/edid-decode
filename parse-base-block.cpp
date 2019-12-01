@@ -35,7 +35,6 @@ static const struct {
 	unsigned cvt_id;
 	struct timings t;
 } dmt_timings[] = {
-	//unsigned hfp, hsync, hbp; bool pos_pol_hsync;
 	{ 0x01, 0x0000, 0x000000, { 640, 350, 85, 64, 35, 37900, 31500, false, false,
 				    32, 64, 96, true, 32, 3, 60, false } },
 
@@ -90,7 +89,7 @@ static const struct {
 				    110, 40, 220, true, 5, 5, 20, true } },
 
 	{ 0x16, 0x0000, 0x7f1c21, { 1280, 768, 60, 5, 3, 47400, 68250, true, false,
-				    0, 0, 0, false, 0, 0, 0, false } },
+				    48, 32, 80, true, 3, 7, 12, false } },
 	{ 0x17, 0x0000, 0x7f1c28, { 1280, 768, 60, 5, 3, 47800, 79500, false, false,
 				    0, 0, 0, false, 0, 0, 0, false } },
 	{ 0x18, 0x0000, 0x7f1c44, { 1280, 768, 75, 5, 3, 60300, 102250, false, false,
@@ -375,19 +374,19 @@ void edid_state::edid_gtf_mode(const char *prefix, struct timings *t)
 
 #define C_PRIME           (((C - J) * K/256.0) + J)
 #define M_PRIME           (K/256.0 * M)
-	float h_pixels_rnd;
-	float v_lines_rnd;
-	float v_field_rate_rqd;
-	float interlace;
-	float h_period_est;
-	float vsync_plus_bp;
-	float total_v_lines;
-	float v_field_rate_est;
-	float h_period;
-	float total_active_pixels;
-	float ideal_duty_cycle;
-	float h_blank;
-	float total_pixels;
+	double h_pixels_rnd;
+	double v_lines_rnd;
+	double v_field_rate_rqd;
+	double interlace;
+	double h_period_est;
+	double vsync_plus_bp;
+	double total_v_lines;
+	double v_field_rate_est;
+	double h_period;
+	double total_active_pixels;
+	double ideal_duty_cycle;
+	double h_blank;
+	double total_pixels;
 
 	/*  1. In order to give correct results, the number of horizontal
 	 *  pixels requested is first processed to ensure that it is divisible
@@ -397,7 +396,7 @@ void edid_state::edid_gtf_mode(const char *prefix, struct timings *t)
 	 *  [H PIXELS RND] = ((ROUND([H PIXELS]/[CELL GRAN RND],0))*[CELLGRAN RND])
 	 */
 
-	h_pixels_rnd = rint((float)t->w / CELL_GRAN) * CELL_GRAN;
+	h_pixels_rnd = rint((double)t->w / CELL_GRAN) * CELL_GRAN;
 
 	/*  2. If interlace is requested, the number of vertical lines assumed
 	 *  by the calculation must be halved, as the computation calculates
@@ -409,8 +408,8 @@ void edid_state::edid_gtf_mode(const char *prefix, struct timings *t)
 	 */
 
 	v_lines_rnd = t->interlaced ?
-		rint((float)t->h) / 2.0 :
-		rint((float)t->h);
+		rint((double)t->h) / 2.0 :
+		rint((double)t->h);
 
 	/*  3. Find the frame rate required:
 	 *
@@ -532,41 +531,45 @@ void edid_state::edid_cvt_mode(const char *prefix,
 	int HDisplay = t->w;
 	int VDisplay = t->h;
 
-	/* character cell horizontal granularity (pixels) - default 8 */
+	/* 2) character cell horizontal granularity (pixels) - default 8 */
 #define CVT_H_GRANULARITY 8
 
-	/* Minimum vertical porch (lines) - default 3 */
+	/* 4) Minimum vertical porch (lines) - default 3 */
 #define CVT_MIN_V_PORCH 3
 
-	/* Minimum number of vertical back porch lines - default 6 */
+	/* 4) Minimum number of vertical back porch lines - default 6 */
 #define CVT_MIN_V_BPORCH 6
 
 	/* Pixel Clock step (kHz) */
 #define CVT_CLOCK_STEP 250
 
-	float HPeriod;
-	unsigned HTotal;
-	int VSync;
+	double HPeriod;
+	int VDisplayRnd, VSync;
+	double VFieldRate = t->refresh;
+	int HTotal, VTotal, Clock, HSyncStart, HSyncEnd, VSyncStart, VSyncEnd;
 
 	/* 2. Horizontal pixels */
 	HDisplay = HDisplay - (HDisplay % CVT_H_GRANULARITY);
 
+	/* 5. Find number of lines per field */
+	VDisplayRnd = VDisplay;
+
 	/* Determine VSync Width from aspect ratio */
-	if (!(VDisplay % 3) && ((VDisplay * 4 / 3) == HDisplay))
+	if ((VDisplay * 4 / 3) == HDisplay)
 		VSync = 4;
-	else if (!(VDisplay % 9) && ((VDisplay * 16 / 9) == HDisplay))
+	else if ((VDisplay * 16 / 9) == HDisplay)
 		VSync = 5;
-	else if (!(VDisplay % 10) && ((VDisplay * 16 / 10) == HDisplay))
+	else if ((VDisplay * 16 / 10) == HDisplay)
 		VSync = 6;
 	else if (!(VDisplay % 4) && ((VDisplay * 5 / 4) == HDisplay))
 		VSync = 7;
-	else if (!(VDisplay % 9) && ((VDisplay * 15 / 9) == HDisplay))
+	else if ((VDisplay * 15 / 9) == HDisplay)
 		VSync = 7;
 	else                        /* Custom */
 		VSync = 10;
+	t->vsync = VSync;
 
 	if (!t->rb) {             /* simplified GTF calculation */
-
 		/* 4) Minimum time of vertical sync + back porch interval (µs)
 		 * default 550.0 */
 #define CVT_MIN_VSYNC_BP 550.0
@@ -574,28 +577,39 @@ void edid_state::edid_cvt_mode(const char *prefix,
 		/* 3) Nominal HSync width (% of line period) - default 8 */
 #define CVT_HSYNC_PERCENTAGE 8
 
-		float HBlankPercentage;
+		double HBlankPercentage;
+		int VSyncAndBackPorch;
 		int HBlank;
 
 		/* 8. Estimated Horizontal period */
-		HPeriod = ((float) (1000000.0 / t->refresh - CVT_MIN_VSYNC_BP)) /
-			(VDisplay + CVT_MIN_V_PORCH);
+		HPeriod = ((double) (1000000.0 / VFieldRate - CVT_MIN_VSYNC_BP)) /
+			(VDisplayRnd + CVT_MIN_V_PORCH);
+
+		/* 9. Find number of lines in sync + backporch */
+		if (((int) (CVT_MIN_VSYNC_BP / HPeriod) + 1) <
+		    (VSync + CVT_MIN_V_BPORCH))
+			VSyncAndBackPorch = VSync + CVT_MIN_V_BPORCH;
+		else
+			VSyncAndBackPorch = (int) (CVT_MIN_VSYNC_BP / HPeriod) + 1;
+
+		VTotal = VDisplayRnd + VSyncAndBackPorch + CVT_MIN_V_PORCH;
 
 		/* 5) Definition of Horizontal blanking time limitation */
 		/* Gradient (%/kHz) - default 600 */
-#define CVT_M_FACTOR 600
+#define CVT_M_FACTOR 600.0
 
 		/* Offset (%) - default 40 */
-#define CVT_C_FACTOR 40
+#define CVT_C_FACTOR 40.0
 
 		/* Blanking time scaling factor - default 128 */
-#define CVT_K_FACTOR 128
+#define CVT_K_FACTOR 128.0
 
 		/* Scaling factor weighting - default 20 */
-#define CVT_J_FACTOR 20
+#define CVT_J_FACTOR 20.0
 
-#define CVT_M_PRIME (CVT_M_FACTOR * CVT_K_FACTOR / 256)
-#define CVT_C_PRIME ((CVT_C_FACTOR - CVT_J_FACTOR) * CVT_K_FACTOR / 256 + CVT_J_FACTOR)
+#define CVT_M_PRIME (CVT_M_FACTOR * CVT_K_FACTOR / 256.0)
+#define CVT_C_PRIME ((CVT_C_FACTOR - CVT_J_FACTOR) * CVT_K_FACTOR / 256.0 + \
+		CVT_J_FACTOR)
 
 		/* 12. Find ideal blanking duty cycle from formula */
 		HBlankPercentage = CVT_C_PRIME - CVT_M_PRIME * HPeriod / 1000.0;
@@ -604,11 +618,24 @@ void edid_state::edid_cvt_mode(const char *prefix,
 		if (HBlankPercentage < 20)
 			HBlankPercentage = 20;
 
-		HBlank = HDisplay * HBlankPercentage / (100.0 - HBlankPercentage);
-		HBlank -= HBlank % (2 * CVT_H_GRANULARITY);
+		HBlank = (double)HDisplay * HBlankPercentage / (100.0 - HBlankPercentage) / (2.0 * CVT_H_GRANULARITY);
+		HBlank *= 2 * CVT_H_GRANULARITY;
 
 		/* 14. Find total number of pixels in a line. */
 		HTotal = HDisplay + HBlank;
+
+		int HSync = (HTotal * CVT_HSYNC_PERCENTAGE) / 100.0 + 0.0;
+		//printf("%d %d %d\n", HTotal, HBlank, HSync);
+		HSync -= HSync % CVT_H_GRANULARITY;
+
+		/* Fill in HSync values */
+		HSyncEnd = HTotal - HBlank / 2;
+
+		HSyncStart = HSyncEnd - HSync;
+
+		/* 15/13. Find pixel clock frequency (kHz for xf86) */
+		Clock = ((double)HTotal / HPeriod) * 1000.0;
+		Clock -= Clock % CVT_CLOCK_STEP;
 	}
 	else {                      /* Reduced blanking */
 		/* Minimum vertical blanking interval time (µs) - default 460 */
@@ -626,23 +653,47 @@ void edid_state::edid_cvt_mode(const char *prefix,
 		int VBILines;
 
 		/* 8. Estimate Horizontal period. */
-		HPeriod = ((float) (1000000.0 / t->refresh - CVT_RB_MIN_VBLANK)) / VDisplay;
+		HPeriod = ((double) (1000000.0 / VFieldRate - CVT_RB_MIN_VBLANK)) / VDisplayRnd;
 
 		/* 9. Find number of lines in vertical blanking */
-		VBILines = ((float) CVT_RB_MIN_VBLANK) / HPeriod + 1;
+		VBILines = ((double) CVT_RB_MIN_VBLANK) / HPeriod;
+		VBILines++;
 
 		/* 10. Check if vertical blanking is sufficient */
 		if (VBILines < (CVT_RB_VFPORCH + VSync + CVT_MIN_V_BPORCH))
 			VBILines = CVT_RB_VFPORCH + VSync + CVT_MIN_V_BPORCH;
 
+		/* 11. Find total number of lines in vertical field */
+		VTotal = VDisplayRnd + VBILines;
+
 		/* 12. Find total number of pixels in a line */
 		HTotal = HDisplay + CVT_RB_H_BLANK;
-	}
 
-	/* 15/13. Find pixel clock frequency (kHz for xf86) */
-	t->pixclk_khz = HTotal * 1000.0 / HPeriod;
-	t->pixclk_khz -= t->pixclk_khz % CVT_CLOCK_STEP;
-	t->hor_freq_hz = (t->pixclk_khz * 1000) / HTotal;
+		/* Fill in HSync values */
+		HSyncEnd = HDisplay + CVT_RB_H_BLANK / 2;
+		HSyncStart = HSyncEnd - CVT_RB_H_SYNC;
+
+		/* Fill in VSync values */
+		VSyncStart = VDisplay + CVT_RB_VFPORCH;
+		VSyncEnd = VSyncStart + VSync;
+
+		/* 15/13. Find pixel clock frequency (kHz for xf86) */
+		Clock = ((double)VFieldRate * VTotal * HTotal) / 1000.0;
+		Clock -= Clock % CVT_CLOCK_STEP;
+	}
+	t->pixclk_khz = Clock;
+
+	/* 16/14. Find actual Horizontal Frequency (kHz) */
+	t->hor_freq_hz = 0.5 + 1000.0 * ((double) Clock) / ((double) HTotal);
+
+	t->pos_pol_hsync = t->rb;
+	t->pos_pol_vsync = !t->rb;
+	t->vfp = VSyncStart - VDisplay;
+	t->vsync = VSyncEnd - VSyncStart;
+	t->vbp = VTotal - VSyncEnd;
+	t->hfp = HSyncStart - HDisplay;
+	t->hsync = HSyncEnd - HSyncStart;
+	t->hbp = HTotal - HSyncEnd;
 
 	print_timings(prefix, t, preferred ? "CVT, preferred vertical rate" : "CVT");
 }
