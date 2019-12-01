@@ -448,6 +448,11 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 {
 	unsigned i;
 
+	if (!length) {
+		printf("    All VDB SVDs\n");
+		return;
+	}
+
 	for (i = 0; i < length; i++) {
 		unsigned char v = x[0 + i];
 		unsigned j;
