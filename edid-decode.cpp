@@ -737,8 +737,8 @@ int edid_state::parse_edid()
 		}
 	}
 	if (svds.size() <= y420cmdb_max_idx)
-		fail("YCbCr 4:2:0 Capability Map Data Block max index %u >= %u (#SVDs)\n",
-		     y420cmdb_max_idx, svds.size());
+		fail("YCbCr 4:2:0 Capability Map Data Block max index %u > %u (#SVDs)\n",
+		     y420cmdb_max_idx + 1, svds.size());
 
 	if (!options[OptCheck] && !options[OptCheckInline])
 		return 0;

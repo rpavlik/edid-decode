@@ -455,8 +455,14 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 		return;
 	}
 
+	if (memchk(x, length)) {
+		printf("    Empty Capability Map\n");
+		fail("Empty Capability Map\n");
+		return;
+	}
+
 	for (i = 0; i < length; i++) {
-		unsigned char v = x[0 + i];
+		unsigned char v = x[i];
 		unsigned j;
 
 		for (j = 0; j < 8; j++) {
@@ -465,18 +471,21 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 
 			unsigned idx = i * 8 + j;
 
-			printf("    VDB SVD Index %-3u", idx);
+			printf("    VDB SVD #%-3u: ", idx + 1);
 
 			if (idx < svds.size()) {
 				unsigned char vic = svds[idx];
 				const struct timings *t = vic_to_mode(vic);
+				char suffix[16];
+
+				sprintf(suffix, "VIC %3u", vic);
 
 				if (t)
-					print_timings(": ", t, "");
+					print_timings("", t, suffix);
 				else
-					printf("\n");
+					printf("Unknown (VIC %3u)\n", vic);
 			} else {
-				printf("\n");
+				printf("SVD not (yet?) seen\n");
 			}
 			y420cmdb_max_idx = idx;
 		}
