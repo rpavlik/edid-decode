@@ -70,6 +70,8 @@ struct edid_state {
 	unsigned supported_hdmi_vic_vsb_codes;
 	std::vector<unsigned char> svds;
 	unsigned y420cmdb_max_idx;
+	unsigned hdmi_3d_vics_max_idx;
+	unsigned hdmi_2d_vics_max_idx;
 
 	// Global state
 	unsigned edid_size;

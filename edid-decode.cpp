@@ -739,6 +739,12 @@ int edid_state::parse_edid()
 	if (svds.size() <= y420cmdb_max_idx)
 		fail("YCbCr 4:2:0 Capability Map Data Block max index %u > %u (#SVDs)\n",
 		     y420cmdb_max_idx + 1, svds.size());
+	if (svds.size() <= hdmi_3d_vics_max_idx)
+		fail("HDMI 3D VIC indices max index %u > %u (#SVDs)\n",
+		     hdmi_3d_vics_max_idx + 1, svds.size());
+	if (svds.size() <= hdmi_2d_vics_max_idx)
+		fail("HDMI 2D VIC indices max index %u > %u (#SVDs)\n",
+		     hdmi_2d_vics_max_idx + 1, svds.size());
 
 	if (!options[OptCheck] && !options[OptCheckInline])
 		return 0;

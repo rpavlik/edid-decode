@@ -636,6 +636,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 	}
 
 	if (len_3d) {
+		// TODO: needs more work.
 		if (formats) {
 			/* 3D_Structure_ALL_15..8 */
 			if (x[8 + b] & 0x80)
@@ -666,11 +667,15 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 			printf("      3D VIC indices:");
 			/* worst bit ordering ever */
 			for (i = 0; i < 8; i++)
-				if (x[9 + b] & (1 << i))
-					printf(" %u", i);
+				if (x[9 + b] & (1 << i)) {
+					hdmi_3d_vics_max_idx = i;
+					printf(" #%u", hdmi_3d_vics_max_idx + 1);
+				}
 			for (i = 0; i < 8; i++)
-				if (x[8 + b] & (1 << i))
-					printf(" %u", i + 8);
+				if (x[8 + b] & (1 << i)) {
+					hdmi_3d_vics_max_idx = i + 8;
+					printf(" #%u", hdmi_3d_vics_max_idx + 1);
+				}
 			printf("\n");
 			b += 2;
 			len_3d -= 2;
@@ -686,7 +691,11 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 			unsigned end = b + len_3d;
 
 			while (b < end) {
-				printf("      VIC index %u supports ", x[8 + b] >> 4);
+				unsigned char idx = x[8 + b] >> 4;
+
+				if (idx > hdmi_2d_vics_max_idx)
+					hdmi_2d_vics_max_idx = idx;
+				printf("      VIC #%u supports ", idx + 1);
 				switch (x[8 + b] & 0x0f) {
 				case 0: printf("frame packing"); break;
 				case 6: printf("top-and-bottom"); break;
