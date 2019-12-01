@@ -12,7 +12,7 @@ edid-decode: $(SOURCES) edid-decode.h version.h
 
 version.h:
 	@if [ -d .git ]; then \
-		echo -n "#define SHA " >$@ ; \
+		printf "#define SHA " >$@ ; \
 		git rev-parse HEAD >>$@ ; \
 	else \
 		touch $@ ; \
