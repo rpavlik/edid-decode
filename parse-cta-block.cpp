@@ -463,7 +463,7 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 
 			unsigned idx = i * 8 + j;
 
-			printf("    VDB SVD Index %u", idx);
+			printf("    VDB SVD Index %-3u", idx);
 
 			if (idx < svds.size()) {
 				unsigned char vic = svds[idx];
