@@ -1269,8 +1269,8 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 		    add_str(s_flags, "serrate");
 		break;
 	case 0x03:
-		s_sync = (flags & (1 << 2)) ? "+vsync " : "-vsync ";
-		s_sync += (flags & (1 << 1)) ? "+hsync " : "-hsync ";
+		s_sync = (flags & (1 << 1)) ? "+hsync " : "-hsync ";
+		s_sync += (flags & (1 << 2)) ? "+vsync " : "-vsync ";
 		if (has_spwg && (flags & 0x01))
 			s_flags = "DE timing only";
 		break;
