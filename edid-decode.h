@@ -27,6 +27,11 @@ struct timings {
 	unsigned ratio_w, ratio_h;
 	unsigned hor_freq_hz, pixclk_khz;
 	bool rb, interlaced;
+	unsigned hfp, hsync, hbp;
+	bool pos_pol_hsync;
+	unsigned vfp, vsync, vbp;
+	bool pos_pol_vsync;
+	bool has_border;
 };
 
 struct edid_state {
