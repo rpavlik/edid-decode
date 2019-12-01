@@ -39,6 +39,9 @@ struct edid_state {
 	{
 		min_hor_freq_hz = 0xffffff;
 		min_vert_freq_hz = 0xffffffff;
+		y420cmdb_max_idx = -1;
+		hdmi_3d_vics_max_idx = -1;
+		hdmi_2d_vics_max_idx = -1;
 	}
 
 	// Base block state
@@ -69,9 +72,9 @@ struct edid_state {
 	unsigned supported_hdmi_vic_codes;
 	unsigned supported_hdmi_vic_vsb_codes;
 	std::vector<unsigned char> svds;
-	unsigned y420cmdb_max_idx;
-	unsigned hdmi_3d_vics_max_idx;
-	unsigned hdmi_2d_vics_max_idx;
+	int y420cmdb_max_idx;
+	int hdmi_3d_vics_max_idx;
+	int hdmi_2d_vics_max_idx;
 
 	// Global state
 	unsigned edid_size;
