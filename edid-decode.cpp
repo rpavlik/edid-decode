@@ -181,6 +181,14 @@ std::string utohex(unsigned char x)
 	return buf;
 }
 
+bool memchk(const unsigned char *x, unsigned len, unsigned char v)
+{
+	for (unsigned i = 0; i < len; i++)
+		if (x[i] != v)
+			return false;
+	return true;
+}
+
 void hex_block(const char *prefix, const unsigned char *x,
 	       unsigned length, bool show_ascii, unsigned step)
 {
