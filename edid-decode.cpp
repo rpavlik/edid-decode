@@ -595,7 +595,7 @@ std::string block_name(unsigned char block)
 	case 0xf0: return "Block Map Extension Block";
 	case 0xff: return "Manufacturer-Specific Extension Block";
 	default:
-		sprintf(buf, " (0x%02x)", block);
+		sprintf(buf, " 0x%02x", block);
 		return std::string("Unknown EDID Extension Block") + buf;
 	}
 }
@@ -666,7 +666,8 @@ void edid_state::parse_extension(const unsigned char *x)
 		break;
 	default:
 		printf("%s\n", block.c_str());
-		hex_block("  ", x + 2, 125);
+		hex_block("  ", x, EDID_PAGE_SIZE);
+		fail("Unknown Extension Block\n");
 		break;
 	}
 

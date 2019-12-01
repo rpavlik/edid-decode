@@ -1241,7 +1241,7 @@ void edid_state::detailed_block(const unsigned char *x)
 		return;
 	}
 
-	data_block = "Display Descriptor";
+	data_block = "Display Descriptor #" + std::to_string(timing_descr_cnt);
 	/* Monitor descriptor block, not detailed timing descriptor. */
 	if (x[2] != 0) {
 		/* 1.3, 3.10.3 */
@@ -1260,6 +1260,7 @@ void edid_state::detailed_block(const unsigned char *x)
 		data_block = "Empty Descriptor";
 		printf("%s\n", data_block.c_str());
 		fail("Use Dummy Descriptor instead of all zeroes\n");
+		return;
 	}
 
 	switch (x[3]) {
@@ -1388,11 +1389,11 @@ void edid_state::detailed_block(const unsigned char *x)
 		has_serial_string = 1;
 		return;
 	default:
-		printf("%s Description 0x%02hhx:",
+		printf("%s Display Descriptor (0x%02hhx):",
 		       x[3] <= 0x0f ? "Manufacturer-Specified" : "Unknown", x[3]);
 		hex_block(" ", x + 2, 16);
 		if (x[3] > 0x0f)
-			warn("Unknown Description Type 0x%02hhx\n", x[3]);
+			fail("Unknown Type 0x%02hhx\n", x[3]);
 		return;
 	}
 }
