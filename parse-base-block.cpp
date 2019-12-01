@@ -1476,7 +1476,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 			case 0x05: printf("DisplayPort interface\n"); break;
 			default:
 				   printf("Unknown (0x%02x) interface\n", x[0x14] & 0x0f);
-				   fail("Digital Video Interface Standard set to reserved value\n");
+				   fail("Digital Video Interface Standard set to reserved value 0x%02x\n", x[0x14] & 0x0f);
 				   break;
 			}
 		} else if (edid_minor >= 2) {
@@ -1484,9 +1484,9 @@ void edid_state::parse_base_block(const unsigned char *x)
 				printf("DFP 1.x compatible TMDS\n");
 			}
 			if (x[0x14] & 0x7e)
-				fail("Byte 14 Digital Video Interface Standard set to reserved value\n");
+				fail("Digital Video Interface Standard set to reserved value 0x%02x\n", x[0x14] & 0x7e);
 		} else if (x[0x14] & 0x7f) {
-			fail("Digital Video Interface Standard set to reserved value\n");
+			fail("Digital Video Interface Standard set to reserved value 0x%02x\n", x[0x14] & 0x7f);
 		}
 	} else {
 		unsigned voltage = (x[0x14] & 0x60) >> 5;
