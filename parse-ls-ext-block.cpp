@@ -61,4 +61,8 @@ void edid_state::parse_ls_ext_block(const unsigned char *x)
 		parse_string_table(x + 1);
 		x += x[0];
 	}
+	if (!memchk(x, orig + 127 - x)) {
+		data_block.clear();
+		fail("Non-zero values in unused space\n");
+	}
 }
