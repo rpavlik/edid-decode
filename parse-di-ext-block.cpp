@@ -15,7 +15,11 @@ static void parse_digital_interface(edid_state &state, const unsigned char *x)
 	printf("  Supported Digital Interface: ");
 	unsigned short v = x[2];
 	switch (v) {
-	case 0x00: printf("Analog Video Input\n"); return;
+	case 0x00:
+		printf("Analog Video Input\n");
+		if (!memchk(x + 2, 12))
+			fail("Bytes 0x02-0x0d should be 0\n");
+		return;
 	case 0x01: printf("DVI\n"); break;
 	case 0x02: printf("DVI Single Link\n"); break;
 	case 0x03: printf("DVI Dual Link - High Resolution\n"); break;
@@ -34,8 +38,8 @@ static void parse_digital_interface(edid_state &state, const unsigned char *x)
 
 	switch ((x[3]) >> 6) {
 	case 0x00:
-		if (x[3] || x[4] || x[5] || x[6])
-			fail("Bytes 3-6 should be 0\n");
+		if (!memchk(x + 3, 4))
+			fail("Bytes 0x03-0x06 should be 0\n");
 		break;
 	case 0x01:
 		printf("  Version %u.%u Release %u.%u\n", x[3] & 0x3f, x[4], x[5], x[6]);
@@ -46,14 +50,14 @@ static void parse_digital_interface(edid_state &state, const unsigned char *x)
 		break;
 	case 0x02:
 		if (x[3] & 0x3f)
-			fail("Bits 5-0 of byte 3 should be 0\n");
+			fail("Bits 5-0 of byte 0x03 should be 0\n");
 		if (x[5] || x[6])
-			fail("Bytes 5-6 should be 0\n");
+			fail("Bytes 0x05-0x06 should be 0\n");
 		printf("  Letter Designation: %c\n", x[4]);
 		break;
 	case 0x03:
 		if (x[3] & 0x3f)
-			fail("Bits 5-0 of byte 3 should be 0\n");
+			fail("Bits 5-0 of byte 0x03 should be 0\n");
 		printf("  Date Code: Year %u Week %u Day %u\n", 1990 + x[4], x[5], x[6]);
 		if (!x[5] || x[5] > 12)
 			fail("Bad month number\n");
@@ -69,7 +73,7 @@ static void parse_digital_interface(edid_state &state, const unsigned char *x)
 		printf("  Data Enable Signal %s\n",
 		       (v & 0x40) ? "Low" : "High");
 	else if (v & 0x40)
-		fail("Bit 6 of byte 7 should be 0\n");
+		fail("Bit 6 of byte 0x07 should be 0\n");
 	printf("  Edge of Shift Clock: ");
 	switch ((v >> 4) & 0x03) {
 	case 0: printf("Not specified\n"); break;
@@ -82,7 +86,7 @@ static void parse_digital_interface(edid_state &state, const unsigned char *x)
 	       (v & 0x04) ? "" : "not ");
 	printf("  Packetized Digital Video is %ssupported\n", (v & 0x02) ? "" : "not ");
 	if (v & 0x01)
-		fail("Bit 0 of byte 7 should be 0\n");
+		fail("Bit 0 of byte 0x07 should be 0\n");
 
 	v = x[8];
 	printf("  Data Formats: ");
@@ -103,19 +107,24 @@ static void parse_digital_interface(edid_state &state, const unsigned char *x)
 		fail("Data Format should be 0x49, not 0x%02x\n", v);
 
 	v = x[9];
-	printf("  Minimum Pixel Clock Frequency Per Link: %u MHz\n", v);
-	if (v == 0 || v == 0xff)
-		fail("Invalid Min-PCF 0x%02x\n", v);
+	if (v) {
+		printf("  Minimum Pixel Clock Frequency Per Link: %u MHz\n", v);
+		if (v == 0xff)
+			fail("Invalid Min-PCF 0x%02x\n", v);
+	}
 
 	v = x[10] | (x[11] << 8);
-	printf("  Maximum Pixel Clock Frequency Per Link: %u MHz\n", v);
-	if (v == 0 || v == 0xffff)
-		fail("Invalid Max-PCF 0x%04x\n", v);
+	if (v) {
+		printf("  Maximum Pixel Clock Frequency Per Link: %u MHz\n", v);
+		if (v == 0xffff)
+			fail("Invalid Max-PCF 0x%04x\n", v);
+	}
 
 	v = x[12] | (x[13] << 8);
-	printf("  Crossover Frequency: %u MHz\n", v);
-	if (v == 0 || v == 0xffff)
-		fail("Invalid Crossover Frequence 0x%04x\n", v);
+	if (v == 0xffff)
+		printf("  Crossover Frequency: None - Single Link\n");
+	else if (v)
+		printf("  Crossover Frequency: %u MHz\n", v);
 }
 
 static void parse_display_device(edid_state &state, const unsigned char *x)
@@ -318,22 +327,26 @@ static void parse_display_caps(edid_state &state, const unsigned char *x)
 		   break;
 	}
 	v = x[0x1d];
-	printf("  Color/Luminance Decoding Capabilities:\n");
-	printf("    BGR: %s\n", (v & 0x80) ? "Yes" : "No");
-	printf("    Y/C (S-Video) NTSC: %s\n", (v & 0x40) ? "Yes" : "No");
-	printf("    Y/C (S-Video) PAL: %s\n", (v & 0x20) ? "Yes" : "No");
-	printf("    Y/C (S-Video) SECAM: %s\n", (v & 0x10) ? "Yes" : "No");
-	printf("    YCrCb 4:4:4 per SMPTE 293M & 294M: %s\n", (v & 0x08) ? "Yes" : "No");
-	printf("    YCrCb 4:2:2 per SMPTE 293M & 294M: %s\n", (v & 0x04) ? "Yes" : "No");
-	printf("    YCrCb 4:2:0 per SMPTE 293M & 294M: %s\n", (v & 0x02) ? "Yes" : "No");
-	printf("    YCrCb per SMPTE 260M (Legacy HDTV): %s\n", (v & 0x01) ? "Yes" : "No");
-	v = x[0x1e];
-	printf("    YPbPr per SMPTE 240M (Legacy HDTV): %s\n", (v & 0x80) ? "Yes" : "No");
-	printf("    YCrCb per SMPTE 274M (Modern HDTV): %s\n", (v & 0x40) ? "Yes" : "No");
-	printf("    YPbPr per SMPTE 274M (Modern HDTV): %s\n", (v & 0x20) ? "Yes" : "No");
-	printf("    Y B-Y R-Y BetaCam (Sony): %s\n", (v & 0x10) ? "Yes" : "No");
-	printf("    Y B-Y R-Y M-2 (Matsushita): %s\n", (v & 0x08) ? "Yes" : "No");
-	printf("    Monochrome: %s\n", (v & 0x04) ? "Yes" : "No");
+	if (v && (x[0x1e] & 0xfc)) {
+		printf("  Color/Luminance Decoding Capabilities:\n");
+		printf("    BGR: %s\n", (v & 0x80) ? "Yes" : "No");
+		printf("    Y/C (S-Video) NTSC: %s\n", (v & 0x40) ? "Yes" : "No");
+		printf("    Y/C (S-Video) PAL: %s\n", (v & 0x20) ? "Yes" : "No");
+		printf("    Y/C (S-Video) SECAM: %s\n", (v & 0x10) ? "Yes" : "No");
+		printf("    YCrCb 4:4:4 per SMPTE 293M & 294M: %s\n", (v & 0x08) ? "Yes" : "No");
+		printf("    YCrCb 4:2:2 per SMPTE 293M & 294M: %s\n", (v & 0x04) ? "Yes" : "No");
+		printf("    YCrCb 4:2:0 per SMPTE 293M & 294M: %s\n", (v & 0x02) ? "Yes" : "No");
+		printf("    YCrCb per SMPTE 260M (Legacy HDTV): %s\n", (v & 0x01) ? "Yes" : "No");
+		v = x[0x1e];
+		printf("    YPbPr per SMPTE 240M (Legacy HDTV): %s\n", (v & 0x80) ? "Yes" : "No");
+		printf("    YCrCb per SMPTE 274M (Modern HDTV): %s\n", (v & 0x40) ? "Yes" : "No");
+		printf("    YPbPr per SMPTE 274M (Modern HDTV): %s\n", (v & 0x20) ? "Yes" : "No");
+		printf("    Y B-Y R-Y BetaCam (Sony): %s\n", (v & 0x10) ? "Yes" : "No");
+		printf("    Y B-Y R-Y M-2 (Matsushita): %s\n", (v & 0x08) ? "Yes" : "No");
+		printf("    Monochrome: %s\n", (v & 0x04) ? "Yes" : "No");
+	} else {
+		printf("  Color/Luminance Decoding Capabilities: None\n");
+	}
 	if (v & 0x03)
 		fail("Bits 1-0 of byte 0x1e should be 0\n");
 
@@ -427,6 +440,8 @@ static void parse_display_xfer(edid_state &state, const unsigned char *x)
 	switch ((v & 0xc0) >> 6) {
 	case 0x00:
 		printf("  No Display Transfer Characteristics\n");
+		if (!memchk(x + 0x51, 46))
+			fail("Bytes 0x51-0x7e should be 0\n");
 		return;
 	case 0x03:
 		fail("Bits 7-6 of byte 0x51 cannot be 0x03\n");
@@ -440,6 +455,8 @@ static void parse_display_xfer(edid_state &state, const unsigned char *x)
 			fail("White Curve with %u entries\n", num_entries);
 		if (num_entries > 45)
 			num_entries = 45;
+		if (!memchk(x + 0x52 + num_entries, 45 - num_entries))
+			fail("Bytes 0x%02x-0x7e should be 0\n", 0x52 + num_entries);
 		printf("  White Curve (%u entries):\n", num_entries);
 		hex_block("    ", x + 0x52, num_entries, false, 15);
 	} else {
@@ -449,10 +466,16 @@ static void parse_display_xfer(edid_state &state, const unsigned char *x)
 			num_entries = 15;
 		printf("  Sub-Channel 0 (Blue) Curve with %u entries:\n", num_entries);
 		hex_block("    ", x + 0x52, num_entries, false);
+		if (!memchk(x + 0x52 + num_entries, 15 - num_entries))
+			fail("Bytes 0x%02x-0x7e should be 0\n", 0x52 + num_entries);
 		printf("  Sub-Channel 1 (Green) Curve with %u entries:\n", num_entries);
 		hex_block("    ", x + 0x52 + 15, num_entries, false);
+		if (!memchk(x + 0x52 + 15 + num_entries, 15 - num_entries))
+			fail("Bytes 0x%02x-0x7e should be 0\n", 0x52 + 15 + num_entries);
 		printf("  Sub-Channel 2 (Red) Curve with %u entries:\n", num_entries);
 		hex_block("    ", x + 0x52 + 30, num_entries, false);
+		if (!memchk(x + 0x52 + 30 + num_entries, 15 - num_entries))
+			fail("Bytes 0x%02x-0x7e should be 0\n", 0x52 + 30 + num_entries);
 	}
 }
 
@@ -465,5 +488,11 @@ void parse_di_ext_block(edid_state &state, const unsigned char *x)
 	parse_digital_interface(state, x);
 	parse_display_device(state, x);
 	parse_display_caps(state, x);
+	if (!memchk(x + 0x27, 16))
+		fail("Bytes 0x27-0x36 should be 0\n");
+	if (!memchk(x + 0x37, 17))
+		fail("Bytes 0x37-0x47 should be 0\n");
+	if (!memchk(x + 0x48, 9))
+		fail("Bytes 0x48-0x50 should be 0\n");
 	parse_display_xfer(state, x);
 }
