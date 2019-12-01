@@ -175,7 +175,7 @@ static const struct timings *find_std_id(unsigned short std_id)
 /*
  * Copied from xserver/hw/xfree86/modes/xf86gtf.c
  */
-static void edid_gtf_mode(edid_state &state, const char *prefix, struct timings *t)
+void edid_state::edid_gtf_mode(const char *prefix, struct timings *t)
 {
 #define CELL_GRAN         8.0   /* assumed character cell granularity        */
 #define MIN_PORCH         1     /* minimum front porch                       */
@@ -336,14 +336,14 @@ static void edid_gtf_mode(edid_state &state, const char *prefix, struct timings 
 
 	t->hor_freq_hz = 1000000.0 / h_period;
 
-	print_timings(state, prefix, t, "GTF");
+	print_timings(prefix, t, "GTF");
 }
 
 /*
  * Copied from xserver/hw/xfree86/modes/xf86cvt.c
  */
-static void edid_cvt_mode(edid_state &state, const char *prefix,
-			  struct timings *t, int preferred)
+void edid_state::edid_cvt_mode(const char *prefix,
+			       struct timings *t, bool preferred)
 {
 	int HDisplay = t->x;
 	int VDisplay = t->y;
@@ -460,10 +460,10 @@ static void edid_cvt_mode(edid_state &state, const char *prefix,
 	t->pixclk_khz -= t->pixclk_khz % CVT_CLOCK_STEP;
 	t->hor_freq_hz = (t->pixclk_khz * 1000) / HTotal;
 
-	print_timings(state, prefix, t, preferred ? "CVT, preferred vertical rate" : "CVT");
+	print_timings(prefix, t, preferred ? "CVT, preferred vertical rate" : "CVT");
 }
 
-static void detailed_cvt_descriptor(edid_state &state, const unsigned char *x, int first)
+void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
 {
 	static const unsigned char empty[3] = { 0, 0, 0 };
 	struct timings cvt_t = {};
@@ -472,7 +472,7 @@ static void detailed_cvt_descriptor(edid_state &state, const unsigned char *x, i
 	if (!first && !memcmp(x, empty, 3))
 		return;
 
-	state.uses_cvt = true;
+	uses_cvt = true;
 	cvt_t.y = x[0];
 	if (!cvt_t.y)
 		fail("CVT byte 0 is 0, which is a reserved value\n");
@@ -515,24 +515,24 @@ static void detailed_cvt_descriptor(edid_state &state, const unsigned char *x, i
 
 	if (x[2] & 0x10) {
 		cvt_t.refresh = 50;
-		edid_cvt_mode(state, "    ", &cvt_t, preferred == 0);
+		edid_cvt_mode("    ", &cvt_t, preferred == 0);
 	}
 	if (x[2] & 0x08) {
 		cvt_t.refresh = 60;
-		edid_cvt_mode(state, "    ", &cvt_t, preferred == 1);
+		edid_cvt_mode("    ", &cvt_t, preferred == 1);
 	}
 	if (x[2] & 0x04) {
 		cvt_t.refresh = 75;
-		edid_cvt_mode(state, "    ", &cvt_t, preferred == 2);
+		edid_cvt_mode("    ", &cvt_t, preferred == 2);
 	}
 	if (x[2] & 0x02) {
 		cvt_t.refresh = 85;
-		edid_cvt_mode(state, "    ", &cvt_t, preferred == 3);
+		edid_cvt_mode("    ", &cvt_t, preferred == 3);
 	}
 	if (x[2] & 0x01) {
 		cvt_t.refresh = 60;
 		cvt_t.rb = 1;
-		edid_cvt_mode(state, "    ", &cvt_t, preferred == 4);
+		edid_cvt_mode("    ", &cvt_t, preferred == 4);
 	}
 }
 
@@ -662,7 +662,7 @@ static const unsigned char established_timings3_dmt_ids[] = {
 	0x4a, // 1920x1440@75
 };
 
-static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
+void edid_state::print_standard_timing(uint8_t b1, uint8_t b2)
 {
 	const struct timings *t;
 	struct timings formula = {};
@@ -679,13 +679,13 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 	}
 	t = find_std_id((b1 << 8) | b2);
 	if (t) {
-		print_timings(state, "  ", t, "DMT");
+		print_timings("  ", t, "DMT");
 		return;
 	}
 	x = (b1 + 31) * 8;
 	switch ((b2 >> 6) & 0x3) {
 	case 0x00:
-		if (state.edid_minor >= 3) {
+		if (edid_minor >= 3) {
 			y = x * 10 / 16;
 			ratio_w = 16;
 			ratio_h = 10;
@@ -713,8 +713,8 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 	}
 	refresh = 60 + (b2 & 0x3f);
 
-	state.min_vert_freq_hz = min(state.min_vert_freq_hz, refresh);
-	state.max_vert_freq_hz = max(state.max_vert_freq_hz, refresh);
+	min_vert_freq_hz = min(min_vert_freq_hz, refresh);
+	max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	for (i = 0; i < ARRAY_SIZE(established_timings12); i++) {
 		const char *suffix = "DMT";
 
@@ -726,7 +726,7 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 		}
 		if (t->x == x && t->y == y && t->refresh == refresh &&
 		    t->ratio_w == ratio_w && t->ratio_h == ratio_h) {
-			print_timings(state, "  ", t, suffix);
+			print_timings("  ", t, suffix);
 			return;
 		}
 	}
@@ -736,7 +736,7 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 		if (t->x == x && t->y == y &&
 		    t->refresh == refresh &&
 		    t->ratio_w == ratio_w && t->ratio_h == ratio_h) {
-			print_timings(state, "  ", t, "DMT");
+			print_timings("  ", t, "DMT");
 			return;
 		}
 	}
@@ -747,25 +747,25 @@ static void print_standard_timing(edid_state &state, uint8_t b1, uint8_t b2)
 	formula.ratio_w = ratio_w;
 	formula.ratio_h = ratio_h;
 
-	if (state.edid_minor >= 4) {
-		state.uses_cvt = true;
-		edid_cvt_mode(state, "  ", &formula, 0);
+	if (edid_minor >= 4) {
+		uses_cvt = true;
+		edid_cvt_mode("  ", &formula, false);
 		/*
 		 * A EDID 1.3 source will assume GTF, so both GTF and CVT
 		 * have to be supported.
 		 */
-		state.uses_gtf = true;
-		edid_gtf_mode(state, "  ", &formula);
-	} else if (state.edid_minor >= 2) {
-		state.uses_gtf = true;
-		edid_gtf_mode(state, "  ", &formula);
+		uses_gtf = true;
+		edid_gtf_mode("  ", &formula);
+	} else if (edid_minor >= 2) {
+		uses_gtf = true;
+		edid_gtf_mode("  ", &formula);
 	} else {
 		printf("  %ux%u@%u %u:%u\n",
 		       x, y, refresh, ratio_w, ratio_h);
 	}
 }
 
-static void detailed_display_range_limits(edid_state &state, const unsigned char *x)
+void edid_state::detailed_display_range_limits(const unsigned char *x)
 {
 	int h_max_offset = 0, h_min_offset = 0;
 	int v_max_offset = 0, v_min_offset = 0;
@@ -773,14 +773,14 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 	bool has_sec_gtf = false;
 	std::string range_class;
 
-	state.cur_block = "Display Range Limits";
-	printf("%s\n", state.cur_block.c_str());
-	state.has_display_range_descriptor = 1;
+	cur_block = "Display Range Limits";
+	printf("%s\n", cur_block.c_str());
+	has_display_range_descriptor = 1;
 	/* 
 	 * XXX todo: implement feature flags, vtd blocks
 	 * XXX check: ranges are well-formed; block termination if no vtd
 	 */
-	if (state.edid_minor >= 4) {
+	if (edid_minor >= 4) {
 		if (x[4] & 0x02) {
 			v_max_offset = 255;
 			if (x[4] & 0x01) {
@@ -801,33 +801,33 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 	switch (x[10]) {
 	case 0x00: /* default gtf */
 		range_class = "GTF";
-		if (state.edid_minor >= 4 && !state.supports_continuous_freq)
+		if (edid_minor >= 4 && !supports_continuous_freq)
 			fail("GTF can't be combined with non-continuous frequencies\n");
-		state.supports_gtf = true;
+		supports_gtf = true;
 		break;
 	case 0x01: /* range limits only */
 		range_class = "Bare Limits";
-		if (state.edid_minor < 4)
-			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
+		if (edid_minor < 4)
+			fail("'%s' is not allowed for EDID < 1.4\n", range_class.c_str());
 		break;
 	case 0x02: /* secondary gtf curve */
 		range_class = "Secondary GTF";
-		if (state.edid_minor >= 4 && !state.supports_continuous_freq)
+		if (edid_minor >= 4 && !supports_continuous_freq)
 			fail("GTF can't be combined with non-continuous frequencies\n");
-		state.supports_gtf = true;
+		supports_gtf = true;
 		has_sec_gtf = true;
 		break;
 	case 0x04: /* cvt */
 		range_class = "CVT";
 		is_cvt = 1;
-		if (state.edid_minor < 4)
-			fail("'%s' is not allowed for EDID < 1.4\n", range_class);
-		else if (!state.supports_continuous_freq)
+		if (edid_minor < 4)
+			fail("'%s' is not allowed for EDID < 1.4\n", range_class.c_str());
+		else if (!supports_continuous_freq)
 			fail("CVT can't be combined with non-continuous frequencies\n");
-		if (state.edid_minor >= 4) {
+		if (edid_minor >= 4) {
 			/* GTF is implied if CVT is signaled */
-			state.supports_gtf = true;
-			state.supports_cvt = true;
+			supports_gtf = true;
+			supports_cvt = true;
 		}
 		break;
 	default: /* invalid */
@@ -838,21 +838,21 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 
 	if (x[5] + v_min_offset > x[6] + v_max_offset)
 		fail("Min vertical rate > max vertical rate\n");
-	state.min_display_vert_freq_hz = x[5] + v_min_offset;
-	state.max_display_vert_freq_hz = x[6] + v_max_offset;
+	min_display_vert_freq_hz = x[5] + v_min_offset;
+	max_display_vert_freq_hz = x[6] + v_max_offset;
 	if (x[7] + h_min_offset > x[8] + h_max_offset)
 		fail("Min horizontal freq > max horizontal freq\n");
-	state.min_display_hor_freq_hz = (x[7] + h_min_offset) * 1000;
-	state.max_display_hor_freq_hz = (x[8] + h_max_offset) * 1000;
+	min_display_hor_freq_hz = (x[7] + h_min_offset) * 1000;
+	max_display_hor_freq_hz = (x[8] + h_max_offset) * 1000;
 	printf("  Monitor ranges (%s): %d-%d Hz V, %d-%d kHz H",
 	       range_class.c_str(),
 	       x[5] + v_min_offset, x[6] + v_max_offset,
 	       x[7] + h_min_offset, x[8] + h_max_offset);
 	if (x[9]) {
-		state.max_display_pixclk_khz = x[9] * 10000;
+		max_display_pixclk_khz = x[9] * 10000;
 		printf(", max dotclock %d MHz\n", x[9] * 10);
 	} else {
-		if (state.edid_minor >= 4)
+		if (edid_minor >= 4)
 			fail("EDID 1.4 block does not set max dotclock\n");
 		printf("\n");
 	}
@@ -964,10 +964,10 @@ static void detailed_display_range_limits(edid_state &state, const unsigned char
 	}
 }
 
-static void detailed_epi(edid_state &state, const unsigned char *x)
+void edid_state::detailed_epi(const unsigned char *x)
 {
-	state.cur_block = "EPI Descriptor";
-	printf("%s\n", state.cur_block.c_str());
+	cur_block = "EPI Descriptor";
+	printf("%s\n", cur_block.c_str());
 
 	unsigned v = x[5] & 0x07;
 
@@ -1071,7 +1071,7 @@ static void add_str(std::string &s, const std::string &add)
 		s = s + ", " + add;
 }
 
-void detailed_timings(edid_state &state, const char *prefix, const unsigned char *x)
+void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 {
 	unsigned ha, hbl, hso, hspw, hborder, va, vbl, vso, vspw, vborder;
 	unsigned hor_mm, vert_mm;
@@ -1079,7 +1079,7 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 	double refresh;
 	std::string s_sync, s_flags;
 
-	state.cur_block = "Detailed Timings";
+	cur_block = "Detailed Timings";
 	if (x[0] == 0 && x[1] == 0) {
 		fail("First two bytes are 0, invalid data\n");
 		return;
@@ -1097,7 +1097,7 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 
 	unsigned char flags = x[17];
 
-	if (state.has_spwg && state.timing_descr_cnt == 2)
+	if (has_spwg && timing_descr_cnt == 2)
 		flags = *(x - 1);
 
 	switch ((flags & 0x18) >> 3) {
@@ -1130,7 +1130,7 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 	case 0x03:
 		s_sync = (flags & (1 << 2)) ? "+vsync " : "-vsync ";
 		s_sync += (flags & (1 << 1)) ? "+hsync " : "-hsync ";
-		if (state.has_spwg && (flags & 0x01))
+		if (has_spwg && (flags & 0x01))
 			s_flags = "DE timing only";
 		break;
 	}
@@ -1196,79 +1196,79 @@ void detailed_timings(edid_state &state, const char *prefix, const unsigned char
 		fail("0 or negative horizontal back porch\n");
 	if (vso + vspw >= vbl)
 		fail("0 or negative vertical back porch\n");
-	if ((!state.max_display_width_mm && hor_mm) ||
-	    (!state.max_display_height_mm && vert_mm)) {
+	if ((!max_display_width_mm && hor_mm) ||
+	    (!max_display_height_mm && vert_mm)) {
 		fail("Mismatch of image size vs display size: image size is set, but not display size\n");
-	} else if ((state.max_display_width_mm && !hor_mm) ||
-		   (state.max_display_height_mm && !vert_mm)) {
+	} else if ((max_display_width_mm && !hor_mm) ||
+		   (max_display_height_mm && !vert_mm)) {
 		fail("Mismatch of image size vs display size: image size is not set, but display size is\n");
 	} else if (!hor_mm && !vert_mm) {
 		/* this is valid */
-	} else if (hor_mm > state.max_display_width_mm + 9 ||
-		   vert_mm > state.max_display_height_mm + 9) {
+	} else if (hor_mm > max_display_width_mm + 9 ||
+		   vert_mm > max_display_height_mm + 9) {
 		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
-		     hor_mm, vert_mm, state.max_display_width_mm, state.max_display_height_mm);
-	} else if (hor_mm < state.max_display_width_mm - 9 &&
-		   vert_mm < state.max_display_height_mm - 9) {
+		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
+	} else if (hor_mm < max_display_width_mm - 9 &&
+		   vert_mm < max_display_height_mm - 9) {
 		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
-		     hor_mm, vert_mm, state.max_display_width_mm, state.max_display_height_mm);
+		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
 	}
 	if (refresh) {
-		state.min_vert_freq_hz = min(state.min_vert_freq_hz, refresh);
-		state.max_vert_freq_hz = max(state.max_vert_freq_hz, refresh);
+		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
+		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	}
 	if (pixclk_khz && (ha + hbl)) {
-		state.min_hor_freq_hz = min(state.min_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
-		state.max_hor_freq_hz = max(state.max_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
-		state.max_pixclk_khz = max(state.max_pixclk_khz, pixclk_khz);
+		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
+		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
+		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
 	}
-	if (state.has_spwg && state.timing_descr_cnt == 2)
+	if (has_spwg && timing_descr_cnt == 2)
 		printf("SPWG Module Revision: %hhu\n", x[17]);
 }
 
-static void detailed_block(edid_state &state, const unsigned char *x)
+void edid_state::detailed_block(const unsigned char *x)
 {
 	static const unsigned char zero_descr[18] = { 0 };
 	static int seen_non_detailed_descriptor;
 	unsigned cnt;
 	unsigned i;
 
-	state.timing_descr_cnt++;
+	timing_descr_cnt++;
 	if (x[0] || x[1]) {
-		detailed_timings(state, "", x);
+		detailed_timings("", x);
 		if (seen_non_detailed_descriptor)
 			fail("Invalid detailed timing descriptor ordering\n");
 		return;
 	}
 
-	state.cur_block = "Display Descriptor";
+	cur_block = "Display Descriptor";
 	/* Monitor descriptor block, not detailed timing descriptor. */
 	if (x[2] != 0) {
 		/* 1.3, 3.10.3 */
 		fail("Monitor descriptor block has byte 2 nonzero (0x%02x)\n", x[2]);
 	}
-	if ((state.edid_minor < 4 || x[3] != 0xfd) && x[4] != 0x00) {
+	if ((edid_minor < 4 || x[3] != 0xfd) && x[4] != 0x00) {
 		/* 1.3, 3.10.3 */
 		fail("Monitor descriptor block has byte 4 nonzero (0x%02x)\n", x[4]);
 	}
 
 	seen_non_detailed_descriptor = 1;
-	if (state.edid_minor == 0)
+	if (edid_minor == 0)
 		fail("Has descriptor blocks other than detailed timings\n");
 
 	if (!memcmp(x, zero_descr, sizeof(zero_descr))) {
-		state.cur_block = "Empty Descriptor";
-		printf("%s\n", state.cur_block.c_str());
+		cur_block = "Empty Descriptor";
+		printf("%s\n", cur_block.c_str());
 		fail("Use Dummy Descriptor instead of all zeroes\n");
 	}
 
 	switch (x[3]) {
 	case 0x0e:
-		detailed_epi(state, x);
+		detailed_epi(x);
 		return;
 	case 0x10:
-		state.cur_block = "Dummy Descriptor";
-		printf("%s\n", state.cur_block.c_str());
+		cur_block = "Dummy Descriptor";
+		printf("%s\n", cur_block.c_str());
 		for (i = 5; i < 18; i++) {
 			if (x[i]) {
 				fail("Dummy block filled with garbage\n");
@@ -1277,25 +1277,25 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		}
 		return;
 	case 0xf7:
-		state.cur_block = "Established timings III";
-		printf("%s\n", state.cur_block.c_str());
+		cur_block = "Established timings III";
+		printf("%s\n", cur_block.c_str());
 		for (i = 0; i < 44; i++)
 			if (x[6 + i / 8] & (1 << (7 - i % 8)))
-				print_timings(state, "  ", find_dmt_id(established_timings3_dmt_ids[i]), "DMT");
+				print_timings("  ", find_dmt_id(established_timings3_dmt_ids[i]), "DMT");
 		return;
 	case 0xf8:
-		state.cur_block = "CVT 3 Byte Timing Codes";
-		printf("%s\n", state.cur_block.c_str());
+		cur_block = "CVT 3 Byte Timing Codes";
+		printf("%s\n", cur_block.c_str());
 		if (x[5] != 0x01) {
 			fail("Invalid version number %u\n", x[5]);
 			return;
 		}
 		for (i = 0; i < 4; i++)
-			detailed_cvt_descriptor(state, x + 6 + (i * 3), (i == 0));
+			detailed_cvt_descriptor(x + 6 + (i * 3), !i);
 		return;
 	case 0xf9:
-		state.cur_block = "Display Color Management Data";
-		printf("%s\n", state.cur_block.c_str());
+		cur_block = "Display Color Management Data";
+		printf("%s\n", cur_block.c_str());
 		printf("  Version:  %d\n", x[5]);
 		printf("  Red a3:   %.2f\n", (short)(x[6] | (x[7] << 8)) / 100.0);
 		printf("  Red a2:   %.2f\n", (short)(x[8] | (x[9] << 8)) / 100.0);
@@ -1305,22 +1305,22 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		printf("  Blue a2:  %.2f\n", (short)(x[16] | (x[17] << 8)) / 100.0);
 		return;
 	case 0xfa:
-		state.cur_block = "Standard Timing Identifications";
-		printf("%s\n", state.cur_block.c_str());
+		cur_block = "Standard Timing Identifications";
+		printf("%s\n", cur_block.c_str());
 		for (cnt = i = 0; i < 6; i++) {
 			if (x[5 + i * 2] != 0x01 || x[5 + i * 2 + 1] != 0x01)
 				cnt++;
-			print_standard_timing(state, x[5 + i * 2], x[5 + i * 2 + 1]);
+			print_standard_timing(x[5 + i * 2], x[5 + i * 2 + 1]);
 		}
 		if (!cnt)
-			warn("%s block without any timings\n", state.cur_block.c_str());
+			warn("%s block without any timings\n", cur_block.c_str());
 		return;
 	case 0xfb: {
 		unsigned w_x, w_y;
 		unsigned gamma;
 
-		state.cur_block = "Color Point Data";
-		printf("%s\n", state.cur_block.c_str());
+		cur_block = "Color Point Data";
+		printf("%s\n", cur_block.c_str());
 		w_x = (x[7] << 2) | ((x[6] >> 2) & 3);
 		w_y = (x[8] << 2) | (x[6] & 3);
 		gamma = x[9];
@@ -1346,24 +1346,24 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		return;
 	}
 	case 0xfc:
-		state.cur_block = "Display Product Name";
-		state.has_name_descriptor = 1;
-		printf("%s: %s\n", state.cur_block.c_str(), extract_string(x + 5, 13));
+		cur_block = "Display Product Name";
+		has_name_descriptor = 1;
+		printf("%s: %s\n", cur_block.c_str(), extract_string(x + 5, 13));
 		return;
 	case 0xfd:
-		detailed_display_range_limits(state, x);
+		detailed_display_range_limits(x);
 		return;
 	case 0xfe:
-		if (!state.has_spwg || state.timing_descr_cnt < 3) {
-			state.cur_block = "Alphanumeric Data String";
-			printf("%s: %s\n", state.cur_block.c_str(),
+		if (!has_spwg || timing_descr_cnt < 3) {
+			cur_block = "Alphanumeric Data String";
+			printf("%s: %s\n", cur_block.c_str(),
 			       extract_string(x + 5, 13));
 			return;
 		}
-		if (state.timing_descr_cnt == 3) {
+		if (timing_descr_cnt == 3) {
 			char buf[6] = { 0 };
 
-			state.cur_block = "SPWG Descriptor #3";
+			cur_block = "SPWG Descriptor #3";
 			memcpy(buf, x + 5, 5);
 			if (strlen(buf) != 5)
 				fail("Invalid PC Maker P/N length\n");
@@ -1371,7 +1371,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 			printf("SPWG LCD Supplier EEDID Revision: %hhu\n", x[10]);
 			printf("SPWG Manufacturer P/N: %s\n", extract_string(x + 11, 7));
 		} else {
-			state.cur_block = "SPWG Descriptor #4";
+			cur_block = "SPWG Descriptor #4";
 			printf("SMBUS Values: 0x%02hhx 0x%02hhx 0x%02hhx 0x%02hhx"
 			       " 0x%02hhx 0x%02hhx 0x%02hhx 0x%02hhx\n",
 			       x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12]);
@@ -1382,10 +1382,10 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 		}
 		return;
 	case 0xff:
-		state.cur_block = "Display Product Serial Number";
-		printf("%s: %s\n", state.cur_block.c_str(),
+		cur_block = "Display Product Serial Number";
+		printf("%s: %s\n", cur_block.c_str(),
 		       extract_string(x + 5, 13));
-		state.has_serial_string = 1;
+		has_serial_string = 1;
 		return;
 	default:
 		printf("%s Description 0x%02hhx:",
@@ -1397,7 +1397,7 @@ static void detailed_block(edid_state &state, const unsigned char *x)
 	}
 }
 
-void parse_base_block(edid_state &state, const unsigned char *edid)
+void edid_state::parse_base_block(const unsigned char *x)
 {
 	time_t the_time;
 	struct tm *ptm;
@@ -1405,39 +1405,39 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 	unsigned col_x, col_y;
 	int has_preferred_timing = 0;
 
-	state.cur_block = "EDID Structure Version & Revision";
-	printf("EDID version: %hhu.%hhu\n", edid[0x12], edid[0x13]);
-	if (edid[0x12] == 1) {
-		state.edid_minor = edid[0x13];
-		if (state.edid_minor > 4)
-			warn("Unknown EDID minor version %u, assuming 1.4 conformance\n", state.edid_minor);
-		if (state.edid_minor < 3)
-			warn("EDID 1.%u is deprecated, do not use\n", state.edid_minor);
+	cur_block = "EDID Structure Version & Revision";
+	printf("EDID version: %hhu.%hhu\n", x[0x12], x[0x13]);
+	if (x[0x12] == 1) {
+		edid_minor = x[0x13];
+		if (edid_minor > 4)
+			warn("Unknown EDID minor version %u, assuming 1.4 conformance\n", edid_minor);
+		if (edid_minor < 3)
+			warn("EDID 1.%u is deprecated, do not use\n", edid_minor);
 	} else {
 		fail("Unknown EDID major version\n");
 	}
 
-	state.cur_block = "Vendor & Product Identification";
+	cur_block = "Vendor & Product Identification";
 	printf("Manufacturer: %s Model %u Serial Number %u\n",
-	       manufacturer_name(edid + 0x08),
-	       (unsigned short)(edid[0x0a] + (edid[0x0b] << 8)),
-	       (unsigned)(edid[0x0c] + (edid[0x0d] << 8) +
-			  (edid[0x0e] << 16) + (edid[0x0f] << 24)));
-	state.has_serial_number = edid[0x0c] || edid[0x0d] || edid[0x0e] || edid[0x0f];
+	       manufacturer_name(x + 0x08),
+	       (unsigned short)(x[0x0a] + (x[0x0b] << 8)),
+	       (unsigned)(x[0x0c] + (x[0x0d] << 8) +
+			  (x[0x0e] << 16) + (x[0x0f] << 24)));
+	has_serial_number = x[0x0c] || x[0x0d] || x[0x0e] || x[0x0f];
 	/* XXX need manufacturer ID table */
 
 	time(&the_time);
 	ptm = localtime(&the_time);
 
-	unsigned char week = edid[0x10];
-	int year = 1990 + edid[0x11];
+	unsigned char week = x[0x10];
+	int year = 1990 + x[0x11];
 
 	if (week) {
-		if (state.edid_minor <= 3 && week == 0xff)
+		if (edid_minor <= 3 && week == 0xff)
 			fail("EDID 1.3 does not support week 0xff\n");
 		// The max week is 53 in EDID 1.3 and 54 in EDID 1.4.
 		// No idea why there is a difference.
-		if (state.edid_minor <= 3 && week == 54)
+		if (edid_minor <= 3 && week == 54)
 			fail("EDID 1.3 does not support week 54\n");
 		if (week != 0xff && week > 54)
 			fail("Invalid week %u of manufacture\n", week);
@@ -1453,20 +1453,20 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 
 	/* display section */
 
-	state.cur_block = "Basic Display Parameters & Features";
-	if (edid[0x14] & 0x80) {
+	cur_block = "Basic Display Parameters & Features";
+	if (x[0x14] & 0x80) {
 		analog = 0;
 		printf("Digital display\n");
-		if (state.edid_minor >= 4) {
-			if ((edid[0x14] & 0x70) == 0x00)
+		if (edid_minor >= 4) {
+			if ((x[0x14] & 0x70) == 0x00)
 				printf("Color depth is undefined\n");
-			else if ((edid[0x14] & 0x70) == 0x70)
+			else if ((x[0x14] & 0x70) == 0x70)
 				fail("Color Bit Depth set to reserved value\n");
 			else
 				printf("%u bits per primary color channel\n",
-				       ((edid[0x14] & 0x70) >> 3) + 4);
+				       ((x[0x14] & 0x70) >> 3) + 4);
 
-			switch (edid[0x14] & 0x0f) {
+			switch (x[0x14] & 0x0f) {
 			case 0x00: printf("Digital interface is not defined\n"); break;
 			case 0x01: printf("DVI interface\n"); break;
 			case 0x02: printf("HDMI-a interface\n"); break;
@@ -1474,22 +1474,22 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 			case 0x04: printf("MDDI interface\n"); break;
 			case 0x05: printf("DisplayPort interface\n"); break;
 			default:
-				   printf("Unknown (0x%02x) interface\n", edid[0x14] & 0x0f);
+				   printf("Unknown (0x%02x) interface\n", x[0x14] & 0x0f);
 				   fail("Digital Video Interface Standard set to reserved value\n");
 				   break;
 			}
-		} else if (state.edid_minor >= 2) {
-			if (edid[0x14] & 0x01) {
+		} else if (edid_minor >= 2) {
+			if (x[0x14] & 0x01) {
 				printf("DFP 1.x compatible TMDS\n");
 			}
-			if (edid[0x14] & 0x7e)
+			if (x[0x14] & 0x7e)
 				fail("Byte 14 Digital Video Interface Standard set to reserved value\n");
-		} else if (edid[0x14] & 0x7f) {
+		} else if (x[0x14] & 0x7f) {
 			fail("Digital Video Interface Standard set to reserved value\n");
 		}
 	} else {
-		unsigned voltage = (edid[0x14] & 0x60) >> 5;
-		unsigned sync = (edid[0x14] & 0x0f);
+		unsigned voltage = (x[0x14] & 0x60) >> 5;
+		unsigned sync = (x[0x14] & 0x0f);
 
 		analog = 1;
 		printf("Analog display, Input voltage level: %s V\n",
@@ -1498,12 +1498,12 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 		       voltage == 1 ? "0.714/0.286" :
 		       "0.7/0.3");
 
-		if (state.edid_minor >= 4) {
-			if (edid[0x14] & 0x10)
+		if (edid_minor >= 4) {
+			if (x[0x14] & 0x10)
 				printf("Blank-to-black setup/pedestal\n");
 			else
 				printf("Blank level equals black level\n");
-		} else if (edid[0x14] & 0x10) {
+		} else if (x[0x14] & 0x10) {
 			/*
 			 * XXX this is just the X text.  1.3 says "if set, display expects
 			 * a blank-to-black setup or pedestal per appropriate Signal
@@ -1518,46 +1518,46 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 		       sync & 0x01 ? "Serration " : "");
 	}
 
-	if (edid[0x15] && edid[0x16]) {
-		printf("Maximum image size: %u cm x %u cm\n", edid[0x15], edid[0x16]);
-		state.max_display_width_mm = edid[0x15] * 10;
-		state.max_display_height_mm = edid[0x16] * 10;
-		if ((state.max_display_height_mm && !state.max_display_width_mm) ||
-		    (state.max_display_width_mm && !state.max_display_height_mm))
+	if (x[0x15] && x[0x16]) {
+		printf("Maximum image size: %u cm x %u cm\n", x[0x15], x[0x16]);
+		max_display_width_mm = x[0x15] * 10;
+		max_display_height_mm = x[0x16] * 10;
+		if ((max_display_height_mm && !max_display_width_mm) ||
+		    (max_display_width_mm && !max_display_height_mm))
 			fail("Invalid maximum image size (%u cm x %u cm)\n",
-			     state.max_display_width_mm, state.max_display_height_mm);
-		else if (state.max_display_width_mm < 100 || state.max_display_height_mm < 100)
+			     max_display_width_mm, max_display_height_mm);
+		else if (max_display_width_mm < 100 || max_display_height_mm < 100)
 			warn("Dubious maximum image size (%ux%u is smaller than 10x10 cm)\n",
-			     state.max_display_width_mm, state.max_display_height_mm);
+			     max_display_width_mm, max_display_height_mm);
 	}
-	else if (state.edid_minor >= 4 && (edid[0x15] || edid[0x16])) {
-		if (edid[0x15])
-			printf("Aspect ratio is %f (landscape)\n", 100.0/(edid[0x16] + 99));
+	else if (edid_minor >= 4 && (x[0x15] || x[0x16])) {
+		if (x[0x15])
+			printf("Aspect ratio is %f (landscape)\n", 100.0/(x[0x16] + 99));
 		else
-			printf("Aspect ratio is %f (portrait)\n", 100.0/(edid[0x15] + 99));
+			printf("Aspect ratio is %f (portrait)\n", 100.0/(x[0x15] + 99));
 	} else {
 		/* Either or both can be zero for 1.3 and before */
 		printf("Image size is variable\n");
 	}
 
-	if (edid[0x17] == 0xff) {
-		if (state.edid_minor >= 4)
+	if (x[0x17] == 0xff) {
+		if (edid_minor >= 4)
 			printf("Gamma is defined in an extension block\n");
 		else
 			/* XXX Technically 1.3 doesn't say this... */
 			printf("Gamma: 1.0\n");
-	} else printf("Gamma: %.2f\n", ((edid[0x17] + 100.0) / 100.0));
+	} else printf("Gamma: %.2f\n", ((x[0x17] + 100.0) / 100.0));
 
-	if (edid[0x18] & 0xe0) {
+	if (x[0x18] & 0xe0) {
 		printf("DPMS levels:");
-		if (edid[0x18] & 0x80) printf(" Standby");
-		if (edid[0x18] & 0x40) printf(" Suspend");
-		if (edid[0x18] & 0x20) printf(" Off");
+		if (x[0x18] & 0x80) printf(" Standby");
+		if (x[0x18] & 0x40) printf(" Suspend");
+		if (x[0x18] & 0x20) printf(" Off");
 		printf("\n");
 	}
 
-	if (analog || state.edid_minor < 4) {
-		switch (edid[0x18] & 0x18) {
+	if (analog || edid_minor < 4) {
+		switch (x[0x18] & 0x18) {
 		case 0x00: printf("Monochrome or grayscale display\n"); break;
 		case 0x08: printf("RGB color display\n"); break;
 		case 0x10: printf("Non-RGB color display\n"); break;
@@ -1565,14 +1565,14 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 		}
 	} else {
 		printf("Supported color formats: RGB 4:4:4");
-		if (edid[0x18] & 0x08)
+		if (x[0x18] & 0x08)
 			printf(", YCrCb 4:4:4");
-		if (edid[0x18] & 0x10)
+		if (x[0x18] & 0x10)
 			printf(", YCrCb 4:2:2");
 		printf("\n");
 	}
 
-	if (edid[0x18] & 0x04) {
+	if (x[0x18] & 0x04) {
 		/*
 		 * The sRGB chromaticities are (x, y):
 		 * red:   0.640,  0.330
@@ -1584,54 +1584,54 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 			0xee, 0x91, 0xa3, 0x54, 0x4c, 0x99, 0x26, 0x0f, 0x50, 0x54
 		};
 		printf("Default (sRGB) color space is primary color space\n");
-		if (memcmp(edid + 0x19, srgb_chromaticity, sizeof(srgb_chromaticity)))
+		if (memcmp(x + 0x19, srgb_chromaticity, sizeof(srgb_chromaticity)))
 			fail("sRGB is signaled, but the chromaticities do not match\n");
 	}
-	if (edid[0x18] & 0x02) {
-		if (state.edid_minor >= 4)
+	if (x[0x18] & 0x02) {
+		if (edid_minor >= 4)
 			printf("First detailed timing includes the native pixel format and preferred refresh rate\n");
 		else
 			printf("First detailed timing is preferred timing\n");
 		has_preferred_timing = 1;
-	} else if (state.edid_minor >= 4) {
+	} else if (edid_minor >= 4) {
 		/* 1.4 always has a preferred timing and this bit means something else. */
 		has_preferred_timing = 1;
 	}
 
-	if (edid[0x18] & 0x01) {
-		if (state.edid_minor >= 4) {
-			state.supports_continuous_freq = true;
+	if (x[0x18] & 0x01) {
+		if (edid_minor >= 4) {
+			supports_continuous_freq = true;
 			printf("Display is continuous frequency\n");
 		} else {
 			printf("Supports GTF timings within operating range\n");
-			state.supports_gtf = true;
+			supports_gtf = true;
 		}
 	}
 
-	state.cur_block = "Color Characteristics";
-	printf("%s\n", state.cur_block.c_str());
-	col_x = (edid[0x1b] << 2) | (edid[0x19] >> 6);
-	col_y = (edid[0x1c] << 2) | ((edid[0x19] >> 4) & 3);
+	cur_block = "Color Characteristics";
+	printf("%s\n", cur_block.c_str());
+	col_x = (x[0x1b] << 2) | (x[0x19] >> 6);
+	col_y = (x[0x1c] << 2) | ((x[0x19] >> 4) & 3);
 	printf("  Red:   0.%04u, 0.%04u\n",
 	       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
-	col_x = (edid[0x1d] << 2) | ((edid[0x19] >> 2) & 3);
-	col_y = (edid[0x1e] << 2) | (edid[0x19] & 3);
+	col_x = (x[0x1d] << 2) | ((x[0x19] >> 2) & 3);
+	col_y = (x[0x1e] << 2) | (x[0x19] & 3);
 	printf("  Green: 0.%04u, 0.%04u\n",
 	       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
-	col_x = (edid[0x1f] << 2) | (edid[0x1a] >> 6);
-	col_y = (edid[0x20] << 2) | ((edid[0x1a] >> 4) & 3);
+	col_x = (x[0x1f] << 2) | (x[0x1a] >> 6);
+	col_y = (x[0x20] << 2) | ((x[0x1a] >> 4) & 3);
 	printf("  Blue:  0.%04u, 0.%04u\n",
 	       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
-	col_x = (edid[0x21] << 2) | ((edid[0x1a] >> 2) & 3);
-	col_y = (edid[0x22] << 2) | (edid[0x1a] & 3);
+	col_x = (x[0x21] << 2) | ((x[0x1a] >> 2) & 3);
+	col_y = (x[0x22] << 2) | (x[0x1a] & 3);
 	printf("  White: 0.%04u, 0.%04u\n",
 	       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
 
-	state.cur_block = "Established Timings I & II";
-	if (edid[0x23] || edid[0x24] || edid[0x25]) {
-		printf("%s\n", state.cur_block.c_str());
+	cur_block = "Established Timings I & II";
+	if (x[0x23] || x[0x24] || x[0x25]) {
+		printf("%s\n", cur_block.c_str());
 		for (i = 0; i < 17; i++) {
-			if (edid[0x23 + i / 8] & (1 << (7 - i % 8))) {
+			if (x[0x23 + i / 8] & (1 << (7 - i % 8))) {
 				const struct timings *t;
 				const char *suffix = "DMT";
 
@@ -1641,57 +1641,57 @@ void parse_base_block(edid_state &state, const unsigned char *edid)
 					t = &established_timings12[i].t;
 					suffix = established_timings12[i].std_name;
 				}
-				print_timings(state, "  ", t, suffix);
+				print_timings("  ", t, suffix);
 			}
 		}
 	} else {
-		printf("%s: none\n", state.cur_block.c_str());
+		printf("%s: none\n", cur_block.c_str());
 	}
-	state.has_640x480p60_est_timing = edid[0x23] & 0x20;
+	has_640x480p60_est_timing = x[0x23] & 0x20;
 
-	state.cur_block = "Standard Timings";
+	cur_block = "Standard Timings";
 	bool found = false;
 	for (i = 0; i < 8; i++) {
-		if (edid[0x26 + i * 2] != 0x01 || edid[0x26 + i * 2 + 1] != 0x01) {
+		if (x[0x26 + i * 2] != 0x01 || x[0x26 + i * 2 + 1] != 0x01) {
 			found = true;
 		}
 	}
 	if (found) {
-		printf("%s\n", state.cur_block.c_str());
+		printf("%s\n", cur_block.c_str());
 		for (i = 0; i < 8; i++)
-			print_standard_timing(state, edid[0x26 + i * 2], edid[0x26 + i * 2 + 1]);
+			print_standard_timing(x[0x26 + i * 2], x[0x26 + i * 2 + 1]);
 	} else {
-		printf("%s: none\n", state.cur_block.c_str());
+		printf("%s: none\n", cur_block.c_str());
 	}
 
 	/* 18 byte descriptors */
-	if (has_preferred_timing && !edid[0x36] && !edid[0x37])
+	if (has_preferred_timing && !x[0x36] && !x[0x37])
 		fail("Missing preferred timing\n");
 
 	/* Look for SPWG Noteboook Panel EDID data blocks */
-	if ((edid[0x36] || edid[0x37]) &&
-	    (edid[0x48] || edid[0x49]) &&
-	    !edid[0x5a] && !edid[0x5b] && edid[0x5d] == 0xfe &&
-	    !edid[0x6c] && !edid[0x6d] && edid[0x6f] == 0xfe &&
-	    (edid[0x79] == 1 || edid[0x79] == 2) && edid[0x7a] <= 1)
-		state.has_spwg = true;
+	if ((x[0x36] || x[0x37]) &&
+	    (x[0x48] || x[0x49]) &&
+	    !x[0x5a] && !x[0x5b] && x[0x5d] == 0xfe &&
+	    !x[0x6c] && !x[0x6d] && x[0x6f] == 0xfe &&
+	    (x[0x79] == 1 || x[0x79] == 2) && x[0x7a] <= 1)
+		has_spwg = true;
 
-	detailed_block(state, edid + 0x36);
-	detailed_block(state, edid + 0x48);
-	detailed_block(state, edid + 0x5a);
-	detailed_block(state, edid + 0x6c);
-	state.has_spwg = false;
+	detailed_block(x + 0x36);
+	detailed_block(x + 0x48);
+	detailed_block(x + 0x5a);
+	detailed_block(x + 0x6c);
+	has_spwg = false;
 
-	if (edid[0x7e])
-		printf("Has %u extension block%s\n", edid[0x7e], edid[0x7e] > 1 ? "s" : "");
+	if (x[0x7e])
+		printf("Has %u extension block%s\n", x[0x7e], x[0x7e] > 1 ? "s" : "");
 
-	state.cur_block = "Base Block";
-	do_checksum("", edid, EDID_PAGE_SIZE);
-	if (state.edid_minor >= 3) {
-		if (!state.has_name_descriptor)
+	cur_block = "Base Block";
+	do_checksum("", x, EDID_PAGE_SIZE);
+	if (edid_minor >= 3) {
+		if (!has_name_descriptor)
 			fail("Missing Display Product Name\n");
-		if ((state.edid_minor == 3 || state.supports_continuous_freq) &&
-		    !state.has_display_range_descriptor)
+		if ((edid_minor == 3 || supports_continuous_freq) &&
+		    !has_display_range_descriptor)
 			fail("Missing Display Range Limits Descriptor\n");
 	}
 }

@@ -88,7 +88,7 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	      );
 }
 
-void parse_displayid_block(edid_state &state, const unsigned char *x)
+void edid_state::parse_displayid_block(const unsigned char *x)
 {
 	const unsigned char *orig = x;
 	unsigned version = x[1];
@@ -97,7 +97,7 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 	unsigned i;
 
 	printf("%s Version %u.%u Length %u Extension Count %u\n",
-	       state.cur_block.c_str(), version >> 4, version & 0xf,
+	       cur_block.c_str(), version >> 4, version & 0xf,
 	       length, ext_count);
 
 	unsigned offset = 5;
@@ -115,28 +115,28 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 			break;
 		}
 		switch (tag) {
-		case 0x00: state.cur_block = "Product ID Data Block"; break;
-		case 0x01: state.cur_block = "Display Parameters Data Block"; break;
-		case 0x02: state.cur_block = "Color Characteristics Data Block"; break;
-		case 0x03: state.cur_block = "Type 1 Detailed Timings Data Block"; break;
-		case 0x04: state.cur_block = "Type 2 Detailed Timings Data Block"; break;
-		case 0x05: state.cur_block = "Type 3 Short Timings Data Block"; break;
-		case 0x06: state.cur_block = "Type 4 DMT Timings Data Block"; break;
-		case 0x07: state.cur_block = "Type 1 VESA DMT Timings Data Block"; break;
-		case 0x08: state.cur_block = "CTA Timings Data Block"; break;
-		case 0x09: state.cur_block = "Video Timing Range Data Block"; break;
-		case 0x0a: state.cur_block = "Product Serial Number Data Block"; break;
-		case 0x0b: state.cur_block = "GP ASCII String Data Block"; break;
-		case 0x0c: state.cur_block = "Display Device Data Data Block"; break;
-		case 0x0d: state.cur_block = "Interface Power Sequencing Data Block"; break;
-		case 0x0e: state.cur_block = "Transfer Characteristics Data Block"; break;
-		case 0x0f: state.cur_block = "Display Interface Data Block"; break;
-		case 0x10: state.cur_block = "Stereo Display Interface Data Block"; break;
-		case 0x12: state.cur_block = "Tiled Display Topology Data Block"; break;
-		default: state.cur_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")"; break;
+		case 0x00: cur_block = "Product ID Data Block"; break;
+		case 0x01: cur_block = "Display Parameters Data Block"; break;
+		case 0x02: cur_block = "Color Characteristics Data Block"; break;
+		case 0x03: cur_block = "Type 1 Detailed Timings Data Block"; break;
+		case 0x04: cur_block = "Type 2 Detailed Timings Data Block"; break;
+		case 0x05: cur_block = "Type 3 Short Timings Data Block"; break;
+		case 0x06: cur_block = "Type 4 DMT Timings Data Block"; break;
+		case 0x07: cur_block = "Type 1 VESA DMT Timings Data Block"; break;
+		case 0x08: cur_block = "CTA Timings Data Block"; break;
+		case 0x09: cur_block = "Video Timing Range Data Block"; break;
+		case 0x0a: cur_block = "Product Serial Number Data Block"; break;
+		case 0x0b: cur_block = "GP ASCII String Data Block"; break;
+		case 0x0c: cur_block = "Display Device Data Data Block"; break;
+		case 0x0d: cur_block = "Interface Power Sequencing Data Block"; break;
+		case 0x0e: cur_block = "Transfer Characteristics Data Block"; break;
+		case 0x0f: cur_block = "Display Interface Data Block"; break;
+		case 0x10: cur_block = "Stereo Display Interface Data Block"; break;
+		case 0x12: cur_block = "Tiled Display Topology Data Block"; break;
+		default: cur_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")"; break;
 		}
 
-		printf("  %s\n", state.cur_block.c_str());
+		printf("  %s\n", cur_block.c_str());
 
 		switch (tag) {
 		case 0x03:
@@ -148,7 +148,7 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 		case 0x07:
 			for (i = 0; i < min(len, 10) * 8; i++)
 				if (x[offset + 3 + i / 8] & (1 << (i % 8)))
-					print_timings(state, "    ", find_dmt_id(i + 1), "DMT");
+					print_timings("    ", find_dmt_id(i + 1), "DMT");
 			break;
 
 		case 0x12: {
@@ -198,6 +198,6 @@ void parse_displayid_block(edid_state &state, const unsigned char *x)
 	 * but checksum is calculated over the entire structure
 	 * (excluding DisplayID-in-EDID magic byte)
 	 */
-	state.cur_block = block_name(orig[0]);
+	cur_block = block_name(orig[0]);
 	do_checksum("  ", orig + 1, orig[2] + 5);
 }

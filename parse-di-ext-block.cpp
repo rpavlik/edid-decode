@@ -7,10 +7,10 @@
 
 #include "edid-decode.h"
 
-static void parse_digital_interface(edid_state &state, const unsigned char *x)
+void edid_state::parse_digital_interface(const unsigned char *x)
 {
-	state.cur_block = "Digital Interface";
-	printf("%s\n", state.cur_block.c_str());
+	cur_block = "Digital Interface";
+	printf("%s\n", cur_block.c_str());
 
 	printf("  Supported Digital Interface: ");
 	unsigned short v = x[2];
@@ -127,10 +127,10 @@ static void parse_digital_interface(edid_state &state, const unsigned char *x)
 		printf("  Crossover Frequency: %u MHz\n", v);
 }
 
-static void parse_display_device(edid_state &state, const unsigned char *x)
+void edid_state::parse_display_device(const unsigned char *x)
 {
-	state.cur_block = "Display Device";
-	printf("%s\n", state.cur_block.c_str());
+	cur_block = "Display Device";
+	printf("%s\n", cur_block.c_str());
 
 	printf("  Sub-Pixel Layout: ");
 	unsigned char v = x[0x0e];
@@ -203,10 +203,10 @@ static void parse_display_device(edid_state &state, const unsigned char *x)
 		fail("Bit 0 of byte 0x13 should be 0\n");
 }
 
-static void parse_display_caps(edid_state &state, const unsigned char *x)
+void edid_state::parse_display_caps(const unsigned char *x)
 {
-	state.cur_block = "Display Capabities & Feature Support Set";
-	printf("%s\n", state.cur_block.c_str());
+	cur_block = "Display Capabities & Feature Support Set";
+	printf("%s\n", cur_block.c_str());
 
 	unsigned short v = x[0x14];
 
@@ -429,10 +429,10 @@ static void parse_display_caps(edid_state &state, const unsigned char *x)
 		fail("Bits 3-0 of byte 0x26 should be 0\n");
 }
 
-static void parse_display_xfer(edid_state &state, const unsigned char *x)
+void edid_state::parse_display_xfer(const unsigned char *x)
 {
-	state.cur_block = "Display Transfer Characteristics - Gamma";
-	printf("%s\n", state.cur_block.c_str());
+	cur_block = "Display Transfer Characteristics - Gamma";
+	printf("%s\n", cur_block.c_str());
 
 	unsigned char v = x[0x51];
 	unsigned num_entries = v & 0x3f;
@@ -479,20 +479,20 @@ static void parse_display_xfer(edid_state &state, const unsigned char *x)
 	}
 }
 
-void parse_di_ext_block(edid_state &state, const unsigned char *x)
+void edid_state::parse_di_ext_block(const unsigned char *x)
 {
-	printf("%s Version %u\n", state.cur_block.c_str(), x[1]);
+	printf("%s Version %u\n", cur_block.c_str(), x[1]);
 	if (!x[1])
 		fail("Invalid version 0\n");
 
-	parse_digital_interface(state, x);
-	parse_display_device(state, x);
-	parse_display_caps(state, x);
+	parse_digital_interface(x);
+	parse_display_device(x);
+	parse_display_caps(x);
 	if (!memchk(x + 0x27, 16))
 		fail("Bytes 0x27-0x36 should be 0\n");
 	if (!memchk(x + 0x37, 17))
 		fail("Bytes 0x37-0x47 should be 0\n");
 	if (!memchk(x + 0x48, 9))
 		fail("Bytes 0x48-0x50 should be 0\n");
-	parse_display_xfer(state, x);
+	parse_display_xfer(x);
 }

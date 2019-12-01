@@ -137,19 +137,19 @@ void do_checksum(const char *prefix, const unsigned char *x, size_t len)
 	printf("\n");
 }
 
-void print_timings(edid_state &state, const char *prefix,
-		   const struct timings *t, const char *suffix)
+void edid_state::print_timings(const char *prefix,
+			       const struct timings *t, const char *suffix)
 {
 	if (!t) {
 		// Should not happen
 		fail("Unknown short timings\n");
 		return;
 	}
-	state.min_vert_freq_hz = min(state.min_vert_freq_hz, t->refresh);
-	state.max_vert_freq_hz = max(state.max_vert_freq_hz, t->refresh);
-	state.min_hor_freq_hz = min(state.min_hor_freq_hz, t->hor_freq_hz);
-	state.max_hor_freq_hz = max(state.max_hor_freq_hz, t->hor_freq_hz);
-	state.max_pixclk_khz = max(state.max_pixclk_khz, t->pixclk_khz);
+	min_vert_freq_hz = min(min_vert_freq_hz, t->refresh);
+	max_vert_freq_hz = max(max_vert_freq_hz, t->refresh);
+	min_hor_freq_hz = min(min_hor_freq_hz, t->hor_freq_hz);
+	max_hor_freq_hz = max(max_hor_freq_hz, t->hor_freq_hz);
+	max_pixclk_khz = max(max_pixclk_khz, t->pixclk_khz);
 
 	std::string s(suffix);
 	if (t->rb) {
@@ -602,7 +602,7 @@ std::string block_name(unsigned char block)
 	}
 }
 
-static void parse_block_map(edid_state &state, const unsigned char *x)
+void edid_state::parse_block_map(const unsigned char *x)
 {
 	static bool saw_block_1;
 	unsigned last_valid_block_tag = 0;
@@ -610,13 +610,13 @@ static void parse_block_map(edid_state &state, const unsigned char *x)
 	unsigned offset = 1;
 	unsigned i;
 
-	printf("%s\n", state.cur_block.c_str());
-	if (state.cur_block_nr == 1)
+	printf("%s\n", cur_block.c_str());
+	if (cur_block_nr == 1)
 		saw_block_1 = true;
 	else if (!saw_block_1)
 		fail("No EDID Block Map Extension found in block 1\n");
 
-	if (state.cur_block_nr > 1)
+	if (cur_block_nr > 1)
 		offset = 128;
 
 	for (i = 1; i < 127; i++) {
@@ -629,7 +629,7 @@ static void parse_block_map(edid_state &state, const unsigned char *x)
 				fail_once = true;
 			}
 			printf("  Block %3u: %s\n", block, block_name(block).c_str());
-			if (block >= state.num_blocks && !fail_once) {
+			if (block >= num_blocks && !fail_once) {
 				fail("Invalid block number %u\n", block);
 				fail_once = true;
 			}
@@ -637,49 +637,49 @@ static void parse_block_map(edid_state &state, const unsigned char *x)
 	}
 }
 
-static void parse_extension(edid_state &state, const unsigned char *x)
+void edid_state::parse_extension(const unsigned char *x)
 {
-	state.cur_block = block_name(x[0]);
+	cur_block = block_name(x[0]);
 
 	printf("\n");
 
 	switch (x[0]) {
 	case 0x02:
-		parse_cta_block(state, x);
+		parse_cta_block(x);
 		break;
 	case 0x20:
-		printf("%s\n", state.cur_block.c_str());
+		printf("%s\n", cur_block.c_str());
 		fail("Deprecated extension block, do not use\n");
 		break;
 	case 0x40:
-		parse_di_ext_block(state, x);
+		parse_di_ext_block(x);
 		break;
 	case 0x50:
-		parse_ls_ext_block(state, x);
+		parse_ls_ext_block(x);
 		break;
 	case 0x70:
-		parse_displayid_block(state, x);
+		parse_displayid_block(x);
 		break;
 	case 0xf0:
-		parse_block_map(state, x);
-		if (state.cur_block_nr != 1 && state.cur_block_nr != 128)
+		parse_block_map(x);
+		if (cur_block_nr != 1 && cur_block_nr != 128)
 			fail("Must be used in block 1 and 128\n");
 		break;
 	default:
-		printf("%s\n", state.cur_block.c_str());
+		printf("%s\n", cur_block.c_str());
 		hex_block("  ", x + 2, 125);
 		break;
 	}
 
-	state.cur_block = block_name(x[0]);
+	cur_block = block_name(x[0]);
 	do_checksum("", x, EDID_PAGE_SIZE);
 }
 
-static int parse_edid()
+int edid_state::parse_edid()
 {
 	if (!options[OptSkipHexDump]) {
 		printf("edid-decode (hex):\n\n");
-		for (unsigned i = 0; i < state.num_blocks; i++) {
+		for (unsigned i = 0; i < num_blocks; i++) {
 			hex_block("", edid + i * EDID_PAGE_SIZE, EDID_PAGE_SIZE, false);
 			printf("\n");
 		}
@@ -689,49 +689,49 @@ static int parse_edid()
 	if (options[OptExtract])
 		dump_breakdown(edid);
 
-	parse_base_block(state, edid);
+	parse_base_block(edid);
 
-	for (unsigned i = 1; i < state.num_blocks; i++) {
-		state.cur_block_nr++;
+	for (unsigned i = 1; i < num_blocks; i++) {
+		cur_block_nr++;
 		printf("\n----------------\n");
-		parse_extension(state, edid + i * EDID_PAGE_SIZE);
+		parse_extension(edid + i * EDID_PAGE_SIZE);
 	}
 
-	state.cur_block = "EDID";
-	if (state.uses_gtf && !state.supports_gtf)
+	cur_block = "EDID";
+	if (uses_gtf && !supports_gtf)
 		fail("GTF timings are used, but the EDID does not signal GTF support\n");
-	if (state.uses_cvt && !state.supports_cvt)
+	if (uses_cvt && !supports_cvt)
 		fail("CVT timings are used, but the EDID does not signal CVT support\n");
-	if (state.has_display_range_descriptor &&
-	    (state.min_vert_freq_hz < state.min_display_vert_freq_hz ||
-	     state.max_vert_freq_hz > state.max_display_vert_freq_hz ||
-	     state.min_hor_freq_hz < state.min_display_hor_freq_hz ||
-	     state.max_hor_freq_hz > state.max_display_hor_freq_hz ||
-	     state.max_pixclk_khz > state.max_display_pixclk_khz)) {
+	if (has_display_range_descriptor &&
+	    (min_vert_freq_hz < min_display_vert_freq_hz ||
+	     max_vert_freq_hz > max_display_vert_freq_hz ||
+	     min_hor_freq_hz < min_display_hor_freq_hz ||
+	     max_hor_freq_hz > max_display_hor_freq_hz ||
+	     max_pixclk_khz > max_display_pixclk_khz)) {
 		/*
 		 * EDID 1.4 states (in an Errata) that explicitly defined
 		 * timings supersede the monitor range definition.
 		 */
-		if (state.edid_minor < 4) {
+		if (edid_minor < 4) {
 			fail("\n  One or more of the timings is out of range of the Monitor Ranges:\n"
 			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
-			     state.min_vert_freq_hz, state.max_vert_freq_hz,
-			     state.min_display_vert_freq_hz, state.max_display_vert_freq_hz,
-			     state.min_hor_freq_hz, state.max_hor_freq_hz,
-			     state.min_display_hor_freq_hz, state.max_display_hor_freq_hz,
-			     state.max_pixclk_khz / 1000.0, state.max_display_pixclk_khz / 1000.0);
+			     min_vert_freq_hz, max_vert_freq_hz,
+			     min_display_vert_freq_hz, max_display_vert_freq_hz,
+			     min_hor_freq_hz, max_hor_freq_hz,
+			     min_display_hor_freq_hz, max_display_hor_freq_hz,
+			     max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
 		} else {
 			warn("\n  One or more of the timings is out of range of the Monitor Ranges:\n"
 			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
 			     "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
-			     state.min_vert_freq_hz, state.max_vert_freq_hz,
-			     state.min_display_vert_freq_hz, state.max_display_vert_freq_hz,
-			     state.min_hor_freq_hz, state.max_hor_freq_hz,
-			     state.min_display_hor_freq_hz, state.max_display_hor_freq_hz,
-			     state.max_pixclk_khz / 1000.0, state.max_display_pixclk_khz / 1000.0);
+			     min_vert_freq_hz, max_vert_freq_hz,
+			     min_display_vert_freq_hz, max_display_vert_freq_hz,
+			     min_hor_freq_hz, max_hor_freq_hz,
+			     min_display_hor_freq_hz, max_display_hor_freq_hz,
+			     max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
 		}
 	}
 
@@ -749,13 +749,13 @@ static int parse_edid()
 #endif
 
 	if (options[OptCheck]) {
-		if (state.warnings)
+		if (warnings)
 			printf("\nWarnings:\n\n%s", s_warn.c_str());
-		if (state.failures)
+		if (failures)
 			printf("\nFailures:\n\n%s", s_fail.c_str());
 	}
-	printf("\nEDID conformity: %s\n", state.failures ? "FAIL" : "PASS");
-	return state.failures ? -2 : 0;
+	printf("\nEDID conformity: %s\n", failures ? "FAIL" : "PASS");
+	return failures ? -2 : 0;
 }
 
 int main(int argc, char **argv)
@@ -817,5 +817,5 @@ int main(int argc, char **argv)
 		ret = edid_from_file(argv[optind], NULL, out_fmt);
 	else
 		return edid_from_file(argv[optind], argv[optind + 1], out_fmt);
-	return ret ? ret : parse_edid();
+	return ret ? ret : state.parse_edid();
 }

@@ -77,6 +77,40 @@ struct edid_state {
 
 	unsigned warnings;
 	unsigned failures;
+
+	void print_timings(const char *prefix,
+			   const struct timings *t, const char *suffix);
+
+	void edid_gtf_mode(const char *prefix, struct timings *t);
+	void edid_cvt_mode(const char *prefix, struct timings *t, bool preferred);
+	void detailed_cvt_descriptor(const unsigned char *x, bool first);
+	void print_standard_timing(uint8_t b1, uint8_t b2);
+	void detailed_display_range_limits(const unsigned char *x);
+	void detailed_epi(const unsigned char *x);
+	void detailed_timings(const char *prefix, const unsigned char *x);
+	void detailed_block(const unsigned char *x);
+	void parse_base_block(const unsigned char *x);
+
+	void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420);
+	void cta_vfpdb(const unsigned char *x, unsigned length);
+	void cta_hdmi_block(const unsigned char *x, unsigned length);
+	void cta_block(const unsigned char *x);
+	void parse_cta_block(const unsigned char *x);
+
+	void parse_displayid_block(const unsigned char *x);
+
+	void parse_digital_interface(const unsigned char *x);
+	void parse_display_device(const unsigned char *x);
+	void parse_display_caps(const unsigned char *x);
+	void parse_display_xfer(const unsigned char *x);
+	void parse_di_ext_block(const unsigned char *x);
+
+	void parse_ls_ext_block(const unsigned char *x);
+
+	void parse_block_map(const unsigned char *x);
+
+	void parse_extension(const unsigned char *x);
+	int parse_edid();
 };
 
 void warn(const char *fmt, ...);
@@ -89,16 +123,6 @@ void hex_block(const char *prefix, const unsigned char *x, unsigned length,
 std::string block_name(unsigned char block);
 void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
 
-void detailed_timings(edid_state &state, const char *prefix, const unsigned char *x);
 const struct timings *find_dmt_id(unsigned char dmt_id);
-void parse_base_block(edid_state &state, const unsigned char *edid);
-
-void parse_cta_block(edid_state &state, const unsigned char *x);
-
-void parse_displayid_block(edid_state &state, const unsigned char *x);
-
-void parse_di_ext_block(edid_state &state, const unsigned char *x);
-
-void parse_ls_ext_block(edid_state &state, const unsigned char *x);
 
 #endif

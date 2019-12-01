@@ -49,12 +49,12 @@ static void parse_string_table(const unsigned char *x)
 	parse_string("Serial Number", x);
 }
 
-void parse_ls_ext_block(edid_state &state, const unsigned char *x)
+void edid_state::parse_ls_ext_block(const unsigned char *x)
 {
 	const unsigned char *orig = x;
 
 	printf("%s Version %u.%u Unicode Version %u.%u.%u\n",
-	       state.cur_block.c_str(), x[1], x[2], (x[3] >> 4), x[3] & 0x0f, x[4]);
+	       cur_block.c_str(), x[1], x[2], (x[3] >> 4), x[3] & 0x0f, x[4]);
 	x += 5;
 
 	while (x[0] && x + x[0] < orig + 127) {
