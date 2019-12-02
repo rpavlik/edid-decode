@@ -14,54 +14,57 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	unsigned ha, hbl, hso, hspw;
 	unsigned va, vbl, vso, vspw;
 	char phsync, pvsync;
-	const char *stereo;
 	unsigned pix_clock;
-	const char *aspect;
+	std::string s("aspect ");
 
 	switch (x[3] & 0xf) {
 	case 0:
-		aspect = "1:1";
+		s += "1:1";
 		break;
 	case 1:
-		aspect = "5:4";
+		s += "5:4";
 		break;
 	case 2:
-		aspect = "4:3";
+		s += "4:3";
 		break;
 	case 3:
-		aspect = "15:9";
+		s += "15:9";
 		break;
 	case 4:
-		aspect = "16:9";
+		s += "16:9";
 		break;
 	case 5:
-		aspect = "16:10";
+		s += "16:10";
 		break;
 	case 6:
-		aspect = "64:27";
+		s += "64:27";
 		break;
 	case 7:
-		aspect = "256:135";
+		s += "256:135";
 		break;
 	default:
-		aspect = "undefined";
+		s += "undefined";
+		fail("Unknown aspect 0x%02x\n", x[3] & 0xf);
 		break;
 	}
 	switch ((x[3] >> 5) & 0x3) {
 	case 0:
-		stereo = ", no 3D stereo";
+		s += ", no 3D stereo";
 		break;
 	case 1:
-		stereo = ", 3D stereo";
+		s += ", 3D stereo";
 		break;
 	case 2:
-		stereo = ", 3D stereo depends on user action";
+		s += ", 3D stereo depends on user action";
 		break;
 	case 3:
-		stereo = ", reserved";
+		s += ", reserved";
+		fail("Reserved stereo 0x03\n");
 		break;
 	}
-	printf("    Aspect %s%s%s\n", aspect, x[3] & 0x80 ? ", preferred" : "", stereo);
+	if (x[3] & 0x80)
+		s += ", preferred";
+
 	pix_clock = 1 + (x[0] + (x[1] << 8) + (x[2] << 16));
 	ha = 1 + (x[4] | (x[5] << 8));
 	hbl = 1 + (x[6] | (x[7] << 8));
@@ -74,12 +77,12 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	vspw = 1 + (x[18] | (x[19] << 8));
 	pvsync = ((x[17] >> 7) & 0x1 ) ? '+' : '-';
 	
-	printf("    Detailed mode: Clock %.3f MHz\n"
+	printf("    Detailed mode: Clock %.3f MHz, %s\n"
 	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
 	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
 	       "                   %chsync %cvsync\n"
 	       "                   VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
-	       (double)pix_clock/100.0,
+	       (double)pix_clock/100.0, s.c_str(),
 	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw,
 	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw,
 	       phsync, pvsync,
