@@ -106,6 +106,7 @@ struct edid_state {
 	void detailed_block(const unsigned char *x);
 	void parse_base_block(const unsigned char *x);
 
+	void print_vic_index(const char *prefix, unsigned idx, const char *suffix);
 	void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420);
 	void cta_y420cmdb(const unsigned char *x, unsigned length);
 	void cta_vfpdb(const unsigned char *x, unsigned length);

@@ -446,6 +446,29 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 	}
 }
 
+void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *suffix)
+{
+	printf("%sVDB SVD #%-3u: ", prefix, idx + 1);
+
+	if (!suffix)
+		suffix = "";
+	if (idx < svds.size()) {
+		unsigned char vic = svds[idx];
+		const struct timings *t = vic_to_mode(vic);
+		char buf[256];
+
+		sprintf(buf, "VIC %3u%s%s", vic, *suffix ? ", " : "", suffix);
+
+		if (t)
+			print_timings("", t, buf);
+		else
+			printf("Unknown (%s)\n", buf);
+	} else {
+		printf("SVD not (yet?) seen%s%s\n",
+		       *suffix ? ", " : "", suffix);
+	}
+}
+
 void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 {
 	unsigned i;
@@ -469,25 +492,8 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 			if (!(v & (1 << j)))
 				continue;
 
-			unsigned idx = i * 8 + j;
-
-			printf("    VDB SVD #%-3u: ", idx + 1);
-
-			if (idx < svds.size()) {
-				unsigned char vic = svds[idx];
-				const struct timings *t = vic_to_mode(vic);
-				char suffix[16];
-
-				sprintf(suffix, "VIC %3u", vic);
-
-				if (t)
-					print_timings("", t, suffix);
-				else
-					printf("Unknown (VIC %3u)\n", vic);
-			} else {
-				printf("SVD not (yet?) seen\n");
-			}
-			y420cmdb_max_idx = idx;
+			print_vic_index("    ", i * 8 + j, "");
+			y420cmdb_max_idx = i * 8 + j;
 		}
 	}
 }
@@ -520,11 +526,18 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 	}
 }
 
+static std::string hdmi_latency(unsigned char l, bool is_video)
+{
+	if (!l)
+		return "Unknown";
+	if (l == 0xff)
+		return is_video ? "Video not supported" : "Audio not supported";
+	return std::to_string(1 + 2 * l) + " ms";
+}
+
 void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 {
-	unsigned mask = 0, formats = 0;
 	unsigned len_vic, len_3d;
-	unsigned b = 0;
 
 	printf(" (HDMI)\n");
 	printf("    Source physical address %u.%u.%u.%u\n", x[3] >> 4, x[3] & 0x0f,
@@ -554,7 +567,6 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 	if (x[6] * 5 > 340)
 		fail("HDMI VSDB Max TMDS rate is > 340\n");
 
-	/* XXX the walk here is really ugly, and needs to be length-checked */
 	if (length < 8)
 		return;
 
@@ -570,14 +582,15 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 			printf("      Game\n");
 	}
 
+	unsigned b = 8;
 	if (x[7] & 0x80) {
-		printf("    Video latency: %u\n", x[8 + b]);
-		printf("    Audio latency: %u\n", x[9 + b]);
+		printf("    Video latency: %s\n", hdmi_latency(x[b], true).c_str());
+		printf("    Audio latency: %s\n", hdmi_latency(x[b + 1], false).c_str());
 		b += 2;
 
 		if (x[7] & 0x40) {
-			printf("    Interlaced video latency: %u\n", x[8 + b]);
-			printf("    Interlaced audio latency: %u\n", x[9 + b]);
+			printf("    Interlaced video latency: %s\n", hdmi_latency(x[b], true).c_str());
+			printf("    Interlaced audio latency: %s\n", hdmi_latency(x[b + 1], false).c_str());
 			b += 2;
 		}
 	}
@@ -585,40 +598,48 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 	if (!(x[7] & 0x20))
 		return;
 
+	bool mask = false;
+	bool formats = false;
+
 	printf("    Extended HDMI video details:\n");
-	if (x[8 + b] & 0x80)
+	if (x[b] & 0x80)
 		printf("      3D present\n");
-	if ((x[8 + b] & 0x60) == 0x20) {
+	if ((x[b] & 0x60) == 0x20) {
 		printf("      All advertised VICs are 3D-capable\n");
-		formats = 1;
+		formats = true;
 	}
-	if ((x[8 + b] & 0x60) == 0x40) {
+	if ((x[b] & 0x60) == 0x40) {
 		printf("      3D-capable-VIC mask present\n");
-		formats = 1;
-		mask = 1;
+		formats = true;
+		mask = true;
 	}
-	switch (x[8 + b] & 0x18) {
+	switch (x[b] & 0x18) {
 	case 0x00: break;
 	case 0x08:
 		   printf("      Base EDID image size is aspect ratio\n");
 		   break;
 	case 0x10:
-		   printf("      Base EDID image size is in units of 1cm\n");
+		   printf("      Base EDID image size is in units of 1 cm\n");
 		   break;
 	case 0x18:
-		   printf("      Base EDID image size is in units of 5cm\n");
+		   printf("      Base EDID image size is in units of 5 cm\n");
+		   max_display_width_mm *= 5;
+		   max_display_height_mm *= 5;
+		   printf("        Recalculated image size: %u cm x %u cm\n",
+			  max_display_width_mm / 10, max_display_height_mm / 10);
 		   break;
 	}
-	len_vic = (x[9 + b] & 0xe0) >> 5;
-	len_3d = (x[9 + b] & 0x1f) >> 0;
-	b += 2;
+	b++;
+	len_vic = (x[b] & 0xe0) >> 5;
+	len_3d = (x[b] & 0x1f) >> 0;
+	b++;
 
 	if (len_vic) {
 		unsigned i;
 
 		printf("      HDMI VICs:\n");
 		for (i = 0; i < len_vic; i++) {
-			unsigned char vic = x[8 + b + i];
+			unsigned char vic = x[b + i];
 			const struct timings *t;
 
 			if (vic && vic <= ARRAY_SIZE(edid_hdmi_mode_map)) {
@@ -636,47 +657,46 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 	}
 
 	if (len_3d) {
-		// TODO: needs more work.
 		if (formats) {
 			/* 3D_Structure_ALL_15..8 */
-			if (x[8 + b] & 0x80)
+			if (x[b] & 0x80)
 				printf("      3D: Side-by-side (half, quincunx)\n");
-			if (x[8 + b] & 0x01)
+			if (x[b] & 0x01)
 				printf("      3D: Side-by-side (half, horizontal)\n");
 			/* 3D_Structure_ALL_7..0 */
-			if (x[9 + b] & 0x40)
+			b++;
+			if (x[b] & 0x40)
 				printf("      3D: Top-and-bottom\n");
-			if (x[9 + b] & 0x20)
+			if (x[b] & 0x20)
 				printf("      3D: L + depth + gfx + gfx-depth\n");
-			if (x[9 + b] & 0x10)
+			if (x[b] & 0x10)
 				printf("      3D: L + depth\n");
-			if (x[9 + b] & 0x08)
+			if (x[b] & 0x08)
 				printf("      3D: Side-by-side (full)\n");
-			if (x[9 + b] & 0x04)
+			if (x[b] & 0x04)
 				printf("      3D: Line-alternative\n");
-			if (x[9 + b] & 0x02)
+			if (x[b] & 0x02)
 				printf("      3D: Field-alternative\n");
-			if (x[9 + b] & 0x01)
+			if (x[b] & 0x01)
 				printf("      3D: Frame-packing\n");
-			b += 2;
+			b++;
 			len_3d -= 2;
 		}
 		if (mask) {
 			unsigned i;
 
-			printf("      3D VIC indices:");
+			printf("      3D VIC indices that support these capabilities:\n");
 			/* worst bit ordering ever */
 			for (i = 0; i < 8; i++)
-				if (x[9 + b] & (1 << i)) {
+				if (x[b + 1] & (1 << i)) {
+					print_vic_index("        ", i, "");
 					hdmi_3d_vics_max_idx = i;
-					printf(" #%u", hdmi_3d_vics_max_idx + 1);
 				}
 			for (i = 0; i < 8; i++)
-				if (x[8 + b] & (1 << i)) {
+				if (x[b] & (1 << i)) {
+					print_vic_index("        ", i + 8, "");
 					hdmi_3d_vics_max_idx = i + 8;
-					printf(" #%u", hdmi_3d_vics_max_idx + 1);
 				}
-			printf("\n");
 			b += 2;
 			len_3d -= 2;
 		}
@@ -690,30 +710,52 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 		if (len_3d > 0) {
 			unsigned end = b + len_3d;
 
+			printf("      3D VIC indices with specific capabilities:\n");
 			while (b < end) {
-				unsigned char idx = x[8 + b] >> 4;
+				unsigned char idx = x[b] >> 4;
+				std::string s;
 
 				if (idx > hdmi_2d_vics_max_idx)
 					hdmi_2d_vics_max_idx = idx;
-				printf("      VIC #%u supports ", idx + 1);
-				switch (x[8 + b] & 0x0f) {
-				case 0: printf("frame packing"); break;
-				case 6: printf("top-and-bottom"); break;
+				switch (x[b] & 0x0f) {
+				case 0: s = "frame packing"; break;
+				case 1: s = "field alternative"; break;
+				case 2: s = "line alternative"; break;
+				case 3: s = "side-by-side (full)"; break;
+				case 4: s = "L + depth"; break;
+				case 5: s = "L + depth + gfx + gfx-depth"; break;
+				case 6: s = "top-and-bottom"; break;
 				case 8:
-					if ((x[9 + b] >> 4) == 1) {
-						printf("side-by-side (half, horizontal)");
-						break;
+					s = "side-by-side";
+					switch (x[b + 1] >> 4) {
+					case 0x00: break;
+					case 0x01: s += ", horizontal"; break;
+					case 0x02: case 0x03: case 0x04: case 0x05:
+						   s += ", not in use";
+						   fail("not-in-use 3D_Detail_X value 0x%02x\n",
+							x[b + 1] >> 4);
+						   break;
+					case 0x06: s += ", all quincunx combinations"; break;
+					case 0x07: s += ", quincunx odd/left, odd/right"; break;
+					case 0x08: s += ", quincunx odd/left, even/right"; break;
+					case 0x09: s += ", quincunx even/left, odd/right"; break;
+					case 0x0a: s += ", quincunx even/left, even/right"; break;
+					default:
+						   s += ", reserved";
+						   fail("reserved 3D_Detail_X value 0x%02x\n",
+							x[b + 1] >> 4);
+						   break;
 					}
+					break;
 				default:
-					printf("Unknown (0x%02x)", x[8 + b] & 0x0f);
+					s = "unknown (";
+					s += utohex(x[b] & 0x0f) + ")";
+					fail("Unknown 3D_Structure_X value 0x%02x\n", x[b] & 0x0f);
 					break;
 				}
-				printf("\n");
-
-				if ((x[8 + b] & 0x0f) > 7) {
-					/* Optional 3D_Detail_X and reserved */
+				print_vic_index("        ", idx, s.c_str());
+				if ((x[b] & 0x0f) >= 8)
 					b++;
-				}
 				b++;
 			}
 		}
