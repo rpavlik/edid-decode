@@ -21,6 +21,8 @@
 #define EDID_MAX_BLOCKS 256U
 
 // Video Timings
+// If interlaced is true, then the vertical blanking
+// for each field is (vfp + vsync + vbp + 0.5)
 struct timings {
 	unsigned w, h;
 	unsigned refresh;

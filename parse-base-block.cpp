@@ -70,7 +70,7 @@ static const struct {
 				    16, 112, 112, true, 6, 8, 23, true } },
 
 	{ 0x0f, 0x0000, 0x000000, { 1024, 768, 43, 4, 3, 35522, 44900, false, true,
-				    8, 176, 56, true, 0, 4, 20, true } },  // Check
+				    8, 176, 56, true, 0, 4, 20, true } },
 	{ 0x10, 0x6140, 0x000000, { 1024, 768, 60, 4, 3, 48363, 65000, false, false,
 				    24, 136, 160, false, 3, 6, 29, false } },
 	{ 0x11, 0x614c, 0x000000, { 1024, 768, 70, 4, 3, 56476, 75000, false, false,
@@ -266,7 +266,7 @@ static const struct {
 	{ 0x00, { 832, 624, 75, 4, 3, 50000, 57600, false, false,
 	          48, 64, 208, false, 1, 3, 39, false }, "Apple" },
 	{ 0x00, { 1024, 768, 87, 4, 3, 35601, 45000, false, true,
-	          8, 176, 56, true, 1, 4, 20, true }, "IBM" }, // CHECK: bp odd 20.5 even 20, fp odd 0 even 0.5
+	          8, 176, 56, true, 0, 4, 20, true }, "IBM" },
 	{ 0x10 },
 	{ 0x11 },
 	{ 0x12 },
