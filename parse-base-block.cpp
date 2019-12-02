@@ -812,8 +812,11 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 	unsigned w, h, refresh;
 	unsigned i;
 
-	if (b1 == 0x01 && b2 == 0x01)
+	if (b1 <= 0x01 && b2 <= 0x01) {
+		if (!b1 || !b2)
+			fail("Use 0x0101 as the invalid Standard Timings code\n");
 		return;
+	}
 
 	if (b1 == 0) {
 		fail("Non-conformant standard timing (0 horiz)\n");
@@ -1300,17 +1303,23 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 		break;
 	}
 
-	if (!ha || !hbl || !hso || !hspw || !va || !vbl || !vso || !vspw)
+	bool ok = true;
+
+	if (!ha || !hbl || !hso || !hspw || !va || !vbl || !vso || !vspw) {
 		fail("0 values in the detailed timings:\n"
 		     "    Horizontal Active/Blanking %u/%u\n"
 		     "    Horizontal Sync Offset/Width %u/%u\n"
 		     "    Vertical Active/Blanking %u/%u\n"
 		     "    Vertical Sync Offset/Width %u/%u\n",
 		     ha, hbl, hso, hspw, va, vbl, vso, vspw);
+		ok = false;
+	}
 
 	pixclk_khz = (x[0] + (x[1] << 8)) * 10;
-	if (pixclk_khz < 10000)
+	if (pixclk_khz < 10000) {
 		fail("Pixelclock < 10 MHz\n");
+		ok = false;
+	}
 	if ((ha + hbl) && (va + vbl))
 		refresh = (pixclk_khz * 1000.0) / ((ha + hbl) * (va + vbl));
 	else
@@ -1318,17 +1327,19 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	hor_mm = x[12] + ((x[14] & 0xf0) << 4);
 	vert_mm = x[13] + ((x[14] & 0x0f) << 8);
 	printf("%sDetailed mode: Clock %.3f MHz, %u mm x %u mm\n"
-	       "%s               %4u %4u %4u %4u (%3u %3u %3d) hborder %u\n"
-	       "%s               %4u %4u %4u %4u (%3u %3u %3d) vborder %u\n"
+	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
+	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
 	       "%s               %s%s\n"
 	       "%s               VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       prefix,
 	       pixclk_khz / 1000.0,
 	       hor_mm, vert_mm,
 	       prefix,
-	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw, hborder,
+	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw,
+	       hborder ? (std::string(" hborder ") + std::to_string(hborder)).c_str() : "",
 	       prefix,
-	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw, vborder,
+	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw,
+	       vborder ? (std::string(" vborder ") + std::to_string(vborder)).c_str() : "",
 	       prefix,
 	       s_sync.c_str(), s_flags.c_str(),
 	       prefix,
@@ -1365,6 +1376,12 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	}
 	if (has_spwg && timing_descr_cnt == 2)
 		printf("SPWG Module Revision: %hhu\n", x[17]);
+	if (!ok) {
+		std::string s = prefix;
+
+		s += "               ";
+		hex_block(s.c_str(), x, 18, true, 18);
+	}
 }
 
 void edid_state::detailed_block(const unsigned char *x)

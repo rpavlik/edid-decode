@@ -937,7 +937,7 @@ static void cta_sadb(const unsigned char *x, unsigned length)
 	}
 }
 
-static float decode_uchar_as_float(unsigned char x)
+static double decode_uchar_as_double(unsigned char x)
 {
 	signed char s = (signed char)x;
 
@@ -966,9 +966,9 @@ static void cta_rcdb(const unsigned char *x, unsigned length)
 		printf("    Zmax: %u dm\n", x[6]);
 	}
 	if ((x[0] & 0x80) && length >= 10) {
-		printf("    DisplayX: %.3f * Xmax\n", decode_uchar_as_float(x[7]));
-		printf("    DisplayY: %.3f * Ymax\n", decode_uchar_as_float(x[8]));
-		printf("    DisplayZ: %.3f * Zmax\n", decode_uchar_as_float(x[9]));
+		printf("    DisplayX: %.3f * Xmax\n", decode_uchar_as_double(x[7]));
+		printf("    DisplayY: %.3f * Ymax\n", decode_uchar_as_double(x[8]));
+		printf("    DisplayZ: %.3f * Zmax\n", decode_uchar_as_double(x[9]));
 	}
 }
 
@@ -1011,9 +1011,9 @@ static void cta_sldb(const unsigned char *x, unsigned length)
 		if ((x[1] & 0x1f) < ARRAY_SIZE(speaker_location))
 			printf("      Speaker: %s\n", speaker_location[x[1] & 0x1f]);
 		if (length >= 5 && (x[0] & 0x40)) {
-			printf("      X: %.3f * Xmax\n", decode_uchar_as_float(x[2]));
-			printf("      Y: %.3f * Ymax\n", decode_uchar_as_float(x[3]));
-			printf("      Z: %.3f * Zmax\n", decode_uchar_as_float(x[4]));
+			printf("      X: %.3f * Xmax\n", decode_uchar_as_double(x[2]));
+			printf("      Y: %.3f * Ymax\n", decode_uchar_as_double(x[3]));
+			printf("      Z: %.3f * Zmax\n", decode_uchar_as_double(x[4]));
 			length -= 3;
 			x += 3;
 		}
