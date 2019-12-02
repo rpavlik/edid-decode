@@ -266,7 +266,7 @@ static const struct {
 	{ 0x00, { 832, 624, 75, 4, 3, 50000, 57600, false, false,
 	          48, 64, 208, false, 1, 3, 39, false }, "Apple" },
 	{ 0x00, { 1024, 768, 87, 4, 3, 35601, 45000, false, true,
-	          8, 56, 176, true, 1, 4, 20, true }, "IBM" }, // CHECK: odd 20.5 even 20, odd 0 even 0.5
+	          8, 176, 56, true, 1, 4, 20, true }, "IBM" }, // CHECK: bp odd 20.5 even 20, fp odd 0 even 0.5
 	{ 0x10 },
 	{ 0x11 },
 	{ 0x12 },
