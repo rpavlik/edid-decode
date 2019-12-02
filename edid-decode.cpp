@@ -591,7 +591,7 @@ std::string block_name(unsigned char block)
 	case 0x10: return "VTB Extension Block";
 	case 0x40: return "Display Information Extension Block";
 	case 0x50: return "Localized String Extension Block";
-	case 0x70: return "Display ID Extension Block";
+	case 0x70: return "DisplayID Extension Block";
 	case 0xf0: return "Block Map Extension Block";
 	case 0xff: return "Manufacturer-Specific Extension Block";
 	default:
