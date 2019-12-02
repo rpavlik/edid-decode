@@ -354,7 +354,7 @@ static const struct timings *find_std_id(unsigned short std_id)
 /*
  * Copied from xserver/hw/xfree86/modes/xf86gtf.c
  */
-void edid_state::edid_gtf_mode(const char *prefix, struct timings *t)
+void edid_state::edid_gtf_mode(struct timings *t)
 {
 #define CELL_GRAN         8.0   /* assumed character cell granularity        */
 #define MIN_PORCH         1     /* minimum front porch                       */
@@ -514,15 +514,12 @@ void edid_state::edid_gtf_mode(const char *prefix, struct timings *t)
 	 */
 
 	t->hor_freq_hz = 1000000.0 / h_period;
-
-	print_timings(prefix, t, "GTF");
 }
 
 /*
  * Copied from xserver/hw/xfree86/modes/xf86cvt.c
  */
-void edid_state::edid_cvt_mode(const char *prefix,
-			       struct timings *t, bool preferred)
+void edid_state::edid_cvt_mode(struct timings *t)
 {
 	int HDisplay = t->w;
 	int VDisplay = t->h;
@@ -690,8 +687,6 @@ void edid_state::edid_cvt_mode(const char *prefix,
 	t->hfp = HSyncStart - HDisplay;
 	t->hsync = HSyncEnd - HSyncStart;
 	t->hbp = HTotal - HSyncEnd;
-
-	print_timings(prefix, t, preferred ? "CVT, preferred vertical rate" : "CVT");
 }
 
 void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
@@ -744,26 +739,33 @@ void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
 	if (!(x[2] & (1 << (4 - preferred))))
 		fail("The preferred CVT Vertical Rate is not supported\n");
 
+	static const char *s_pref = "CVT, preferred vertical rate";
+
 	if (x[2] & 0x10) {
 		cvt_t.refresh = 50;
-		edid_cvt_mode("    ", &cvt_t, preferred == 0);
+		edid_cvt_mode(&cvt_t);
+		print_timings("    ", &cvt_t, preferred == 0 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x08) {
 		cvt_t.refresh = 60;
-		edid_cvt_mode("    ", &cvt_t, preferred == 1);
+		edid_cvt_mode(&cvt_t);
+		print_timings("    ", &cvt_t, preferred == 1 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x04) {
 		cvt_t.refresh = 75;
-		edid_cvt_mode("    ", &cvt_t, preferred == 2);
+		edid_cvt_mode(&cvt_t);
+		print_timings("    ", &cvt_t, preferred == 2 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x02) {
 		cvt_t.refresh = 85;
-		edid_cvt_mode("    ", &cvt_t, preferred == 3);
+		edid_cvt_mode(&cvt_t);
+		print_timings("    ", &cvt_t, preferred == 3 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x01) {
 		cvt_t.refresh = 60;
 		cvt_t.rb = true;
-		edid_cvt_mode("    ", &cvt_t, preferred == 4);
+		edid_cvt_mode(&cvt_t);
+		print_timings("    ", &cvt_t, preferred == 4 ? s_pref : "CVT");
 	}
 }
 
@@ -812,9 +814,9 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 	unsigned w, h, refresh;
 	unsigned i;
 
-	if (b1 <= 0x01 && b2 <= 0x01) {
-		if (!b1 || !b2)
-			fail("Use 0x0101 as the invalid Standard Timings code\n");
+	if (b1 <= 0x01) {
+		if (b1 != 0x01 || b2 != 0x01)
+			fail("Use 0x0101 as the invalid Standard Timings code, not 0x%02x%02x\n", b1, b2);
 		return;
 	}
 
@@ -822,6 +824,7 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 		fail("Non-conformant standard timing (0 horiz)\n");
 		return;
 	}
+
 	t = find_std_id((b1 << 8) | b2);
 	if (t) {
 		print_timings("  ", t, "DMT");
@@ -894,18 +897,21 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 
 	if (edid_minor >= 4) {
 		uses_cvt = true;
-		edid_cvt_mode("  ", &formula, false);
+		edid_cvt_mode(&formula);
+		print_timings("  ", &formula, "EDID 1.4 source: CVT");
 		/*
 		 * A EDID 1.3 source will assume GTF, so both GTF and CVT
 		 * have to be supported.
 		 */
 		uses_gtf = true;
-		edid_gtf_mode("  ", &formula);
+		edid_gtf_mode(&formula);
+		print_timings("  ", &formula, "EDID 1.3 source: GTF");
 	} else if (edid_minor >= 2) {
 		uses_gtf = true;
-		edid_gtf_mode("  ", &formula);
+		edid_gtf_mode(&formula);
+		print_timings("  ", &formula, "GTF");
 	} else {
-		printf("  %ux%u@%u %u:%u\n",
+		printf("  %5ux%-5u %3u Hz %3u:%-3u\n",
 		       w, h, refresh, ratio_w, ratio_h);
 	}
 }
