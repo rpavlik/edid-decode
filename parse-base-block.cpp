@@ -373,7 +373,6 @@ void edid_state::edid_gtf_mode(struct timings *t)
 	double h_pixels_rnd;
 	double v_lines_rnd;
 	double v_field_rate_rqd;
-	double interlace;
 	double h_period_est;
 	double vsync_plus_bp;
 	double total_v_lines;
@@ -413,14 +412,7 @@ void edid_state::edid_gtf_mode(struct timings *t)
 	 *                                          [I/P FREQ RQD])
 	 */
 
-	v_field_rate_rqd = t->interlaced ? (t->refresh * 2.0) : (t->refresh);
-
-	/*  6. If interlace is required, then set variable [INTERLACE]=0.5:
-	 *
-	 *  [INTERLACE]=(IF([INT RQD?]="y",0.5,0))
-	 */
-
-	interlace = t->interlaced ? 0.5 : 0.0;
+	v_field_rate_rqd = t->refresh;
 
 	/*  7. Estimate the Horizontal period
 	 *
@@ -430,7 +422,7 @@ void edid_state::edid_gtf_mode(struct timings *t)
 	 */
 
 	h_period_est = (((1.0/v_field_rate_rqd) - (MIN_VSYNC_PLUS_BP/1000000.0))
-			/ (v_lines_rnd + MIN_PORCH + interlace)
+			/ (v_lines_rnd + MIN_PORCH)
 			* 1000000.0);
 
 	/*  8. Find the number of lines in V sync + back porch:
@@ -447,8 +439,10 @@ void edid_state::edid_gtf_mode(struct timings *t)
 	 *                    [MIN PORCH RND]
 	 */
 
-	total_v_lines = v_lines_rnd + vsync_plus_bp +
-		interlace + MIN_PORCH;
+	total_v_lines = v_lines_rnd + vsync_plus_bp + MIN_PORCH;
+	t->vbp = vsync_plus_bp - V_SYNC_RQD;
+	t->vsync = V_SYNC_RQD;
+	t->vfp = MIN_PORCH;
 
 	/*  11. Estimate the Vertical field frequency:
 	 *
@@ -512,8 +506,28 @@ void edid_state::edid_gtf_mode(struct timings *t)
 	 *
 	 *  [H FREQ] = 1000 / [H PERIOD]
 	 */
-
 	t->hor_freq_hz = 1000000.0 / h_period;
+
+	/* Stage 1 computations are now complete; I should really pass
+	   the results to another function and do the Stage 2
+	   computations, but I only need a few more values so I'll just
+	   append the computations here for now */
+	/*  17. Find the number of pixels in the horizontal sync period:
+	 *
+	 *  [H SYNC (PIXELS)] =(ROUND(([H SYNC%] / 100 * [TOTAL PIXELS] /
+	 *                             [CELL GRAN RND]),0))*[CELL GRAN RND]
+	 */
+	t->hsync = rint(H_SYNC_PERCENT / 100.0 * total_pixels / CELL_GRAN) * CELL_GRAN;
+	/*  18. Find the number of pixels in the horizontal front porch period:
+	 *
+	 *  [H FRONT PORCH (PIXELS)] = ([H BLANK (PIXELS)]/2)-[H SYNC (PIXELS)]
+	 */
+	t->hfp = (h_blank / 2.0) - t->hsync;
+	t->hbp = h_blank - t->hfp - t->hsync;
+	t->pos_pol_hsync = false;
+	t->pos_pol_vsync = true;
+	t->interlaced = false;
+	t->rb = false;
 }
 
 /*
@@ -687,6 +701,7 @@ void edid_state::edid_cvt_mode(struct timings *t)
 	t->hfp = HSyncStart - HDisplay;
 	t->hsync = HSyncEnd - HSyncStart;
 	t->hbp = HTotal - HSyncEnd;
+	t->interlaced = false;
 }
 
 void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
