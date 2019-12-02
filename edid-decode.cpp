@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -149,10 +150,19 @@ void edid_state::print_timings(const char *prefix,
 		fail("Unknown short timings\n");
 		return;
 	}
-	min_vert_freq_hz = min(min_vert_freq_hz, t->refresh);
-	max_vert_freq_hz = max(max_vert_freq_hz, t->refresh);
-	min_hor_freq_hz = min(min_hor_freq_hz, t->hor_freq_hz);
-	max_hor_freq_hz = max(max_hor_freq_hz, t->hor_freq_hz);
+
+	unsigned w_total = t->w + t->hfp + t->hsync + t->hbp;
+	double hor_freq_khz = (double)t->pixclk_khz / w_total;
+
+	double h_total = t->h + t->vfp + t->vsync + t->vbp;
+	if (t->interlaced)
+		h_total = t->h / 2.0 + t->vfp + t->vsync + t->vbp + 0.5;
+	double refresh = (double)t->pixclk_khz * 1000.0 / (w_total * h_total);
+
+	min_vert_freq_hz = min(min_vert_freq_hz, (unsigned)floor(refresh));
+	max_vert_freq_hz = max(max_vert_freq_hz, (unsigned)ceil(refresh));
+	min_hor_freq_hz = min(min_hor_freq_hz, (unsigned)floor(hor_freq_khz * 1000.0));
+	max_hor_freq_hz = max(max_hor_freq_hz, (unsigned)ceil(hor_freq_khz * 1000.0));
 	max_pixclk_khz = max(max_pixclk_khz, t->pixclk_khz);
 
 	std::string s(suffix);
@@ -167,12 +177,12 @@ void edid_state::print_timings(const char *prefix,
 
 	char buf[10];
 	sprintf(buf, "%u%s", t->h, t->interlaced ? "i" : "");
-	printf("%s%5ux%-5s %3u Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
+	printf("%s%5ux%-5s %6.2f Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
 	       prefix,
 	       t->w, buf,
-	       t->refresh,
+	       refresh,
 	       t->ratio_w, t->ratio_h,
-	       t->hor_freq_hz / 1000.0,
+	       hor_freq_khz,
 	       t->pixclk_khz / 1000.0,
 	       s.c_str());
 }

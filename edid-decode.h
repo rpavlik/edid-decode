@@ -27,7 +27,7 @@ struct timings {
 	unsigned w, h;
 	unsigned refresh;
 	unsigned ratio_w, ratio_h;
-	unsigned hor_freq_hz, pixclk_khz;
+	unsigned pixclk_khz;
 	bool rb, interlaced;
 	unsigned hfp, hsync, hbp;
 	bool pos_pol_hsync;
