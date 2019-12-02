@@ -250,9 +250,9 @@ static const struct {
 
 	/* 0x23 bit 7 - 0 */
 	{ 0x00, { 720, 400, 70, 9, 5, 31469, 28250, false, false,
-	          0, 0, 0, false, 0, 0, 0, true }, "IBM" },
+	          18, 108, 54, false, 6, 2, 26, true }, "IBM" },
 	{ 0x00, { 720, 400, 88, 9, 5, 39500, 35500, false, false,
-	          0, 0, 0, false, 0, 0, 0, false }, "IBM" },
+	          18, 108, 54, false, 6, 2, 26, true }, "IBM" },
 	{ 0x04 },
 	{ 0x00, { 640, 480, 67, 4, 3, 34722, 30000, false, false,
 	          80, 64, 80, false, 3, 3, 39, false }, "Apple" },
@@ -265,8 +265,8 @@ static const struct {
 	{ 0x0b },
 	{ 0x00, { 832, 624, 75, 4, 3, 50000, 57600, false, false,
 	          48, 64, 208, false, 1, 3, 39, false }, "Apple" },
-	{ 0x00, { 1024, 768, 87, 4, 3, 35522, 44900, false, true,
-	          0, 0, 0, false, 0, 0, 0, false }, "IBM" },
+	{ 0x00, { 1024, 768, 87, 4, 3, 35601, 45000, false, true,
+	          8, 56, 176, true, 1, 4, 20, true }, "IBM" }, // CHECK: odd 20.5 even 20, odd 0 even 0.5
 	{ 0x10 },
 	{ 0x11 },
 	{ 0x12 },
