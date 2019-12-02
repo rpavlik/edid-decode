@@ -35,208 +35,208 @@ static const struct {
 	unsigned cvt_id;
 	struct timings t;
 } dmt_timings[] = {
-	{ 0x01, 0x0000, 0x000000, { 640, 350, 85, 64, 35, 31500, false, false,
+	{ 0x01, 0x0000, 0x000000, { 640, 350, 64, 35, 31500, false, false,
 				    32, 64, 96, true, 32, 3, 60, false } },
 
-	{ 0x02, 0x3119, 0x000000, { 640, 400, 85, 16, 10, 31500, false, false,
+	{ 0x02, 0x3119, 0x000000, { 640, 400, 16, 10, 31500, false, false,
 				    32, 64, 96, false, 1, 3, 41, true } },
 
-	{ 0x03, 0x0000, 0x000000, { 720, 400, 85, 9, 5, 35500, false, false,
+	{ 0x03, 0x0000, 0x000000, { 720, 400, 9, 5, 35500, false, false,
 				    36, 72, 108, false, 1, 3, 42, true } },
 
-	{ 0x04, 0x3140, 0x000000, { 640, 480, 60, 4, 3, 25175, false, false,
+	{ 0x04, 0x3140, 0x000000, { 640, 480, 4, 3, 25175, false, false,
 				    16, 96, 48, false, 10, 2, 33, false, true } },
-	{ 0x05, 0x314c, 0x000000, { 640, 480, 72, 4, 3, 31500, false, false,
+	{ 0x05, 0x314c, 0x000000, { 640, 480, 4, 3, 31500, false, false,
 				    24, 40, 128, false, 9, 3, 28, false, true } },
-	{ 0x06, 0x314f, 0x000000, { 640, 480, 75, 4, 3, 31500, false, false,
+	{ 0x06, 0x314f, 0x000000, { 640, 480, 4, 3, 31500, false, false,
 				    16, 64, 120, false, 1, 3, 16, false } },
-	{ 0x07, 0x3159, 0x000000, { 640, 480, 85, 4, 3, 36000, false, false,
+	{ 0x07, 0x3159, 0x000000, { 640, 480, 4, 3, 36000, false, false,
 				    56, 56, 80, false, 1, 3, 25, false } },
 
-	{ 0x08, 0x0000, 0x000000, { 800, 600, 56, 4, 3, 36000, false, false,
+	{ 0x08, 0x0000, 0x000000, { 800, 600, 4, 3, 36000, false, false,
 				    24, 72, 128, true, 1, 2, 22, true } },
-	{ 0x09, 0x4540, 0x000000, { 800, 600, 60, 4, 3, 40000, false, false,
+	{ 0x09, 0x4540, 0x000000, { 800, 600, 4, 3, 40000, false, false,
 				    40, 128, 88, true, 1, 4, 23, true } },
-	{ 0x0a, 0x454c, 0x000000, { 800, 600, 72, 4, 3, 50000, false, false,
+	{ 0x0a, 0x454c, 0x000000, { 800, 600, 4, 3, 50000, false, false,
 				    56, 120, 64, true, 37, 6, 23, true } },
-	{ 0x0b, 0x454f, 0x000000, { 800, 600, 75, 4, 3, 49500, false, false,
+	{ 0x0b, 0x454f, 0x000000, { 800, 600, 4, 3, 49500, false, false,
 				    16, 80, 160, true, 1, 3, 21, true } },
-	{ 0x0c, 0x4559, 0x000000, { 800, 600, 85, 4, 3, 56250, false, false,
+	{ 0x0c, 0x4559, 0x000000, { 800, 600, 4, 3, 56250, false, false,
 				    32, 64, 152, true, 1, 3, 27, true } },
-	{ 0x0d, 0x0000, 0x000000, { 800, 600, 120, 4, 3, 73250, true, false,
+	{ 0x0d, 0x0000, 0x000000, { 800, 600, 4, 3, 73250, true, false,
 				    48, 32, 80, true, 3, 4, 29, false } },
 
-	{ 0x0e, 0x0000, 0x000000, { 848, 480, 60, 16, 9, 33750, false, false,
+	{ 0x0e, 0x0000, 0x000000, { 848, 480, 16, 9, 33750, false, false,
 				    16, 112, 112, true, 6, 8, 23, true } },
 
-	{ 0x0f, 0x0000, 0x000000, { 1024, 768, 43, 4, 3, 44900, false, true,
+	{ 0x0f, 0x0000, 0x000000, { 1024, 768, 4, 3, 44900, false, true,
 				    8, 176, 56, true, 0, 4, 20, true } },
-	{ 0x10, 0x6140, 0x000000, { 1024, 768, 60, 4, 3, 65000, false, false,
+	{ 0x10, 0x6140, 0x000000, { 1024, 768, 4, 3, 65000, false, false,
 				    24, 136, 160, false, 3, 6, 29, false } },
-	{ 0x11, 0x614c, 0x000000, { 1024, 768, 70, 4, 3, 75000, false, false,
+	{ 0x11, 0x614c, 0x000000, { 1024, 768, 4, 3, 75000, false, false,
 				    24, 136, 144, false, 3, 6, 29, false } },
-	{ 0x12, 0x614f, 0x000000, { 1024, 768, 75, 4, 3, 78750, false, false,
+	{ 0x12, 0x614f, 0x000000, { 1024, 768, 4, 3, 78750, false, false,
 				    16, 96, 176, true, 1, 3, 28, true } },
-	{ 0x13, 0x6159, 0x000000, { 1024, 768, 85, 4, 3, 94500, false, false,
+	{ 0x13, 0x6159, 0x000000, { 1024, 768, 4, 3, 94500, false, false,
 				    48, 96, 208, true, 1, 3, 36, true } },
-	{ 0x14, 0x0000, 0x000000, { 1024, 768, 120, 4, 3, 115500, true, false,
+	{ 0x14, 0x0000, 0x000000, { 1024, 768, 4, 3, 115500, true, false,
 				    48, 32, 80, true, 3, 4, 38, false } },
 
-	{ 0x15, 0x714f, 0x000000, { 1152, 864, 75, 4, 3, 108000, false, false,
+	{ 0x15, 0x714f, 0x000000, { 1152, 864, 4, 3, 108000, false, false,
 				    64, 128, 256, true, 1, 3, 32, true } },
 
-	{ 0x55, 0x81c0, 0x000000, { 1280, 720, 60, 16, 9, 74250, false, false,
+	{ 0x55, 0x81c0, 0x000000, { 1280, 720, 16, 9, 74250, false, false,
 				    110, 40, 220, true, 5, 5, 20, true } },
 
-	{ 0x16, 0x0000, 0x7f1c21, { 1280, 768, 60, 5, 3, 68250, true, false,
+	{ 0x16, 0x0000, 0x7f1c21, { 1280, 768, 5, 3, 68250, true, false,
 				    48, 32, 80, true, 3, 7, 12, false } },
-	{ 0x17, 0x0000, 0x7f1c28, { 1280, 768, 60, 5, 3, 79500, false, false,
+	{ 0x17, 0x0000, 0x7f1c28, { 1280, 768, 5, 3, 79500, false, false,
 				    64, 128, 192, false, 3, 7, 20, true } },
-	{ 0x18, 0x0000, 0x7f1c44, { 1280, 768, 75, 5, 3, 102250, false, false,
+	{ 0x18, 0x0000, 0x7f1c44, { 1280, 768, 5, 3, 102250, false, false,
 				    80, 128, 208, false, 3, 7, 27, true } },
-	{ 0x19, 0x0000, 0x7f1c62, { 1280, 768, 85, 5, 3, 117500, false, false,
+	{ 0x19, 0x0000, 0x7f1c62, { 1280, 768, 5, 3, 117500, false, false,
 				    80, 136, 216, false, 3, 7, 31, true } },
-	{ 0x1a, 0x0000, 0x000000, { 1280, 768, 120, 5, 3, 140250, false, false,
+	{ 0x1a, 0x0000, 0x000000, { 1280, 768, 5, 3, 140250, false, false,
 				    48, 32, 80, true, 3, 7, 35, false } },
 
-	{ 0x1b, 0x0000, 0x8f1821, { 1280, 800, 60, 16, 10, 71000, true, false,
+	{ 0x1b, 0x0000, 0x8f1821, { 1280, 800, 16, 10, 71000, true, false,
 				    48, 32, 80, true, 3, 6, 14, false } },
-	{ 0x1c, 0x8100, 0x8f1828, { 1280, 800, 60, 16, 10, 83500, false, false,
+	{ 0x1c, 0x8100, 0x8f1828, { 1280, 800, 16, 10, 83500, false, false,
 				    72, 128, 200, false, 3, 6, 22, true } },
-	{ 0x1d, 0x810f, 0x8f1844, { 1280, 800, 75, 16, 10, 106500, false, false,
+	{ 0x1d, 0x810f, 0x8f1844, { 1280, 800, 16, 10, 106500, false, false,
 				    80, 128, 208, false, 3, 6, 29, true } },
-	{ 0x1e, 0x8119, 0x8f1862, { 1280, 800, 85, 16, 10, 122500, false, false,
+	{ 0x1e, 0x8119, 0x8f1862, { 1280, 800, 16, 10, 122500, false, false,
 				    80, 136, 216, false, 3, 6, 34, true } },
-	{ 0x1f, 0x0000, 0x000000, { 1280, 800, 120, 16, 10, 146250, true, false,
+	{ 0x1f, 0x0000, 0x000000, { 1280, 800, 16, 10, 146250, true, false,
 				    48, 32, 80, true, 3, 6, 38, false } },
 
-	{ 0x20, 0x8140, 0x000000, { 1280, 960, 60, 4, 3, 108000, false, false,
+	{ 0x20, 0x8140, 0x000000, { 1280, 960, 4, 3, 108000, false, false,
 				    96, 112, 312, true, 1, 3, 36, true } },
-	{ 0x21, 0x8159, 0x000000, { 1280, 960, 85, 4, 3, 148500, false, false,
+	{ 0x21, 0x8159, 0x000000, { 1280, 960, 4, 3, 148500, false, false,
 				    64, 160, 224, true, 1, 3, 47, true } },
-	{ 0x22, 0x0000, 0x000000, { 1280, 960, 120, 4, 3, 175500, true, false,
+	{ 0x22, 0x0000, 0x000000, { 1280, 960, 4, 3, 175500, true, false,
 				    48, 32, 80, true, 3, 4, 50, false } },
 
-	{ 0x23, 0x8180, 0x000000, { 1280, 1024, 60, 5, 4, 108000, false, false,
+	{ 0x23, 0x8180, 0x000000, { 1280, 1024, 5, 4, 108000, false, false,
 				    48, 112, 248, true, 1, 3, 38, true } },
-	{ 0x24, 0x818f, 0x000000, { 1280, 1024, 75, 5, 4, 135000, false, false,
+	{ 0x24, 0x818f, 0x000000, { 1280, 1024, 5, 4, 135000, false, false,
 				    16, 144, 248, true, 1, 3, 38, true } },
-	{ 0x25, 0x8199, 0x000000, { 1280, 1024, 85, 5, 4, 157500, false, false,
+	{ 0x25, 0x8199, 0x000000, { 1280, 1024, 5, 4, 157500, false, false,
 				    64, 160, 224, true, 1, 3, 44, true } },
-	{ 0x26, 0x0000, 0x000000, { 1280, 1024, 120, 5, 4, 187250, true, false,
+	{ 0x26, 0x0000, 0x000000, { 1280, 1024, 5, 4, 187250, true, false,
 				    48, 32, 80, true, 3, 7, 50, false } },
 
-	{ 0x27, 0x0000, 0x000000, { 1360, 768, 60, 85, 48, 85500, false, false,
+	{ 0x27, 0x0000, 0x000000, { 1360, 768, 85, 48, 85500, false, false,
 				    64, 112, 256, true, 3, 6, 18, true } },
-	{ 0x28, 0x0000, 0x000000, { 1360, 768, 120, 85, 48, 148250, true, false,
+	{ 0x28, 0x0000, 0x000000, { 1360, 768, 85, 48, 148250, true, false,
 				    48, 32, 80, true, 3, 5, 37, false } },
 
-	{ 0x51, 0x0000, 0x000000, { 1366, 768, 60, 85, 48, 85500, false, false,
+	{ 0x51, 0x0000, 0x000000, { 1366, 768, 85, 48, 85500, false, false,
 				    70, 143, 213, true, 3, 3, 24, true } },
-	{ 0x56, 0x0000, 0x000000, { 1366, 768, 60, 85, 48, 72000, true, false,
+	{ 0x56, 0x0000, 0x000000, { 1366, 768, 85, 48, 72000, true, false,
 				    14, 56, 64, true, 1, 3, 28, true } },
 
-	{ 0x29, 0x0000, 0x0c2021, { 1400, 1050, 60, 4, 3, 101000, true, false,
+	{ 0x29, 0x0000, 0x0c2021, { 1400, 1050, 4, 3, 101000, true, false,
 				    48, 32, 80, true, 3, 4, 23, false } },
-	{ 0x2a, 0x9040, 0x0c2028, { 1400, 1050, 60, 4, 3, 121750, false, false,
+	{ 0x2a, 0x9040, 0x0c2028, { 1400, 1050, 4, 3, 121750, false, false,
 				    88, 144, 232, false, 3, 4, 32, true } },
-	{ 0x2b, 0x904f, 0x0c2044, { 1400, 1050, 75, 4, 3, 156000, false, false,
+	{ 0x2b, 0x904f, 0x0c2044, { 1400, 1050, 4, 3, 156000, false, false,
 				    104, 144, 248, false, 3, 4, 42, true } },
-	{ 0x2c, 0x9059, 0x0c2062, { 1400, 1050, 85, 4, 3, 179500, false, false,
+	{ 0x2c, 0x9059, 0x0c2062, { 1400, 1050, 4, 3, 179500, false, false,
 				    104, 152, 256, false, 3, 4, 48, true } },
-	{ 0x2d, 0x0000, 0x000000, { 1400, 1050, 120, 4, 3, 208000, true, false,
+	{ 0x2d, 0x0000, 0x000000, { 1400, 1050, 4, 3, 208000, true, false,
 				    48, 32, 80, true, 3, 4, 55, false } },
 
-	{ 0x2e, 0x0000, 0xc11821, { 1440, 900, 60, 16, 10, 88750, true, false,
+	{ 0x2e, 0x0000, 0xc11821, { 1440, 900, 16, 10, 88750, true, false,
 				    48, 32, 80, true, 3, 6, 17, false } },
-	{ 0x2f, 0x9500, 0xc11828, { 1440, 900, 60, 16, 10, 106500, false, false,
+	{ 0x2f, 0x9500, 0xc11828, { 1440, 900, 16, 10, 106500, false, false,
 				    80, 152, 232, false, 3, 6, 25, true } },
-	{ 0x30, 0x950f, 0xc11844, { 1440, 900, 75, 16, 10, 136750, false, false,
+	{ 0x30, 0x950f, 0xc11844, { 1440, 900, 16, 10, 136750, false, false,
 				    96, 152, 248, false, 3, 6, 33, true } },
-	{ 0x31, 0x9519, 0xc11868, { 1440, 900, 85, 16, 10, 157000, false, false,
+	{ 0x31, 0x9519, 0xc11868, { 1440, 900, 16, 10, 157000, false, false,
 				    104, 152, 256, false, 3, 6, 39, true } },
-	{ 0x32, 0x0000, 0x000000, { 1440, 900, 120, 16, 10, 182750, true, false,
+	{ 0x32, 0x0000, 0x000000, { 1440, 900, 16, 10, 182750, true, false,
 				    48, 32, 80, true, 3, 6, 44, false } },
 
-	{ 0x53, 0xa9c0, 0x000000, { 1600, 900, 60, 16, 9, 108000, true, false,
+	{ 0x53, 0xa9c0, 0x000000, { 1600, 900, 16, 9, 108000, true, false,
 				    24, 80, 96, true, 1, 3, 96, true } },
 
-	{ 0x33, 0xa940, 0x000000, { 1600, 1200, 60, 4, 3, 162000, false, false,
+	{ 0x33, 0xa940, 0x000000, { 1600, 1200, 4, 3, 162000, false, false,
 				    64, 192, 304, true, 1, 3, 46, true } },
-	{ 0x34, 0xa945, 0x000000, { 1600, 1200, 65, 4, 3, 175500, false, false,
+	{ 0x34, 0xa945, 0x000000, { 1600, 1200, 4, 3, 175500, false, false,
 				    64, 192, 304, true, 1, 3, 46, true } },
-	{ 0x35, 0xa94a, 0x000000, { 1600, 1200, 70, 4, 3, 189000, false, false,
+	{ 0x35, 0xa94a, 0x000000, { 1600, 1200, 4, 3, 189000, false, false,
 				    64, 192, 304, true, 1, 3, 46, true } },
-	{ 0x36, 0xa94f, 0x000000, { 1600, 1200, 75, 4, 3, 202500, false, false,
+	{ 0x36, 0xa94f, 0x000000, { 1600, 1200, 4, 3, 202500, false, false,
 				    64, 192, 304, true, 1, 3, 46, true } },
-	{ 0x37, 0xa959, 0x000000, { 1600, 1200, 85, 4, 3, 229500, false, false,
+	{ 0x37, 0xa959, 0x000000, { 1600, 1200, 4, 3, 229500, false, false,
 				    64, 192, 304, true, 1, 3, 46, true } },
-	{ 0x38, 0x0000, 0x000000, { 1600, 1200, 120, 4, 3, 268250, true, false,
+	{ 0x38, 0x0000, 0x000000, { 1600, 1200, 4, 3, 268250, true, false,
 				    48, 32, 80, true, 3, 4, 64, false } },
 
-	{ 0x39, 0x0000, 0x0c2821, { 1680, 1050, 60, 16, 10, 119000, true, false,
+	{ 0x39, 0x0000, 0x0c2821, { 1680, 1050, 16, 10, 119000, true, false,
 				    48, 32, 80, true, 3, 6, 21, false } },
-	{ 0x3a, 0xb300, 0x0c2828, { 1680, 1050, 60, 16, 10, 146250, false, false,
+	{ 0x3a, 0xb300, 0x0c2828, { 1680, 1050, 16, 10, 146250, false, false,
 				    104, 176, 280, false, 3, 6, 30, true } },
-	{ 0x3b, 0xb30f, 0x0c2844, { 1680, 1050, 75, 16, 10, 187000, false, false,
+	{ 0x3b, 0xb30f, 0x0c2844, { 1680, 1050, 16, 10, 187000, false, false,
 				    120, 176, 296, false, 3, 6, 40, true } },
-	{ 0x3c, 0xb319, 0x0c2868, { 1680, 1050, 85, 16, 10, 214750, false, false,
+	{ 0x3c, 0xb319, 0x0c2868, { 1680, 1050, 16, 10, 214750, false, false,
 				    128, 176, 304, false, 3, 6, 46, true } },
-	{ 0x3d, 0x0000, 0x000000, { 1680, 1050, 120, 16, 10, 245500, true, false,
+	{ 0x3d, 0x0000, 0x000000, { 1680, 1050, 16, 10, 245500, true, false,
 				    48, 32, 80, true, 3, 6, 53, false } },
 
-	{ 0x3e, 0xc140, 0x000000, { 1792, 1344, 60, 4, 3, 204750, false, false,
+	{ 0x3e, 0xc140, 0x000000, { 1792, 1344, 4, 3, 204750, false, false,
 				    128, 200, 328, false, 1, 3, 46, true } },
-	{ 0x3f, 0xc14f, 0x000000, { 1792, 1344, 75, 4, 3, 261000, false, false,
+	{ 0x3f, 0xc14f, 0x000000, { 1792, 1344, 4, 3, 261000, false, false,
 				    96, 216, 352, false, 1, 3, 69, true } },
-	{ 0x40, 0x0000, 0x000000, { 1792, 1344, 120, 4, 3, 333250, true, false,
+	{ 0x40, 0x0000, 0x000000, { 1792, 1344, 4, 3, 333250, true, false,
 				    48, 32, 80, true, 3, 4, 72, false } },
 
-	{ 0x41, 0xc940, 0x000000, { 1856, 1392, 60, 4, 3, 218250, false, false,
+	{ 0x41, 0xc940, 0x000000, { 1856, 1392, 4, 3, 218250, false, false,
 				    96, 224, 352, false, 1, 3, 43, true } },
-	{ 0x42, 0xc94f, 0x000000, { 1856, 1392, 75, 4, 3, 288000, false, false,
+	{ 0x42, 0xc94f, 0x000000, { 1856, 1392, 4, 3, 288000, false, false,
 				    128, 224, 352, false, 1, 3, 104, true } },
-	{ 0x43, 0x0000, 0x000000, { 1856, 1392, 120, 4, 3, 356500, true, false,
+	{ 0x43, 0x0000, 0x000000, { 1856, 1392, 4, 3, 356500, true, false,
 				    48, 32, 80, true, 3, 4, 74, false } },
 
-	{ 0x52, 0xd1c0, 0x000000, { 1920, 1080, 60, 16, 9, 148500, false, false,
+	{ 0x52, 0xd1c0, 0x000000, { 1920, 1080, 16, 9, 148500, false, false,
 				    88, 44, 148, true, 4, 5, 36, true } },
 
-	{ 0x44, 0x0000, 0x572821, { 1920, 1200, 60, 16, 10, 154000, true, false,
+	{ 0x44, 0x0000, 0x572821, { 1920, 1200, 16, 10, 154000, true, false,
 				    48, 32, 80, true, 3, 6, 26, false } },
-	{ 0x45, 0xd100, 0x572828, { 1920, 1200, 60, 16, 10, 193250, false, false,
+	{ 0x45, 0xd100, 0x572828, { 1920, 1200, 16, 10, 193250, false, false,
 				    136, 200, 336, false, 3, 6, 36, true } },
-	{ 0x46, 0xd10f, 0x572844, { 1920, 1200, 75, 16, 10, 245250, false, false,
+	{ 0x46, 0xd10f, 0x572844, { 1920, 1200, 16, 10, 245250, false, false,
 				    136, 208, 344, false, 3, 6, 46, true } },
-	{ 0x47, 0xd119, 0x572862, { 1920, 1200, 85, 16, 10, 281250, false, false,
+	{ 0x47, 0xd119, 0x572862, { 1920, 1200, 16, 10, 281250, false, false,
 				    144, 208, 352, false, 3, 6, 53, true } },
-	{ 0x48, 0x0000, 0x000000, { 1920, 1200, 120, 16, 10, 317000, true, false,
+	{ 0x48, 0x0000, 0x000000, { 1920, 1200, 16, 10, 317000, true, false,
 				    48, 32, 80, true, 3, 6, 62, false } },
 
-	{ 0x49, 0xd140, 0x000000, { 1920, 1440, 60, 4, 3, 234000, false, false,
+	{ 0x49, 0xd140, 0x000000, { 1920, 1440, 4, 3, 234000, false, false,
 				    128, 208, 344, false, 1, 3, 56, true } },
-	{ 0x4a, 0xd14f, 0x000000, { 1920, 1440, 75, 4, 3, 297000, false, false,
+	{ 0x4a, 0xd14f, 0x000000, { 1920, 1440, 4, 3, 297000, false, false,
 				    144, 224, 352, false, 1, 3, 56, true } },
-	{ 0x4b, 0x0000, 0x000000, { 1920, 1440, 120, 4, 3, 380500, true, false,
+	{ 0x4b, 0x0000, 0x000000, { 1920, 1440, 4, 3, 380500, true, false,
 				    48, 32, 80, true, 2, 3, 78, false } },
 
-	{ 0x54, 0xe1c0, 0x000000, { 2048, 1152, 60, 16, 9, 162000, true, false,
+	{ 0x54, 0xe1c0, 0x000000, { 2048, 1152, 16, 9, 162000, true, false,
 				    26, 80, 96, true, 1, 3, 44, true } },
 
-	{ 0x4c, 0x0000, 0x1f3821, { 2560, 1600, 60, 16, 10, 268500, true, false,
+	{ 0x4c, 0x0000, 0x1f3821, { 2560, 1600, 16, 10, 268500, true, false,
 				    48, 32, 80, true, 3, 6, 37, false } },
-	{ 0x4d, 0x0000, 0x1f3828, { 2560, 1600, 60, 16, 10, 348500, false, false,
+	{ 0x4d, 0x0000, 0x1f3828, { 2560, 1600, 16, 10, 348500, false, false,
 				    192, 280, 472, false, 3, 6, 49, true } },
-	{ 0x4e, 0x0000, 0x1f3844, { 2560, 1600, 75, 16, 10, 443250, false, false,
+	{ 0x4e, 0x0000, 0x1f3844, { 2560, 1600, 16, 10, 443250, false, false,
 				    208, 280, 488, false, 3, 6, 63, true } },
-	{ 0x4f, 0x0000, 0x1f3862, { 2560, 1600, 85, 16, 10, 505250, false, false,
+	{ 0x4f, 0x0000, 0x1f3862, { 2560, 1600, 16, 10, 505250, false, false,
 				    208, 280, 488, false, 3, 6, 73, true } },
-	{ 0x50, 0x0000, 0x000000, { 2560, 1600, 120, 16, 10, 552750, true, false,
+	{ 0x50, 0x0000, 0x000000, { 2560, 1600, 16, 10, 552750, true, false,
 				    48, 32, 80, true, 3, 6, 85, false } },
 
-	{ 0x57, 0x0000, 0x000000, { 4096, 2160, 60, 256, 135, 556744, true, false,
+	{ 0x57, 0x0000, 0x000000, { 4096, 2160, 256, 135, 556744, true, false,
 				    8, 32, 40, true, 48, 8, 6, false } },
-	{ 0x58, 0x0000, 0x000000, { 4096, 2160, 59, 256, 135, 556188, true, false,
+	{ 0x58, 0x0000, 0x000000, { 4096, 2160, 256, 135, 556188, true, false,
 				    8, 32, 40, true, 48, 8, 6, false } },
 };
 
@@ -246,12 +246,12 @@ static const struct {
 	const char *std_name;
 } established_timings12[] = {
 	/* 0x23 bit 7 - 0 */
-	{ 0x00, { 720, 400, 70, 9, 5, 28322, false, false,
+	{ 0x00, { 720, 400, 9, 5, 28322, false, false,
 	          18, 108, 54, false, 21, 2, 26, true }, "IBM" },
-	{ 0x00, { 720, 400, 88, 9, 5, 35500, false, false,
+	{ 0x00, { 720, 400, 9, 5, 35500, false, false,
 	          18, 108, 54, false, 12, 2, 35, true }, "IBM" },
 	{ 0x04 },
-	{ 0x00, { 640, 480, 67, 4, 3, 30000, false, false,
+	{ 0x00, { 640, 480, 4, 3, 30000, false, false,
 	          80, 64, 80, false, 3, 3, 39, false }, "Apple" },
 	{ 0x05 },
 	{ 0x06 },
@@ -260,16 +260,16 @@ static const struct {
 	/* 0x24 bit 7 - 0 */
 	{ 0x0a },
 	{ 0x0b },
-	{ 0x00, { 832, 624, 75, 4, 3, 57600, false, false,
+	{ 0x00, { 832, 624, 4, 3, 57600, false, false,
 	          48, 64, 208, false, 1, 3, 39, false }, "Apple" },
-	{ 0x00, { 1024, 768, 87, 4, 3, 45000, false, true,
+	{ 0x00, { 1024, 768, 4, 3, 45000, false, true,
 	          8, 176, 56, true, 0, 4, 20, true }, "IBM" },
 	{ 0x10 },
 	{ 0x11 },
 	{ 0x12 },
 	{ 0x24 },
 	/* 0x25 bit 7 */
-	{ 0x00, { 1152, 870, 75, 192, 145, 100000, false, false,
+	{ 0x00, { 1152, 870, 192, 145, 100000, false, false,
 	          48, 128, 128, true, 3, 3, 39, true }, "Apple" },
 };
 
@@ -351,7 +351,7 @@ static const struct timings *find_std_id(unsigned short std_id)
 /*
  * Copied from xserver/hw/xfree86/modes/xf86gtf.c
  */
-void edid_state::edid_gtf_mode(struct timings *t)
+void edid_state::edid_gtf_mode(unsigned refresh, struct timings *t)
 {
 #define CELL_GRAN         8.0   /* assumed character cell granularity        */
 #define MIN_PORCH         1     /* minimum front porch                       */
@@ -409,7 +409,7 @@ void edid_state::edid_gtf_mode(struct timings *t)
 	 *                                          [I/P FREQ RQD])
 	 */
 
-	v_field_rate_rqd = t->refresh;
+	v_field_rate_rqd = refresh;
 
 	/*  7. Estimate the Horizontal period
 	 *
@@ -524,7 +524,7 @@ void edid_state::edid_gtf_mode(struct timings *t)
 /*
  * Copied from xserver/hw/xfree86/modes/xf86cvt.c
  */
-void edid_state::edid_cvt_mode(struct timings *t)
+void edid_state::edid_cvt_mode(unsigned refresh, struct timings *t)
 {
 	int HDisplay = t->w;
 	int VDisplay = t->h;
@@ -543,7 +543,7 @@ void edid_state::edid_cvt_mode(struct timings *t)
 
 	double HPeriod;
 	int VDisplayRnd, VSync;
-	double VFieldRate = t->refresh;
+	double VFieldRate = refresh;
 	int HTotal, VTotal, Clock, HSyncStart, HSyncEnd, VSyncStart, VSyncEnd;
 
 	/* 2. Horizontal pixels */
@@ -745,29 +745,24 @@ void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
 	static const char *s_pref = "CVT, preferred vertical rate";
 
 	if (x[2] & 0x10) {
-		cvt_t.refresh = 50;
-		edid_cvt_mode(&cvt_t);
+		edid_cvt_mode(50, &cvt_t);
 		print_timings("    ", &cvt_t, preferred == 0 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x08) {
-		cvt_t.refresh = 60;
-		edid_cvt_mode(&cvt_t);
+		edid_cvt_mode(60, &cvt_t);
 		print_timings("    ", &cvt_t, preferred == 1 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x04) {
-		cvt_t.refresh = 75;
-		edid_cvt_mode(&cvt_t);
+		edid_cvt_mode(75, &cvt_t);
 		print_timings("    ", &cvt_t, preferred == 2 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x02) {
-		cvt_t.refresh = 85;
-		edid_cvt_mode(&cvt_t);
+		edid_cvt_mode(85, &cvt_t);
 		print_timings("    ", &cvt_t, preferred == 3 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x01) {
-		cvt_t.refresh = 60;
 		cvt_t.rb = true;
-		edid_cvt_mode(&cvt_t);
+		edid_cvt_mode(60, &cvt_t);
 		print_timings("    ", &cvt_t, preferred == 4 ? s_pref : "CVT");
 	}
 }
@@ -815,7 +810,6 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 	struct timings formula = {};
 	unsigned ratio_w, ratio_h;
 	unsigned w, h, refresh;
-	unsigned i;
 
 	if (b1 <= 0x01) {
 		if (b1 != 0x01 || b2 != 0x01)
@@ -864,58 +858,31 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 	}
 	refresh = 60 + (b2 & 0x3f);
 
-	min_vert_freq_hz = min(min_vert_freq_hz, refresh);
-	max_vert_freq_hz = max(max_vert_freq_hz, refresh);
-	for (i = 0; i < ARRAY_SIZE(established_timings12); i++) {
-		const char *suffix = "DMT";
-
-		if (established_timings12[i].dmt_id) {
-			t = find_dmt_id(established_timings12[i].dmt_id);
-		} else {
-			t = &established_timings12[i].t;
-			suffix = established_timings12[i].std_name;
-		}
-		if (t->w == w && t->h == h && t->refresh == refresh &&
-		    t->ratio_w == ratio_w && t->ratio_h == ratio_h) {
-			print_timings("  ", t, suffix);
-			return;
-		}
-	}
-	for (i = 0; i < ARRAY_SIZE(dmt_timings); i++) {
-		t = &dmt_timings[i].t;
-
-		if (t->w == w && t->h == h &&
-		    t->refresh == refresh &&
-		    t->ratio_w == ratio_w && t->ratio_h == ratio_h) {
-			print_timings("  ", t, "DMT");
-			return;
-		}
-	}
-
 	formula.w = w;
 	formula.h = h;
-	formula.refresh = refresh;
 	formula.ratio_w = ratio_w;
 	formula.ratio_h = ratio_h;
 
 	if (edid_minor >= 4) {
 		uses_cvt = true;
-		edid_cvt_mode(&formula);
+		edid_cvt_mode(refresh, &formula);
 		print_timings("  ", &formula, "EDID 1.4 source: CVT");
 		/*
 		 * A EDID 1.3 source will assume GTF, so both GTF and CVT
 		 * have to be supported.
 		 */
 		uses_gtf = true;
-		edid_gtf_mode(&formula);
+		edid_gtf_mode(refresh, &formula);
 		print_timings("  ", &formula, "EDID 1.3 source: GTF");
 	} else if (edid_minor >= 2) {
 		uses_gtf = true;
-		edid_gtf_mode(&formula);
+		edid_gtf_mode(refresh, &formula);
 		print_timings("  ", &formula, "GTF");
 	} else {
-		printf("  %5ux%-5u %3u Hz %3u:%-3u\n",
+		printf("  %5ux%-5u %3u.00 Hz %3u:%-3u\n",
 		       w, h, refresh, ratio_w, ratio_h);
+		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
+		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	}
 }
 

@@ -25,7 +25,6 @@
 // for each field is (vfp + vsync + vbp + 0.5)
 struct timings {
 	unsigned w, h;
-	unsigned refresh;
 	unsigned ratio_w, ratio_h;
 	unsigned pixclk_khz;
 	bool rb, interlaced;
@@ -97,8 +96,8 @@ struct edid_state {
 	void print_timings(const char *prefix,
 			   const struct timings *t, const char *suffix);
 
-	void edid_gtf_mode(struct timings *t);
-	void edid_cvt_mode(struct timings *t);
+	void edid_gtf_mode(unsigned refresh, struct timings *t);
+	void edid_cvt_mode(unsigned refresh, struct timings *t);
 	void detailed_cvt_descriptor(const unsigned char *x, bool first);
 	void print_standard_timing(unsigned char b1, unsigned char b2);
 	void detailed_display_range_limits(const unsigned char *x);
