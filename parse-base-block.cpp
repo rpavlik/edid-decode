@@ -45,9 +45,9 @@ static const struct {
 				    36, 72, 108, false, 1, 3, 42, true } },
 
 	{ 0x04, 0x3140, 0x000000, { 640, 480, 4, 3, 25175, false, false,
-				    16, 96, 48, false, 10, 2, 33, false, true } },
+				    16, 96, 48, false, 10, 2, 33, false, 8, 8 } },
 	{ 0x05, 0x314c, 0x000000, { 640, 480, 4, 3, 31500, false, false,
-				    24, 40, 128, false, 9, 3, 28, false, true } },
+				    24, 40, 128, false, 9, 3, 28, false, 8, 8 } },
 	{ 0x06, 0x314f, 0x000000, { 640, 480, 4, 3, 31500, false, false,
 				    16, 64, 120, false, 1, 3, 16, false } },
 	{ 0x07, 0x3159, 0x000000, { 640, 480, 4, 3, 36000, false, false,
@@ -351,7 +351,7 @@ static const struct timings *find_std_id(unsigned short std_id)
 /*
  * Copied from xserver/hw/xfree86/modes/xf86gtf.c
  */
-void edid_state::edid_gtf_mode(unsigned refresh, struct timings *t)
+void edid_state::edid_gtf_mode(unsigned refresh, struct timings &t)
 {
 #define CELL_GRAN         8.0   /* assumed character cell granularity        */
 #define MIN_PORCH         1     /* minimum front porch                       */
@@ -388,7 +388,7 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings *t)
 	 *  [H PIXELS RND] = ((ROUND([H PIXELS]/[CELL GRAN RND],0))*[CELLGRAN RND])
 	 */
 
-	h_pixels_rnd = rint((double)t->w / CELL_GRAN) * CELL_GRAN;
+	h_pixels_rnd = rint((double)t.w / CELL_GRAN) * CELL_GRAN;
 
 	/*  2. If interlace is requested, the number of vertical lines assumed
 	 *  by the calculation must be halved, as the computation calculates
@@ -399,9 +399,7 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings *t)
 	 *                                     ROUND([V LINES],0))
 	 */
 
-	v_lines_rnd = t->interlaced ?
-		rint((double)t->h) / 2.0 :
-		rint((double)t->h);
+	v_lines_rnd = t.h;
 
 	/*  3. Find the frame rate required:
 	 *
@@ -437,9 +435,9 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings *t)
 	 */
 
 	total_v_lines = v_lines_rnd + vsync_plus_bp + MIN_PORCH;
-	t->vbp = vsync_plus_bp - V_SYNC_RQD;
-	t->vsync = V_SYNC_RQD;
-	t->vfp = MIN_PORCH;
+	t.vbp = vsync_plus_bp - V_SYNC_RQD;
+	t.vsync = V_SYNC_RQD;
+	t.vfp = MIN_PORCH;
 
 	/*  11. Estimate the Vertical field frequency:
 	 *
@@ -497,7 +495,7 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings *t)
 	 *  [PIXEL FREQ] = [TOTAL PIXELS] / [H PERIOD]
 	 */
 
-	t->pixclk_khz = (int)(1000.0 * total_pixels / h_period);
+	t.pixclk_khz = (int)(1000.0 * total_pixels / h_period);
 
 	/* Stage 1 computations are now complete; I should really pass
 	   the results to another function and do the Stage 2
@@ -508,26 +506,26 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings *t)
 	 *  [H SYNC (PIXELS)] =(ROUND(([H SYNC%] / 100 * [TOTAL PIXELS] /
 	 *                             [CELL GRAN RND]),0))*[CELL GRAN RND]
 	 */
-	t->hsync = rint(H_SYNC_PERCENT / 100.0 * total_pixels / CELL_GRAN) * CELL_GRAN;
+	t.hsync = rint(H_SYNC_PERCENT / 100.0 * total_pixels / CELL_GRAN) * CELL_GRAN;
 	/*  18. Find the number of pixels in the horizontal front porch period:
 	 *
 	 *  [H FRONT PORCH (PIXELS)] = ([H BLANK (PIXELS)]/2)-[H SYNC (PIXELS)]
 	 */
-	t->hfp = (h_blank / 2.0) - t->hsync;
-	t->hbp = h_blank - t->hfp - t->hsync;
-	t->pos_pol_hsync = false;
-	t->pos_pol_vsync = true;
-	t->interlaced = false;
-	t->rb = false;
+	t.hfp = (h_blank / 2.0) - t.hsync;
+	t.hbp = h_blank - t.hfp - t.hsync;
+	t.pos_pol_hsync = false;
+	t.pos_pol_vsync = true;
+	t.interlaced = false;
+	t.rb = false;
 }
 
 /*
  * Copied from xserver/hw/xfree86/modes/xf86cvt.c
  */
-void edid_state::edid_cvt_mode(unsigned refresh, struct timings *t)
+void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 {
-	int HDisplay = t->w;
-	int VDisplay = t->h;
+	int HDisplay = t.w;
+	int VDisplay = t.h;
 
 	/* 2) character cell horizontal granularity (pixels) - default 8 */
 #define CVT_H_GRANULARITY 8
@@ -565,9 +563,9 @@ void edid_state::edid_cvt_mode(unsigned refresh, struct timings *t)
 		VSync = 7;
 	else                        /* Custom */
 		VSync = 10;
-	t->vsync = VSync;
+	t.vsync = VSync;
 
-	if (!t->rb) {             /* simplified GTF calculation */
+	if (!t.rb) {             /* simplified GTF calculation */
 		/* 4) Minimum time of vertical sync + back porch interval (µs)
 		 * default 550.0 */
 #define CVT_MIN_VSYNC_BP 550.0
@@ -679,17 +677,17 @@ void edid_state::edid_cvt_mode(unsigned refresh, struct timings *t)
 		Clock = ((double)VFieldRate * VTotal * HTotal) / 1000.0;
 		Clock -= Clock % CVT_CLOCK_STEP;
 	}
-	t->pixclk_khz = Clock;
+	t.pixclk_khz = Clock;
 
-	t->pos_pol_hsync = t->rb;
-	t->pos_pol_vsync = !t->rb;
-	t->vfp = VSyncStart - VDisplay;
-	t->vsync = VSyncEnd - VSyncStart;
-	t->vbp = VTotal - VSyncEnd;
-	t->hfp = HSyncStart - HDisplay;
-	t->hsync = HSyncEnd - HSyncStart;
-	t->hbp = HTotal - HSyncEnd;
-	t->interlaced = false;
+	t.pos_pol_hsync = t.rb;
+	t.pos_pol_vsync = !t.rb;
+	t.vfp = VSyncStart - VDisplay;
+	t.vsync = VSyncEnd - VSyncStart;
+	t.vbp = VTotal - VSyncEnd;
+	t.hfp = HSyncStart - HDisplay;
+	t.hsync = HSyncEnd - HSyncStart;
+	t.hbp = HTotal - HSyncEnd;
+	t.interlaced = false;
 }
 
 void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
@@ -745,24 +743,24 @@ void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
 	static const char *s_pref = "CVT, preferred vertical rate";
 
 	if (x[2] & 0x10) {
-		edid_cvt_mode(50, &cvt_t);
+		edid_cvt_mode(50, cvt_t);
 		print_timings("    ", &cvt_t, preferred == 0 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x08) {
-		edid_cvt_mode(60, &cvt_t);
+		edid_cvt_mode(60, cvt_t);
 		print_timings("    ", &cvt_t, preferred == 1 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x04) {
-		edid_cvt_mode(75, &cvt_t);
+		edid_cvt_mode(75, cvt_t);
 		print_timings("    ", &cvt_t, preferred == 2 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x02) {
-		edid_cvt_mode(85, &cvt_t);
+		edid_cvt_mode(85, cvt_t);
 		print_timings("    ", &cvt_t, preferred == 3 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x01) {
 		cvt_t.rb = true;
-		edid_cvt_mode(60, &cvt_t);
+		edid_cvt_mode(60, cvt_t);
 		print_timings("    ", &cvt_t, preferred == 4 ? s_pref : "CVT");
 	}
 }
@@ -865,18 +863,18 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 
 	if (edid_minor >= 4) {
 		uses_cvt = true;
-		edid_cvt_mode(refresh, &formula);
+		edid_cvt_mode(refresh, formula);
 		print_timings("  ", &formula, "EDID 1.4 source: CVT");
 		/*
 		 * A EDID 1.3 source will assume GTF, so both GTF and CVT
 		 * have to be supported.
 		 */
 		uses_gtf = true;
-		edid_gtf_mode(refresh, &formula);
+		edid_gtf_mode(refresh, formula);
 		print_timings("  ", &formula, "EDID 1.3 source: GTF");
 	} else if (edid_minor >= 2) {
 		uses_gtf = true;
-		edid_gtf_mode(refresh, &formula);
+		edid_gtf_mode(refresh, formula);
 		print_timings("  ", &formula, "GTF");
 	} else {
 		printf("  %5ux%-5u %3u.00 Hz %3u:%-3u\n",
@@ -1194,26 +1192,26 @@ static void add_str(std::string &s, const std::string &add)
 
 void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 {
-	unsigned ha, hbl, hso, hspw, hborder, va, vbl, vso, vspw, vborder;
-	unsigned hor_mm, vert_mm;
-	unsigned pixclk_khz;
-	double refresh;
+	struct timings t = {};
+	unsigned hbl, vbl;
 	std::string s_sync, s_flags;
 
 	if (x[0] == 0 && x[1] == 0) {
 		fail("First two bytes are 0, invalid data\n");
 		return;
 	}
-	ha = (x[2] + ((x[4] & 0xf0) << 4));
+	t.w = (x[2] + ((x[4] & 0xf0) << 4));
 	hbl = (x[3] + ((x[4] & 0x0f) << 8));
-	hso = (x[8] + ((x[11] & 0xc0) << 2));
-	hspw = (x[9] + ((x[11] & 0x30) << 4));
-	hborder = x[15];
-	va = (x[5] + ((x[7] & 0xf0) << 4));
+	t.hbp = (x[8] + ((x[11] & 0xc0) << 2));
+	t.hsync = (x[9] + ((x[11] & 0x30) << 4));
+	t.hfp = hbl - t.hsync - t.hbp;
+	t.hborder = x[15];
+	t.h = (x[5] + ((x[7] & 0xf0) << 4));
 	vbl = (x[6] + ((x[7] & 0x0f) << 8));
-	vso = ((x[10] >> 4) + ((x[11] & 0x0c) << 2));
-	vspw = ((x[10] & 0x0f) + ((x[11] & 0x03) << 4));
-	vborder = x[16];
+	t.vbp = ((x[10] >> 4) + ((x[11] & 0x0c) << 2));
+	t.vsync = ((x[10] & 0x0f) + ((x[11] & 0x03) << 4));
+	t.vfp = vbl - t.vsync - t.vbp;
+	t.vborder = x[16];
 
 	unsigned char flags = x[17];
 
@@ -1242,20 +1240,28 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 		}
 		break;
 	case 0x02:
-		s_sync = (flags & (1 << 1)) ? "+hsync " : "-hsync ";
+		if (flags & (1 << 1))
+			t.pos_pol_hsync = true;
+		s_sync = t.pos_pol_hsync ? "+hsync " : "-hsync ";
 		s_flags = "digital composite";
 		if (flags & (1 << 2))
 		    add_str(s_flags, "serrate");
 		break;
 	case 0x03:
-		s_sync = (flags & (1 << 1)) ? "+hsync " : "-hsync ";
-		s_sync += (flags & (1 << 2)) ? "+vsync " : "-vsync ";
+		if (flags & (1 << 1))
+			t.pos_pol_hsync = true;
+		if (flags & (1 << 2))
+			t.pos_pol_vsync = true;
+		s_sync = t.pos_pol_hsync ? "+hsync " : "-hsync ";
+		s_sync += t.pos_pol_vsync ? "+vsync " : "-vsync ";
 		if (has_spwg && (flags & 0x01))
 			s_flags = "DE timing only";
 		break;
 	}
-	if (flags & 0x80)
+	if (flags & 0x80) {
+		t.interlaced = true;
 		add_str(s_flags, "interlaced");
+	}
 	switch (flags & 0x61) {
 	case 0x20:
 		add_str(s_flags, "field sequential L/R");
@@ -1281,74 +1287,71 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	bool ok = true;
 
-	if (!ha || !hbl || !hso || !hspw || !va || !vbl || !vso || !vspw) {
+	if (!t.w || !hbl || !t.hbp || !t.hsync || !t.h || !vbl || !t.vbp || !t.vsync) {
 		fail("0 values in the detailed timings:\n"
 		     "    Horizontal Active/Blanking %u/%u\n"
-		     "    Horizontal Sync Offset/Width %u/%u\n"
+		     "    Horizontal Backporch/Sync Width %u/%u\n"
 		     "    Vertical Active/Blanking %u/%u\n"
-		     "    Vertical Sync Offset/Width %u/%u\n",
-		     ha, hbl, hso, hspw, va, vbl, vso, vspw);
+		     "    Vertical Backporch/Sync Width %u/%u\n",
+		     t.w, hbl, t.hbp, t.hsync, t.h, vbl, t.vbp, t.vsync);
 		ok = false;
 	}
 
-	pixclk_khz = (x[0] + (x[1] << 8)) * 10;
-	if (pixclk_khz < 10000) {
+	t.pixclk_khz = (x[0] + (x[1] << 8)) * 10;
+	if (t.pixclk_khz < 10000) {
 		fail("Pixelclock < 10 MHz\n");
 		ok = false;
 	}
-	if ((ha + hbl) && (va + vbl))
-		refresh = (pixclk_khz * 1000.0) / ((ha + hbl) * (va + vbl));
-	else
-		refresh = 0.0;
-	hor_mm = x[12] + ((x[14] & 0xf0) << 4);
-	vert_mm = x[13] + ((x[14] & 0x0f) << 8);
+	t.hor_mm = x[12] + ((x[14] & 0xf0) << 4);
+	t.vert_mm = x[13] + ((x[14] & 0x0f) << 8);
+	double refresh = (double)t.pixclk_khz * 1000.0 / ((t.w + hbl) * (t.h + vbl));
 	printf("%sDetailed mode: Clock %.3f MHz, %u mm x %u mm\n"
 	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
 	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
 	       "%s               %s%s\n"
-	       "%s               VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
+	       "%s               VertFreq: %.2f Hz, HorFreq: %.3f kHz\n",
 	       prefix,
-	       pixclk_khz / 1000.0,
-	       hor_mm, vert_mm,
+	       t.pixclk_khz / 1000.0,
+	       t.hor_mm, t.vert_mm,
 	       prefix,
-	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw,
-	       hborder ? (std::string(" hborder ") + std::to_string(hborder)).c_str() : "",
+	       t.w, t.w + t.hbp, t.w + t.hbp + t.hsync, t.w + hbl, t.hbp, t.hsync, t.hfp,
+	       t.hborder ? (std::string(" hborder ") + std::to_string(t.hborder)).c_str() : "",
 	       prefix,
-	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw,
-	       vborder ? (std::string(" vborder ") + std::to_string(vborder)).c_str() : "",
+	       t.h, t.h + t.vbp, t.h + t.vbp + t.vsync, t.h + vbl, t.vbp, t.vsync, t.vfp,
+	       t.vborder ? (std::string(" vborder ") + std::to_string(t.vborder)).c_str() : "",
 	       prefix,
 	       s_sync.c_str(), s_flags.c_str(),
 	       prefix,
-	       refresh, ha + hbl ? (double)pixclk_khz / (ha + hbl) : 0.0);
-	if (hso + hspw >= hbl)
-		fail("0 or negative horizontal back porch\n");
-	if (vso + vspw >= vbl)
-		fail("0 or negative vertical back porch\n");
-	if ((!max_display_width_mm && hor_mm) ||
-	    (!max_display_height_mm && vert_mm)) {
+	       refresh, t.w + hbl ? (double)t.pixclk_khz / (t.w + hbl) : 0.0);
+	if (t.hfp <= 0)
+		fail("0 or negative horizontal front porch\n");
+	if (t.vfp <= 0)
+		fail("0 or negative vertical front porch\n");
+	if ((!max_display_width_mm && t.hor_mm) ||
+	    (!max_display_height_mm && t.vert_mm)) {
 		fail("Mismatch of image size vs display size: image size is set, but not display size\n");
-	} else if ((max_display_width_mm && !hor_mm) ||
-		   (max_display_height_mm && !vert_mm)) {
+	} else if ((max_display_width_mm && !t.hor_mm) ||
+		   (max_display_height_mm && !t.vert_mm)) {
 		fail("Mismatch of image size vs display size: image size is not set, but display size is\n");
-	} else if (!hor_mm && !vert_mm) {
+	} else if (!t.hor_mm && !t.vert_mm) {
 		/* this is valid */
-	} else if (hor_mm > max_display_width_mm + 9 ||
-		   vert_mm > max_display_height_mm + 9) {
+	} else if (t.hor_mm > max_display_width_mm + 9 ||
+		   t.vert_mm > max_display_height_mm + 9) {
 		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
-		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
-	} else if (hor_mm < max_display_width_mm - 9 &&
-		   vert_mm < max_display_height_mm - 9) {
+		     t.hor_mm, t.vert_mm, max_display_width_mm, max_display_height_mm);
+	} else if (t.hor_mm < max_display_width_mm - 9 &&
+		   t.vert_mm < max_display_height_mm - 9) {
 		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
-		     hor_mm, vert_mm, max_display_width_mm, max_display_height_mm);
+		     t.hor_mm, t.vert_mm, max_display_width_mm, max_display_height_mm);
 	}
 	if (refresh) {
 		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
 		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	}
-	if (pixclk_khz && (ha + hbl)) {
-		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
-		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (ha + hbl));
-		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
+	if (t.pixclk_khz && (t.w + hbl)) {
+		min_hor_freq_hz = min(min_hor_freq_hz, (t.pixclk_khz * 1000) / (t.w + hbl));
+		max_hor_freq_hz = max(max_hor_freq_hz, (t.pixclk_khz * 1000) / (t.w + hbl));
+		max_pixclk_khz = max(max_pixclk_khz, t.pixclk_khz);
 	}
 	if (has_spwg && timing_descr_cnt == 2)
 		printf("SPWG Module Revision: %hhu\n", x[17]);

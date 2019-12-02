@@ -28,11 +28,16 @@ struct timings {
 	unsigned ratio_w, ratio_h;
 	unsigned pixclk_khz;
 	bool rb, interlaced;
-	unsigned hfp, hsync, hbp;
+	// The frontporch may be negative in buggy detailed timings.
+	// So use int instead of unsigned for hfp and vfp.
+	int hfp;
+	unsigned hsync, hbp;
 	bool pos_pol_hsync;
-	unsigned vfp, vsync, vbp;
+	int vfp;
+	unsigned vsync, vbp;
 	bool pos_pol_vsync;
-	bool has_border;
+	unsigned hborder, vborder;
+	unsigned hor_mm, vert_mm;
 };
 
 struct edid_state {
@@ -93,11 +98,11 @@ struct edid_state {
 	unsigned warnings;
 	unsigned failures;
 
-	void print_timings(const char *prefix,
-			   const struct timings *t, const char *suffix);
+	void print_timings(const char *prefix, const struct timings *t,
+			   const char *suffix);
 
-	void edid_gtf_mode(unsigned refresh, struct timings *t);
-	void edid_cvt_mode(unsigned refresh, struct timings *t);
+	void edid_gtf_mode(unsigned refresh, struct timings &t);
+	void edid_cvt_mode(unsigned refresh, struct timings &t);
 	void detailed_cvt_descriptor(const unsigned char *x, bool first);
 	void print_standard_timing(unsigned char b1, unsigned char b2);
 	void detailed_display_range_limits(const unsigned char *x);

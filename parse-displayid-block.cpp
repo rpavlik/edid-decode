@@ -11,36 +11,49 @@
 
 static void parse_displayid_detailed_timing(const unsigned char *x)
 {
-	unsigned ha, hbl, hso, hspw;
-	unsigned va, vbl, vso, vspw;
-	char phsync, pvsync;
-	unsigned pix_clock;
+	struct timings t = {};
+	unsigned hbl, vbl;
 	std::string s("aspect ");
 
 	switch (x[3] & 0xf) {
 	case 0:
 		s += "1:1";
+		t.ratio_w = t.ratio_h = 1;
 		break;
 	case 1:
 		s += "5:4";
+		t.ratio_w = 5;
+		t.ratio_h = 4;
 		break;
 	case 2:
 		s += "4:3";
+		t.ratio_w = 4;
+		t.ratio_h = 3;
 		break;
 	case 3:
 		s += "15:9";
+		t.ratio_w = 15;
+		t.ratio_h = 9;
 		break;
 	case 4:
 		s += "16:9";
+		t.ratio_w = 16;
+		t.ratio_h = 9;
 		break;
 	case 5:
 		s += "16:10";
+		t.ratio_w = 16;
+		t.ratio_h = 10;
 		break;
 	case 6:
 		s += "64:27";
+		t.ratio_w = 64;
+		t.ratio_h = 27;
 		break;
 	case 7:
 		s += "256:135";
+		t.ratio_w = 256;
+		t.ratio_h = 135;
 		break;
 	default:
 		s += "undefined";
@@ -62,32 +75,40 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 		fail("Reserved stereo 0x03\n");
 		break;
 	}
+	if (x[3] & 0x10) {
+		t.interlaced = true;
+		s += ", interlaced";
+	}
 	if (x[3] & 0x80)
 		s += ", preferred";
 
-	pix_clock = 1 + (x[0] + (x[1] << 8) + (x[2] << 16));
-	ha = 1 + (x[4] | (x[5] << 8));
+	t.pixclk_khz = 10 * (1 + (x[0] + (x[1] << 8) + (x[2] << 16)));
+	t.w = 1 + (x[4] | (x[5] << 8));
 	hbl = 1 + (x[6] | (x[7] << 8));
-	hso = 1 + (x[8] | ((x[9] & 0x7f) << 8));
-	phsync = ((x[9] >> 7) & 0x1) ? '+' : '-';
-	hspw = 1 + (x[10] | (x[11] << 8));
-	va = 1 + (x[12] | (x[13] << 8));
+	t.hbp = 1 + (x[8] | ((x[9] & 0x7f) << 8));
+	t.hsync = 1 + (x[10] | (x[11] << 8));
+	t.hfp = hbl - t.hbp - t.hsync;
+	if ((x[9] >> 7) & 0x1)
+		t.pos_pol_hsync = true;
+	t.h = 1 + (x[12] | (x[13] << 8));
 	vbl = 1 + (x[14] | (x[15] << 8));
-	vso = 1 + (x[16] | ((x[17] & 0x7f) << 8));
-	vspw = 1 + (x[18] | (x[19] << 8));
-	pvsync = ((x[17] >> 7) & 0x1 ) ? '+' : '-';
+	t.vbp = 1 + (x[16] | ((x[17] & 0x7f) << 8));
+	t.vsync = 1 + (x[18] | (x[19] << 8));
+	t.vfp = vbl - t.vbp - t.vsync;
+	if ((x[17] >> 7) & 0x1)
+		t.pos_pol_vsync = true;
 	
 	printf("    Detailed mode: Clock %.3f MHz, %s\n"
 	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
 	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
 	       "                   %chsync %cvsync\n"
-	       "                   VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
-	       (double)pix_clock/100.0, s.c_str(),
-	       ha, ha + hso, ha + hso + hspw, ha + hbl, hso, hspw, hbl - hso - hspw,
-	       va, va + vso, va + vso + vspw, va + vbl, vso, vspw, vbl - vso - vspw,
-	       phsync, pvsync,
-	       (pix_clock * 10000.0) / ((ha + hbl) * (va + vbl)),
-	       (pix_clock * 10.0) / (ha + hbl)
+	       "                   VertFreq: %.2f Hz, HorFreq: %.3f kHz\n",
+	       (double)t.pixclk_khz/1000.0, s.c_str(),
+	       t.w, t.w + t.hbp, t.w + t.hbp + t.hsync, t.w + hbl, t.hbp, t.hsync, t.hfp,
+	       t.h, t.h + t.vbp, t.h + t.vbp + t.vsync, t.h + vbl, t.vbp, t.vsync, t.vfp,
+	       t.pos_pol_hsync ? '+' : '-', t.pos_pol_vsync ? '+' : '-',
+	       (t.pixclk_khz * 1000.0) / ((t.w + hbl) * (t.h + vbl)),
+	       (double)(t.pixclk_khz) / (t.w + hbl)
 	      );
 }
 

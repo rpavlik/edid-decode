@@ -142,8 +142,8 @@ void do_checksum(const char *prefix, const unsigned char *x, size_t len)
 	printf("\n");
 }
 
-void edid_state::print_timings(const char *prefix,
-			       const struct timings *t, const char *suffix)
+void edid_state::print_timings(const char *prefix, const struct timings *t,
+			       const char *suffix)
 {
 	if (!t) {
 		// Should not happen
