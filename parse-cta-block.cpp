@@ -379,8 +379,6 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 
 void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *suffix)
 {
-	printf("%sVDB SVD #%-3u: ", prefix, idx + 1);
-
 	if (!suffix)
 		suffix = "";
 	if (idx < svds.size()) {
@@ -391,13 +389,15 @@ void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *s
 		sprintf(buf, "VIC %3u%s%s", vic, *suffix ? ", " : "", suffix);
 
 		if (t)
-			print_timings("", t, buf);
-		else
-			printf("Unknown (%s)\n", buf);
+			print_timings(prefix, t, buf);
+		else 
+			printf("%sUnknown (%s)\n", prefix, buf);
 	} else {
 		// Should not happen!
-		printf("SVD not (yet?) seen%s%s\n",
-		       *suffix ? ", " : "", suffix);
+		printf("%sSVD Index %u is out of range", prefix, idx + 1);
+		if (*suffix)
+			printf(" (%s)", suffix);
+		printf("\n");
 	}
 }
 
@@ -430,7 +430,7 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 		}
 	}
 	if (max_idx >= svds.size())
-		fail("YCbCr 4:2:0 Capability Map Data Block max index %u > %u (#SVDs)\n",
+		fail("Max index %u > %u (#SVDs)\n",
 		     max_idx + 1, svds.size());
 }
 
