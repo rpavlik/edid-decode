@@ -1196,10 +1196,16 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	unsigned hbl, vbl;
 	std::string s_sync, s_flags;
 
-	if (x[0] == 0 && x[1] == 0) {
-		fail("First two bytes are 0, invalid data\n");
+	t.pixclk_khz = (x[0] + (x[1] << 8)) * 10;
+	if (t.pixclk_khz < 10000) {
+		if (!t.pixclk_khz)
+			fail("First two bytes are 0, invalid data\n");
+		else
+			fail("Pixelclock < 10 MHz, assuming invalid data 0x%02x 0x%02x\n",
+			     x[0], x[1]);
 		return;
 	}
+
 	t.w = (x[2] + ((x[4] & 0xf0) << 4));
 	hbl = (x[3] + ((x[4] & 0x0f) << 8));
 	t.hbp = (x[8] + ((x[11] & 0xc0) << 2));
@@ -1297,11 +1303,6 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 		ok = false;
 	}
 
-	t.pixclk_khz = (x[0] + (x[1] << 8)) * 10;
-	if (t.pixclk_khz < 10000) {
-		fail("Pixelclock < 10 MHz\n");
-		ok = false;
-	}
 	t.hor_mm = x[12] + ((x[14] & 0xf0) << 4);
 	t.vert_mm = x[13] + ((x[14] & 0x0f) << 8);
 	double refresh = (double)t.pixclk_khz * 1000.0 / ((t.w + hbl) * (t.h + vbl));
