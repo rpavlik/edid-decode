@@ -645,6 +645,15 @@ void edid_state::parse_block_map(const unsigned char *x)
 	}
 }
 
+void edid_state::preparse_extension(const unsigned char *x)
+{
+	switch (x[0]) {
+	case 0x02:
+		preparse_cta_block(x);
+		break;
+	}
+}
+
 void edid_state::parse_extension(const unsigned char *x)
 {
 	block = block_name(x[0]);
@@ -702,6 +711,9 @@ int edid_state::parse_edid()
 	block = block_name(0x00);
 	parse_base_block(edid);
 
+	for (unsigned i = 1; i < num_blocks; i++)
+		preparse_extension(edid + i * EDID_PAGE_SIZE);
+
 	for (unsigned i = 1; i < num_blocks; i++) {
 		block_nr++;
 		printf("\n----------------\n");
@@ -746,15 +758,6 @@ int edid_state::parse_edid()
 			     max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
 		}
 	}
-	if (y420cmdb_max_idx >= 0 && svds.size() <= (unsigned)y420cmdb_max_idx)
-		fail("YCbCr 4:2:0 Capability Map Data Block max index %u > %u (#SVDs)\n",
-		     y420cmdb_max_idx + 1, svds.size());
-	if (hdmi_3d_vics_max_idx >= 0 && svds.size() <= (unsigned)hdmi_3d_vics_max_idx)
-		fail("HDMI 3D VIC indices max index %u > %u (#SVDs)\n",
-		     hdmi_3d_vics_max_idx + 1, svds.size());
-	if (hdmi_2d_vics_max_idx >= 0 && svds.size() <= (unsigned)hdmi_2d_vics_max_idx)
-		fail("HDMI 2D VIC indices max index %u > %u (#SVDs)\n",
-		     hdmi_2d_vics_max_idx + 1, svds.size());
 
 	if (!options[OptCheck] && !options[OptCheckInline])
 		return 0;

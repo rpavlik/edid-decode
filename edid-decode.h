@@ -45,9 +45,6 @@ struct edid_state {
 	{
 		min_hor_freq_hz = 0xffffff;
 		min_vert_freq_hz = 0xffffffff;
-		y420cmdb_max_idx = -1;
-		hdmi_3d_vics_max_idx = -1;
-		hdmi_2d_vics_max_idx = -1;
 	}
 
 	// Base block state
@@ -78,9 +75,6 @@ struct edid_state {
 	unsigned supported_hdmi_vic_codes;
 	unsigned supported_hdmi_vic_vsb_codes;
 	std::vector<unsigned char> svds;
-	int y420cmdb_max_idx;
-	int hdmi_3d_vics_max_idx;
-	int hdmi_2d_vics_max_idx;
 
 	// Global state
 	unsigned edid_size;
@@ -117,6 +111,7 @@ struct edid_state {
 	void cta_vfpdb(const unsigned char *x, unsigned length);
 	void cta_hdmi_block(const unsigned char *x, unsigned length);
 	void cta_block(const unsigned char *x);
+	void preparse_cta_block(const unsigned char *x);
 	void parse_cta_block(const unsigned char *x);
 
 	void parse_displayid_block(const unsigned char *x);
@@ -131,6 +126,7 @@ struct edid_state {
 
 	void parse_block_map(const unsigned char *x);
 
+	void preparse_extension(const unsigned char *x);
 	void parse_extension(const unsigned char *x);
 	int parse_edid();
 };

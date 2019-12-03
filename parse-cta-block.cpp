@@ -371,8 +371,6 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 			printf("    Unknown (VIC %3u)\n", vic);
 			fail("Unknown VIC %u\n", vic);
 		}
-		if (!for_ycbcr420)
-			svds.push_back(vic);
 
 		if (vic == 1 && !for_ycbcr420)
 			has_cta861_vic_1 = 1;
@@ -397,6 +395,7 @@ void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *s
 		else
 			printf("Unknown (%s)\n", buf);
 	} else {
+		// Should not happen!
 		printf("SVD not (yet?) seen%s%s\n",
 		       *suffix ? ", " : "", suffix);
 	}
@@ -404,6 +403,7 @@ void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *s
 
 void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 {
+	unsigned max_idx = 0;
 	unsigned i;
 
 	if (!length) {
@@ -426,9 +426,12 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 				continue;
 
 			print_vic_index("    ", i * 8 + j, "");
-			y420cmdb_max_idx = i * 8 + j;
+			max_idx = i * 8 + j;
 		}
 	}
+	if (max_idx >= svds.size())
+		fail("YCbCr 4:2:0 Capability Map Data Block max index %u > %u (#SVDs)\n",
+		     max_idx + 1, svds.size());
 }
 
 void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
@@ -615,7 +618,9 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 			b++;
 			len_3d -= 2;
 		}
+
 		if (mask) {
+			int max_idx = -1;
 			unsigned i;
 
 			printf("      3D VIC indices that support these capabilities:\n");
@@ -623,15 +628,18 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 			for (i = 0; i < 8; i++)
 				if (x[b + 1] & (1 << i)) {
 					print_vic_index("        ", i, "");
-					hdmi_3d_vics_max_idx = i;
+					max_idx = i;
 				}
 			for (i = 0; i < 8; i++)
 				if (x[b] & (1 << i)) {
 					print_vic_index("        ", i + 8, "");
-					hdmi_3d_vics_max_idx = i + 8;
+					max_idx = i + 8;
 				}
 			b += 2;
 			len_3d -= 2;
+			if (max_idx >= (int)svds.size())
+				fail("HDMI 3D VIC indices max index %d > %u (#SVDs)\n",
+				     max_idx + 1, svds.size());
 		}
 
 		/*
@@ -642,14 +650,15 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 		 */
 		if (len_3d > 0) {
 			unsigned end = b + len_3d;
+		int max_idx = -1;
 
 			printf("      3D VIC indices with specific capabilities:\n");
 			while (b < end) {
 				unsigned char idx = x[b] >> 4;
 				std::string s;
 
-				if (idx > hdmi_2d_vics_max_idx)
-					hdmi_2d_vics_max_idx = idx;
+				if (idx > max_idx)
+					max_idx = idx;
 				switch (x[b] & 0x0f) {
 				case 0: s = "frame packing"; break;
 				case 1: s = "field alternative"; break;
@@ -691,6 +700,9 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 					b++;
 				b++;
 			}
+			if (max_idx >= (int)svds.size())
+				fail("HDMI 2D VIC indices max index %d > %u (#SVDs)\n",
+				     max_idx + 1, svds.size());
 		}
 	}
 }
@@ -1406,6 +1418,24 @@ void edid_state::cta_block(const unsigned char *x)
 	}
 	first_block = 0;
 	last_block_was_hdmi_vsdb = 0;
+}
+
+void edid_state::preparse_cta_block(const unsigned char *x)
+{
+	unsigned version = x[1];
+	unsigned offset = x[2];
+
+	if (version < 3)
+		return;
+
+	for (unsigned i = 4; i < offset; i += (x[i] & 0x1f) + 1) {
+		switch ((x[i] & 0xe0) >> 5) {
+		case 0x02:
+			for (unsigned j = 1; j <= (x[i] & 0x1f); j++)
+				svds.push_back(x[i + j]);
+			break;
+		}
+	}
 }
 
 void edid_state::parse_cta_block(const unsigned char *x)
