@@ -1217,15 +1217,15 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	t.w = (x[2] + ((x[4] & 0xf0) << 4));
 	hbl = (x[3] + ((x[4] & 0x0f) << 8));
-	t.hbp = (x[8] + ((x[11] & 0xc0) << 2));
+	t.hfp = (x[8] + ((x[11] & 0xc0) << 2));
 	t.hsync = (x[9] + ((x[11] & 0x30) << 4));
-	t.hfp = hbl - t.hsync - t.hbp;
+	t.hbp = hbl - t.hsync - t.hfp;
 	t.hborder = x[15];
 	t.h = (x[5] + ((x[7] & 0xf0) << 4));
 	vbl = (x[6] + ((x[7] & 0x0f) << 8));
-	t.vbp = ((x[10] >> 4) + ((x[11] & 0x0c) << 2));
+	t.vfp = ((x[10] >> 4) + ((x[11] & 0x0c) << 2));
 	t.vsync = ((x[10] & 0x0f) + ((x[11] & 0x03) << 4));
-	t.vfp = vbl - t.vsync - t.vbp;
+	t.vbp = vbl - t.vsync - t.vfp;
 	t.vborder = x[16];
 
 	unsigned char flags = x[17];
@@ -1324,19 +1324,19 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	       t.pixclk_khz / 1000.0,
 	       t.hor_mm, t.vert_mm,
 	       prefix,
-	       t.w, t.w + t.hbp, t.w + t.hbp + t.hsync, t.w + hbl, t.hbp, t.hsync, t.hfp,
+	       t.w, t.w + t.hbp, t.w + t.hbp + t.hsync, t.w + hbl, t.hfp, t.hsync, t.hbp,
 	       t.hborder ? (std::string(" hborder ") + std::to_string(t.hborder)).c_str() : "",
 	       prefix,
-	       t.h, t.h + t.vbp, t.h + t.vbp + t.vsync, t.h + vbl, t.vbp, t.vsync, t.vfp,
+	       t.h, t.h + t.vbp, t.h + t.vbp + t.vsync, t.h + vbl, t.vfp, t.vsync, t.vbp,
 	       t.vborder ? (std::string(" vborder ") + std::to_string(t.vborder)).c_str() : "",
 	       prefix,
 	       s_sync.c_str(), s_flags.c_str(),
 	       prefix,
 	       refresh, t.w + hbl ? (double)t.pixclk_khz / (t.w + hbl) : 0.0);
-	if (t.hfp <= 0)
-		fail("0 or negative horizontal front porch\n");
-	if (t.vfp <= 0)
-		fail("0 or negative vertical front porch\n");
+	if (t.hbp <= 0)
+		fail("0 or negative horizontal back porch\n");
+	if (t.vbp <= 0)
+		fail("0 or negative vertical back porch\n");
 	if ((!max_display_width_mm && t.hor_mm) ||
 	    (!max_display_height_mm && t.vert_mm)) {
 		fail("Mismatch of image size vs display size: image size is set, but not display size\n");

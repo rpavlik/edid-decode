@@ -85,16 +85,16 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	t.pixclk_khz = 10 * (1 + (x[0] + (x[1] << 8) + (x[2] << 16)));
 	t.w = 1 + (x[4] | (x[5] << 8));
 	hbl = 1 + (x[6] | (x[7] << 8));
-	t.hbp = 1 + (x[8] | ((x[9] & 0x7f) << 8));
+	t.hfp = 1 + (x[8] | ((x[9] & 0x7f) << 8));
 	t.hsync = 1 + (x[10] | (x[11] << 8));
-	t.hfp = hbl - t.hbp - t.hsync;
+	t.hbp = hbl - t.hfp - t.hsync;
 	if ((x[9] >> 7) & 0x1)
 		t.pos_pol_hsync = true;
 	t.h = 1 + (x[12] | (x[13] << 8));
 	vbl = 1 + (x[14] | (x[15] << 8));
-	t.vbp = 1 + (x[16] | ((x[17] & 0x7f) << 8));
+	t.vfp = 1 + (x[16] | ((x[17] & 0x7f) << 8));
 	t.vsync = 1 + (x[18] | (x[19] << 8));
-	t.vfp = vbl - t.vbp - t.vsync;
+	t.vbp = vbl - t.vfp - t.vsync;
 	if ((x[17] >> 7) & 0x1)
 		t.pos_pol_vsync = true;
 	
@@ -104,8 +104,8 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	       "                   %chsync %cvsync\n"
 	       "                   VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       (double)t.pixclk_khz/1000.0, s.c_str(),
-	       t.w, t.w + t.hbp, t.w + t.hbp + t.hsync, t.w + hbl, t.hbp, t.hsync, t.hfp,
-	       t.h, t.h + t.vbp, t.h + t.vbp + t.vsync, t.h + vbl, t.vbp, t.vsync, t.vfp,
+	       t.w, t.w + t.hbp, t.w + t.hbp + t.hsync, t.w + hbl, t.hfp, t.hsync, t.hbp,
+	       t.h, t.h + t.vbp, t.h + t.vbp + t.vsync, t.h + vbl, t.vfp, t.vsync, t.vbp,
 	       t.pos_pol_hsync ? '+' : '-', t.pos_pol_vsync ? '+' : '-',
 	       (t.pixclk_khz * 1000.0) / ((t.w + hbl) * (t.h + vbl)),
 	       (double)(t.pixclk_khz) / (t.w + hbl)

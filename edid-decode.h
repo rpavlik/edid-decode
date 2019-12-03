@@ -28,13 +28,13 @@ struct timings {
 	unsigned ratio_w, ratio_h;
 	unsigned pixclk_khz;
 	bool rb, interlaced;
-	// The frontporch may be negative in buggy detailed timings.
-	// So use int instead of unsigned for hfp and vfp.
-	int hfp;
-	unsigned hsync, hbp;
+	// The backporch may be negative in buggy detailed timings.
+	// So use int instead of unsigned for hbp and vbp.
+	unsigned hfp, hsync;
+	int hbp;
 	bool pos_pol_hsync;
-	int vfp;
-	unsigned vsync, vbp;
+	unsigned vfp, vsync;
+	int vbp;
 	bool pos_pol_vsync;
 	unsigned hborder, vborder;
 	unsigned hor_mm, vert_mm;
