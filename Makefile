@@ -7,16 +7,14 @@ SOURCES = edid-decode.cpp parse-base-block.cpp parse-cta-block.cpp \
 
 all: edid-decode
 
-edid-decode: $(SOURCES) edid-decode.h version.h
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -g -Wall -o $@ $(SOURCES) -lm
-
-version.h:
+edid-decode: $(SOURCES) edid-decode.h
 	@if [ -d .git ]; then \
-		printf "#define SHA " >$@ ; \
-		git rev-parse HEAD >>$@ ; \
+		printf "#define SHA " >version.h; \
+		git rev-parse HEAD >>version.h; \
 	else \
-		touch $@ ; \
+		touch version.h; \
 	fi
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -g -Wall -o $@ $(SOURCES) -lm
 
 clean:
 	rm -f edid-decode version.h
