@@ -376,7 +376,9 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 		if (vic == 1 && !for_ycbcr420)
 			has_cta861_vic_1 = 1;
 		if (++vics[vic][for_ycbcr420] == 2)
-			fail("Duplicate VIC %u\n", vic);
+			fail("Duplicate %sVIC %u\n", for_ycbcr420 ? "YCbCr 4:2:0 " : "", vic);
+		if (for_ycbcr420 && has_vic[0][vic])
+			fail("YCbCr 4:2:0-only VIC %u is also a regular VIC\n", vic);
 	}
 }
 
@@ -384,8 +386,8 @@ void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *s
 {
 	if (!suffix)
 		suffix = "";
-	if (idx < svds.size()) {
-		unsigned char vic = svds[idx];
+	if (idx < svds[0].size()) {
+		unsigned char vic = svds[0][idx];
 		const struct timings *t = vic_to_mode(vic);
 		char buf[256];
 
@@ -430,11 +432,16 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 
 			print_vic_index("    ", i * 8 + j, "");
 			max_idx = i * 8 + j;
+			if (max_idx < svds[0].size()) {
+				unsigned vic = svds[0][max_idx];
+				if (has_vic[1][vic])
+					fail("VIC %u is also a YCbCr 4:2:0-only VIC\n", vic);
+			}
 		}
 	}
-	if (max_idx >= svds.size())
+	if (max_idx >= svds[0].size())
 		fail("Max index %u > %u (#SVDs)\n",
-		     max_idx + 1, svds.size());
+		     max_idx + 1, svds[0].size());
 }
 
 void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
@@ -640,9 +647,9 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 				}
 			b += 2;
 			len_3d -= 2;
-			if (max_idx >= (int)svds.size())
+			if (max_idx >= (int)svds[0].size())
 				fail("HDMI 3D VIC indices max index %d > %u (#SVDs)\n",
-				     max_idx + 1, svds.size());
+				     max_idx + 1, svds[0].size());
 		}
 
 		/*
@@ -703,9 +710,9 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 					b++;
 				b++;
 			}
-			if (max_idx >= (int)svds.size())
+			if (max_idx >= (int)svds[0].size())
 				fail("HDMI 2D VIC indices max index %d > %u (#SVDs)\n",
-				     max_idx + 1, svds.size());
+				     max_idx + 1, svds[0].size());
 		}
 	}
 }
@@ -999,12 +1006,14 @@ static void cta_vcdb(const unsigned char *x, unsigned length)
 	case 2: printf("Always Underscanned\n"); break;
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
+	printf("    IT scan behavior: ");
 	switch ((d >> 6) & 0x03) {
 	case 0: printf("IT video formats not supported\n"); break;
 	case 1: printf("Always Overscanned\n"); break;
 	case 2: printf("Always Underscanned\n"); break;
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
+	printf("    CE scan behavior: ");
 	switch (d & 0x03) {
 	case 0: printf("CE video formats not supported\n"); break;
 	case 1: printf("Always Overscanned\n"); break;
@@ -1432,10 +1441,23 @@ void edid_state::preparse_cta_block(const unsigned char *x)
 		return;
 
 	for (unsigned i = 4; i < offset; i += (x[i] & 0x1f) + 1) {
+		bool for_ycbcr420 = false;
+
 		switch ((x[i] & 0xe0) >> 5) {
+		case 0x07:
+			if (x[i + 1] != 0x0e)
+				continue;
+			for_ycbcr420 = true;
+			/* fall-through */
 		case 0x02:
-			for (unsigned j = 1; j <= (x[i] & 0x1f); j++)
-				svds.push_back(x[i + j]);
+			for (unsigned j = 1 + for_ycbcr420; j <= (x[i] & 0x1f); j++) {
+				unsigned char vic = x[i + j];
+
+				if ((vic & 0x7f) <= 64)
+					vic &= 0x7f;
+				svds[for_ycbcr420].push_back(vic);
+				has_vic[for_ycbcr420][vic] = true;
+			}
 			break;
 		}
 	}
