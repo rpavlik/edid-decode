@@ -328,6 +328,7 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 
 void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 {
+	static unsigned short vics[256][2];
 	unsigned i;
 
 	for (i = 0; i < n; i++)  {
@@ -374,6 +375,8 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 
 		if (vic == 1 && !for_ycbcr420)
 			has_cta861_vic_1 = 1;
+		if (++vics[vic][for_ycbcr420] == 2)
+			fail("Duplicate VIC %u\n", vic);
 	}
 }
 
