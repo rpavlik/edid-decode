@@ -13,7 +13,7 @@ edid-decode: $(SOURCES) edid-decode.h
 		printf "#define SHA " >version.h; \
 		git rev-parse HEAD >>version.h; \
 	else \
-		touch version.h; \
+		echo >version.h; \
 	fi
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(WARN_FLAGS) -g -o $@ $(SOURCES) -lm
 
