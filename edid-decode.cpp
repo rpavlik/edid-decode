@@ -177,7 +177,7 @@ void edid_state::print_timings(const char *prefix, const struct timings *t,
 
 	char buf[10];
 	sprintf(buf, "%u%s", t->h, t->interlaced ? "i" : "");
-	printf("%s%5ux%-5s %6.2f Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
+	printf("%s%5ux%-5s %7.3f Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
 	       prefix,
 	       t->w, buf,
 	       refresh,

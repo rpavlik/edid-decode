@@ -102,7 +102,7 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
 	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
 	       "                   %chsync %cvsync\n"
-	       "                   VertFreq: %.2f Hz, HorFreq: %.3f kHz\n",
+	       "                   VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       (double)t.pixclk_khz/1000.0, s.c_str(),
 	       t.w, t.w + t.hbp, t.w + t.hbp + t.hsync, t.w + hbl, t.hbp, t.hsync, t.hfp,
 	       t.h, t.h + t.vbp, t.h + t.vbp + t.vsync, t.h + vbl, t.vbp, t.vsync, t.vfp,

@@ -4,6 +4,7 @@ mandir ?= /usr/share/man
 SOURCES = edid-decode.cpp parse-base-block.cpp parse-cta-block.cpp \
 	  parse-displayid-block.cpp parse-ls-ext-block.cpp \
 	  parse-di-ext-block.cpp
+WARN_FLAGS = -Wall -Wextra -Wno-missing-field-initializers -Wno-unused-parameter
 
 all: edid-decode
 
@@ -14,7 +15,7 @@ edid-decode: $(SOURCES) edid-decode.h
 	else \
 		touch version.h; \
 	fi
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -g -Wall -o $@ $(SOURCES) -lm
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(WARN_FLAGS) -g -o $@ $(SOURCES) -lm
 
 clean:
 	rm -f edid-decode version.h

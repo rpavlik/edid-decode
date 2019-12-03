@@ -240,19 +240,24 @@ static const struct {
 				    8, 32, 40, true, 48, 8, 6, false } },
 };
 
+// The timings for the IBM/Apple modes are copied from the linux
+// kernel timings in drivers/gpu/drm/drm_edid.c, except for the
+// 1152x870 Apple format, which is copied from
+// drivers/video/fbdev/macmodes.c since the drm_edid.c version
+// describes a 1152x864 format.
 static const struct {
 	unsigned dmt_id;
 	struct timings t;
 	const char *std_name;
 } established_timings12[] = {
 	/* 0x23 bit 7 - 0 */
-	{ 0x00, { 720, 400, 9, 5, 28322, false, false,
+	{ 0x00, { 720, 400, 9, 5, 28320, false, false,
 	          18, 108, 54, false, 21, 2, 26, true }, "IBM" },
 	{ 0x00, { 720, 400, 9, 5, 35500, false, false,
 	          18, 108, 54, false, 12, 2, 35, true }, "IBM" },
 	{ 0x04 },
-	{ 0x00, { 640, 480, 4, 3, 30000, false, false,
-	          80, 64, 80, false, 3, 3, 39, false }, "Apple" },
+	{ 0x00, { 640, 480, 4, 3, 30240, false, false,
+	          64, 64, 96, false, 3, 3, 39, false }, "Apple" },
 	{ 0x05 },
 	{ 0x06 },
 	{ 0x08 },
@@ -260,9 +265,9 @@ static const struct {
 	/* 0x24 bit 7 - 0 */
 	{ 0x0a },
 	{ 0x0b },
-	{ 0x00, { 832, 624, 4, 3, 57600, false, false,
-	          48, 64, 208, false, 1, 3, 39, false }, "Apple" },
-	{ 0x00, { 1024, 768, 4, 3, 45000, false, true,
+	{ 0x00, { 832, 624, 4, 3, 57284, false, false,
+	          32, 64, 224, false, 1, 3, 39, false }, "Apple" },
+	{ 0x00, { 1024, 768, 4, 3, 44900, false, true,
 	          8, 176, 56, true, 0, 4, 20, true }, "IBM" },
 	{ 0x10 },
 	{ 0x11 },
@@ -628,6 +633,8 @@ void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 		HSyncEnd = HTotal - HBlank / 2;
 
 		HSyncStart = HSyncEnd - HSync;
+		VSyncStart = VDisplayRnd + CVT_MIN_V_PORCH;
+		VSyncEnd = VSyncStart + VSync;
 
 		/* 15/13. Find pixel clock frequency (kHz for xf86) */
 		Clock = ((double)HTotal / HPeriod) * 1000.0;
@@ -1198,6 +1205,8 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	t.pixclk_khz = (x[0] + (x[1] << 8)) * 10;
 	if (t.pixclk_khz < 10000) {
+		printf("%sDetailed mode: ", prefix);
+		hex_block("", x, 18, true, 18);
 		if (!t.pixclk_khz)
 			fail("First two bytes are 0, invalid data\n");
 		else
@@ -1310,7 +1319,7 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
 	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
 	       "%s               %s%s\n"
-	       "%s               VertFreq: %.2f Hz, HorFreq: %.3f kHz\n",
+	       "%s               VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       prefix,
 	       t.pixclk_khz / 1000.0,
 	       t.hor_mm, t.vert_mm,

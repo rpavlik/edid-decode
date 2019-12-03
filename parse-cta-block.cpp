@@ -13,73 +13,6 @@
 
 #include "edid-decode.h"
 
-struct value {
-	unsigned value;
-	const char *description;
-};
-
-struct field {
-	const char *name;
-	unsigned start, end;
-	const struct value *values;
-	unsigned n_values;
-};
-
-#define DEFINE_FIELD(n, var, s, e, ...)				\
-static const struct value var##_values[] =  {			\
-	__VA_ARGS__						\
-};								\
-static const struct field var = {				\
-	.name = n,						\
-	.start = s,		        			\
-	.end = e,						\
-	.values = var##_values,	        			\
-	.n_values = ARRAY_SIZE(var##_values),			\
-}
-
-static void decode_value(const struct field *field, unsigned val,
-			 const char *prefix)
-{
-	const struct value *v = NULL;
-	unsigned i;
-
-	for (i = 0; i < field->n_values; i++) {
-		v = &field->values[i];
-
-		if (v->value == val)
-			break;
-	}
-
-	if (i == field->n_values) {
-		printf("%s%s: %u\n", prefix, field->name, val);
-		return;
-	}
-
-	printf("%s%s: %s (%u)\n", prefix, field->name, v->description, val);
-}
-
-static void _decode(const struct field **fields, unsigned n_fields,
-		    unsigned data, const char *prefix)
-{
-	unsigned i;
-
-	for (i = 0; i < n_fields; i++) {
-		const struct field *f = fields[i];
-		unsigned field_length = f->end - f->start + 1;
-		unsigned val;
-
-		if (field_length == 32)
-			val = data;
-		else
-			val = (data >> f->start) & ((1 << field_length) - 1);
-
-		decode_value(f, val, prefix);
-	}
-}
-
-#define decode(fields, data, prefix)    \
-	_decode(fields, ARRAY_SIZE(fields), data, prefix)
-
 static const struct timings edid_cta_modes1[] = {
 	/* VIC 1 */
 	{  640,  480,   4,   3,   25175, false, false,   16,  96,  48, false, 10,  2,  33, false },
@@ -904,38 +837,9 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 
 static void cta_hdr10plus(const unsigned char *x, unsigned length)
 {
-	printf("    Application Version: %u\n", x[0]);
+	printf("    Application Version: %u", x[0]);
+	hex_block("  ", x + 1, length - 1);
 }
-
-DEFINE_FIELD("YCbCr quantization", YCbCr_quantization, 7, 7,
-	     { 0, "No Data" },
-	     { 1, "Selectable (via AVI YQ)" });
-DEFINE_FIELD("RGB quantization", RGB_quantization, 6, 6,
-	     { 0, "No Data" },
-	     { 1, "Selectable (via AVI Q)" });
-DEFINE_FIELD("PT scan behaviour", PT_scan, 4, 5,
-	     { 0, "No Data" },
-	     { 1, "Always Overscannned" },
-	     { 2, "Always Underscanned" },
-	     { 3, "Support both over- and underscan" });
-DEFINE_FIELD("IT scan behaviour", IT_scan, 2, 3,
-	     { 0, "IT video formats not supported" },
-	     { 1, "Always Overscannned" },
-	     { 2, "Always Underscanned" },
-	     { 3, "Support both over- and underscan" });
-DEFINE_FIELD("CE scan behaviour", CE_scan, 0, 1,
-	     { 0, "CE video formats not supported" },
-	     { 1, "Always Overscannned" },
-	     { 2, "Always Underscanned" },
-	     { 3, "Support both over- and underscan" });
-
-static const struct field *vcdb_fields[] = {
-	&YCbCr_quantization,
-	&RGB_quantization,
-	&PT_scan,
-	&IT_scan,
-	&CE_scan,
-};
 
 static const char *speaker_map[] = {
 	"FL/FR - Front Left/Right",
@@ -1069,7 +973,29 @@ static void cta_vcdb(const unsigned char *x, unsigned length)
 {
 	unsigned char d = x[0];
 
-	decode(vcdb_fields, d, "    ");
+	printf("    YCbCr quantization: %s\n",
+	       (d & 0x80) ? "Selectable (via AVI YQ)" : "No Data");
+	printf("    RGB quantization: %s\n",
+	       (d & 0x40) ? "Selectable (via AVI Q)" : "No Data");
+	printf("    PT scan behavior: ");
+	switch ((d >> 4) & 0x03) {
+	case 0: printf("No Data\n"); break;
+	case 1: printf("Always Overscanned\n"); break;
+	case 2: printf("Always Underscanned\n"); break;
+	case 3: printf("Supports both over- and underscan\n"); break;
+	}
+	switch ((d >> 6) & 0x03) {
+	case 0: printf("IT video formats not supported\n"); break;
+	case 1: printf("Always Overscanned\n"); break;
+	case 2: printf("Always Underscanned\n"); break;
+	case 3: printf("Supports both over- and underscan\n"); break;
+	}
+	switch (d & 0x03) {
+	case 0: printf("CE video formats not supported\n"); break;
+	case 1: printf("Always Overscanned\n"); break;
+	case 2: printf("Always Underscanned\n"); break;
+	case 3: printf("Supports both over- and underscan\n"); break;
+	}
 }
 
 static const char *colorimetry_map[] = {
@@ -1499,8 +1425,9 @@ void edid_state::parse_cta_block(const unsigned char *x)
 
 		if (version < 3) {
 			printf("%u 8-byte timing descriptors\n", (offset - 4) / 8);
-			if (offset - 4 > 0)
-				/* do stuff */ ;
+			if (offset - 4 > 0) {
+				/* do stuff */
+			}
 		}
 
 		if (version >= 2) {    
@@ -1524,9 +1451,8 @@ void edid_state::parse_cta_block(const unsigned char *x)
 
 		unsigned cnt;
 		for (detailed = x + offset, cnt = 1; detailed + 18 < x + 127; detailed += 18, cnt++) {
-			if (!detailed[0] && !detailed[1]) {
+			if (memchk(detailed, 18))
 				break;
-			}
 			data_block = "Detailed Timings #" + std::to_string(cnt);
 			detailed_timings("", detailed);
 		}
