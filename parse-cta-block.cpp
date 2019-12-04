@@ -999,6 +999,26 @@ static void cta_vcdb(const unsigned char *x, unsigned length)
 	       (d & 0x80) ? "Selectable (via AVI YQ)" : "No Data");
 	printf("    RGB quantization: %s\n",
 	       (d & 0x40) ? "Selectable (via AVI Q)" : "No Data");
+	/*
+	 * If this bit is not set then that will result in interoperability
+	 * problems (specifically with PCs/laptops) that quite often do not
+	 * follow the default rules with respect to RGB Quantization Range
+	 * handling.
+	 *
+	 * The HDMI 2.0 spec recommends that this is set, but it is a good
+	 * recommendation in general, not just for HDMI.
+	 */
+	if (!(d & 0x40))
+		warn("Set Selectable RGB Quantization to avoid interop issues.\n");
+	/*
+	 * HDMI 2.0 recommends that the Selectable YCbCr Quantization bit is set
+	 * as well, but in practice this is less of an interop issue.
+	 *
+	 * I decided to not warn about this (for now).
+	 *
+	 * if (!(d & 0x80))
+	 *	warn("Set Selectable YCbCr Quantization to avoid interop issues.\n");
+	 */
 	printf("    PT scan behavior: ");
 	switch ((d >> 4) & 0x03) {
 	case 0: printf("No Data\n"); break;
