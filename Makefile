@@ -8,17 +8,13 @@ WARN_FLAGS = -Wall -Wextra -Wno-missing-field-initializers -Wno-unused-parameter
 
 all: edid-decode
 
-edid-decode: $(SOURCES) edid-decode.h
-	@if [ -d .git ]; then \
-		printf "#define SHA " >version.h; \
-		git rev-parse HEAD >>version.h; \
-	else \
-		echo >version.h; \
-	fi
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(WARN_FLAGS) -g -o $@ $(SOURCES) -lm
+sha = -DSHA=$(shell if [ -d .git ]; then git rev-parse HEAD ; else printf '"not available"'; fi)
+
+edid-decode: $(SOURCES) edid-decode.h Makefile
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(WARN_FLAGS) -g $(sha) -o $@ $(SOURCES) -lm
 
 clean:
-	rm -f edid-decode version.h
+	rm -f edid-decode
 
 install:
 	mkdir -p $(DESTDIR)$(bindir)

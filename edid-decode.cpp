@@ -18,7 +18,6 @@
 #include <unistd.h>
 
 #include "edid-decode.h"
-#include "version.h"
 
 static edid_state state;
 
