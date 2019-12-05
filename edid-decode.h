@@ -128,12 +128,13 @@ struct edid_state {
 	void parse_display_device(const unsigned char *x);
 	void parse_display_caps(const unsigned char *x);
 	void parse_display_xfer(const unsigned char *x);
-	void parse_displayid_type_1_timing(const unsigned char *x);
+	void parse_displayid_type_1_7_timing(const unsigned char *x, bool type7);
 	void parse_displayid_type_2_timing(const unsigned char *x);
 	void parse_displayid_type_3_timing(const unsigned char *x);
-	void parse_displayid_type_4_timing(unsigned char type, unsigned char id);
+	void parse_displayid_type_4_8_timing(unsigned char type, unsigned short id);
 	void parse_displayid_type_5_timing(const unsigned char *x);
 	void parse_displayid_type_6_timing(const unsigned char *x);
+	void parse_displayid_type_9_timing(const unsigned char *x);
 
 	void parse_di_ext_block(const unsigned char *x);
 

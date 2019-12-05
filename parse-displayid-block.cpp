@@ -88,15 +88,15 @@ static void parse_displayid_parameters(const unsigned char *x)
 	}
 }
 
-// tag 0x03
+// tag 0x03 and 0x22
 
-void edid_state::parse_displayid_type_1_timing(const unsigned char *x)
+void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool type7)
 {
 	struct timings t = {};
 	unsigned hbl, vbl;
 	std::string s("aspect ");
 
-	t.pixclk_khz = 10 * (1 + (x[0] + (x[1] << 8) + (x[2] << 16)));
+	t.pixclk_khz = (type7 ? 1 : 10) * (1 + (x[0] + (x[1] << 8) + (x[2] << 16)));
 	switch (x[3] & 0xf) {
 	case 0:
 		s += "1:1";
@@ -302,9 +302,9 @@ void edid_state::parse_displayid_type_3_timing(const unsigned char *x)
 	print_detailed_timings("    ", t, s.c_str());
 }
 
-// tag 0x06
+// tag 0x06 and 0x23
 
-void edid_state::parse_displayid_type_4_timing(unsigned char type, unsigned char id)
+void edid_state::parse_displayid_type_4_8_timing(unsigned char type, unsigned short id)
 {
 	const struct timings *t = NULL;
 	char suffix[16];
@@ -467,6 +467,46 @@ void edid_state::parse_displayid_type_6_timing(const unsigned char *x)
 
 	if (x[2] & 0x80)
 		s += ", preferred";
+
+	print_detailed_timings("    ", t, s.c_str());
+}
+
+// tag 0x24
+
+void edid_state::parse_displayid_type_9_timing(const unsigned char *x)
+{
+	struct timings t = {};
+	std::string s("aspect ");
+
+	t.hact = 1 + (x[1] | (x[2] << 8));
+	t.vact = 1 + (x[3] | (x[4] << 8));
+	calc_ratio(&t);
+	s += std::to_string(t.hratio) + ":" + std::to_string(t.vratio);
+	switch ((x[0] >> 5) & 0x3) {
+	case 0:
+		s += ", no 3D stereo";
+		break;
+	case 1:
+		s += ", 3D stereo";
+		break;
+	case 2:
+		s += ", 3D stereo depends on user action";
+		break;
+	case 3:
+		s += ", reserved";
+		fail("Reserved stereo 0x03\n");
+		break;
+	}
+	if (x[0] & 0x10)
+		s += ", refresh rate * (1000/1001) supported";
+
+	switch (x[0] & 0x07) {
+	case 1: t.rb = 1; break;
+	case 2: t.rb = 2; break;
+	default: break;
+	}
+
+	edid_cvt_mode(1 + x[5], t);
 
 	print_detailed_timings("    ", t, s.c_str());
 }
@@ -748,7 +788,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x01: parse_displayid_parameters(x + offset); break;
 		case 0x03:
 			   for (i = 0; i < len / 20; i++)
-				   parse_displayid_type_1_timing(&x[offset + 3 + (i * 20)]);
+				   parse_displayid_type_1_7_timing(&x[offset + 3 + (i * 20)], false);
 			   break;
 		case 0x04:
 			   for (i = 0; i < len / 11; i++)
@@ -760,7 +800,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			   break;
 		case 0x06:
 			   for (i = 0; i < len; i++)
-				   parse_displayid_type_4_timing((x[offset + 1] & 0xc0) >> 6, x[offset + 3 + i]);
+				   parse_displayid_type_4_8_timing((x[offset + 1] & 0xc0) >> 6, x[offset + 3 + i]);
 			   break;
 		case 0x07:
 			   for (i = 0; i < min(len, 10) * 8; i++)
@@ -785,6 +825,26 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x13:
 			   for (i = 0; i < len; i += (x[offset + 3 + i + 2] & 0x40) ? 17 : 14)
 				   parse_displayid_type_6_timing(&x[offset + 3 + i]);
+			   break;
+		case 0x22:
+			   for (i = 0; i < len / 20; i++)
+				   parse_displayid_type_1_7_timing(&x[offset + 3 + i * 20], true);
+			   break;
+		case 0x23:
+			   if (x[offset + 1] & 0x08) {
+				   for (i = 0; i < len / 2; i++)
+					   parse_displayid_type_4_8_timing((x[offset + 1] & 0xc0) >> 6,
+									   x[offset + 3 + i * 2] |
+									   (x[offset + 4 + i * 2] << 8));
+			   } else {
+				   for (i = 0; i < len; i++)
+					   parse_displayid_type_4_8_timing((x[offset + 1] & 0xc0) >> 6,
+									   x[offset + 3 + i]);
+			   }
+			   break;
+		case 0x24:
+			   for (i = 0; i < len / 6; i++)
+				   parse_displayid_type_9_timing(&x[offset + 3 + i * 6]);
 			   break;
 		case 0x26: parse_displayid_interface_features(x + offset); break;
 		case 0x29: parse_displayid_ContainerID(x + offset); break;
