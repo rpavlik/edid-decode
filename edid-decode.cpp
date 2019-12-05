@@ -737,26 +737,22 @@ int edid_state::parse_edid()
 		 * EDID 1.4 states (in an Errata) that explicitly defined
 		 * timings supersede the monitor range definition.
 		 */
+		char buf[512];
+		snprintf(buf, sizeof(buf),
+			"One or more of the timings is out of range of the Monitor Ranges:\n"
+			"    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
+			"    Horizontal Freq: %.3f - %.3f kHz (Monitor: %.3f - %.3f kHz)\n"
+			"    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
+			min_vert_freq_hz, max_vert_freq_hz,
+			min_display_vert_freq_hz, max_display_vert_freq_hz,
+			min_hor_freq_hz / 1000.0, max_hor_freq_hz / 1000.0,
+			min_display_hor_freq_hz / 1000.0, max_display_hor_freq_hz / 1000.0,
+			max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
+
 		if (edid_minor < 4) {
-			fail("One or more of the timings is out of range of the Monitor Ranges:\n"
-			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
-			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
-			     "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
-			     min_vert_freq_hz, max_vert_freq_hz,
-			     min_display_vert_freq_hz, max_display_vert_freq_hz,
-			     min_hor_freq_hz, max_hor_freq_hz,
-			     min_display_hor_freq_hz, max_display_hor_freq_hz,
-			     max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
+			fail("%s", buf);
 		} else {
-			warn("One or more of the timings is out of range of the Monitor Ranges:\n"
-			     "    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
-			     "    Horizontal Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
-			     "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
-			     min_vert_freq_hz, max_vert_freq_hz,
-			     min_display_vert_freq_hz, max_display_vert_freq_hz,
-			     min_hor_freq_hz, max_hor_freq_hz,
-			     min_display_hor_freq_hz, max_display_hor_freq_hz,
-			     max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
+			warn("%s", buf);
 		}
 	}
 
