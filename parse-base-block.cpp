@@ -772,7 +772,7 @@ void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
 }
 
 /* extract a string from a detailed subblock, checking for termination */
-static char *extract_string(const unsigned char *x, unsigned len)
+char *extract_string(const unsigned char *x, unsigned len)
 {
 	static char s[EDID_PAGE_SIZE];
 	int seen_newline = 0;

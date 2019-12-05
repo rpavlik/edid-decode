@@ -147,5 +147,7 @@ std::string block_name(unsigned char block);
 void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
 
 const struct timings *find_dmt_id(unsigned char dmt_id);
+const struct timings *vic_to_mode(unsigned char vic);
+char *extract_string(const unsigned char *x, unsigned len);
 
 #endif
