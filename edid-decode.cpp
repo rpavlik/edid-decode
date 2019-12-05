@@ -154,7 +154,9 @@ void edid_state::print_timings(const char *prefix, const struct timings *t,
 	double hor_freq_khz = (double)t->pixclk_khz / w_total;
 
 	double h_total = t->h + t->vfp + t->vsync + t->vbp;
-	if (t->interlaced)
+	if (t->even_vtotal)
+		h_total = t->h / 2.0 + t->vfp + t->vsync + t->vbp;
+	else if (t->interlaced)
 		h_total = t->h / 2.0 + t->vfp + t->vsync + t->vbp + 0.5;
 	double refresh = (double)t->pixclk_khz * 1000.0 / (w_total * h_total);
 
