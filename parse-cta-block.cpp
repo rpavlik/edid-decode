@@ -1542,7 +1542,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 		fail("Both the serial number and the serial string are set\n");
 	if (!has_cta861_vic_1 && !has_640x480p60_est_timing)
 		fail("Required 640x480p60 timings are missing in the established timings"
-		     "and the SVD list (VIC 1)\n");
+		     " and the SVD list (VIC 1)\n");
 	if ((supported_hdmi_vic_vsb_codes & supported_hdmi_vic_codes) !=
 	    supported_hdmi_vic_codes)
 		fail("HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB\n");
