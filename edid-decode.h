@@ -80,8 +80,8 @@ struct edid_state {
 	bool has_cta861_vic_1;
 	unsigned supported_hdmi_vic_codes;
 	unsigned supported_hdmi_vic_vsb_codes;
-	bool has_vic[2][256];
-	std::vector<unsigned char> svds[2];
+	bool preparsed_has_vic[2][256];
+	std::vector<unsigned char> preparsed_svds[2];
 
 	// Global state
 	unsigned edid_size;

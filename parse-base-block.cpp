@@ -1284,7 +1284,7 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 		if (t.hact == 1920 && t.vact == 1080 && t.pixclk_khz == 72000 &&
 		    t.hfp == 32 && t.hsync == 168 && t.hbp == 184 && !t.hborder &&
 		    t.vfp == 23 && t.vsync == 5 && t.vbp == 57 && !t.vborder &&
-		    !has_spwg && has_vic[0][39] && (flags & 0x1e) == 0x1a)
+		    !has_spwg && preparsed_has_vic[0][39] && (flags & 0x1e) == 0x1a)
 			t.even_vtotal = true;
 	}
 	switch (flags & 0x61) {
