@@ -56,7 +56,7 @@ static const struct timings edid_cta_modes1[] = {
 	{ 2880,  480,  16,   9,  108000, false, false,   64, 248, 240, false,  9,  6,  30, false },
 	{ 2880,  576,   4,   3,  108000, false, false,   48, 256, 272, false,  5,  5,  39, false },
 	{ 2880,  576,  16,   9,  108000, false, false,   48, 256, 272, false,  5,  5,  39, false },
-	{ 1920, 1080,  16,   9,   72000, false, true,    32, 168, 184, true,  23,  5,  57, false, true },
+	{ 1920, 1080,  16,   9,   72000, false, true,    32, 168, 184, true,  23,  5,  57, false, 0, 0, true },
 	{ 1920, 1080,  16,   9,  148500, false, true,   528,  44, 148, true,   2,  5,  15, true  },
 	/* VIC 41 */
 	{ 1280,  720,  16,   9,  148500, false, false,  440,  40, 220, true,   5,  5,  20, true  },

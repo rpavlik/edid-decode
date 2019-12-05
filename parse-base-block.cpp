@@ -1275,6 +1275,15 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	if (flags & 0x80) {
 		t.interlaced = true;
 		add_str(s_flags, "interlaced");
+		/*
+		 * Check if this DTD matches VIC code 39 with special
+		 * interlaced timings.
+		 */
+		if (t.w == 1920 && t.h == 540 && t.pixclk_khz == 72000 &&
+		    t.hfp == 32 && t.hsync == 168 && t.hbp == 184 && !t.hborder &&
+		    t.vfp == 23 && t.vsync == 5 && t.vbp == 57 && !t.vborder &&
+		    !has_spwg && has_vic[0][39] && (flags & 0x1e) == 0x1a)
+			t.even_vtotal = true;
 	}
 	switch (flags & 0x61) {
 	case 0x20:
@@ -1313,12 +1322,15 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	t.hor_mm = x[12] + ((x[14] & 0xf0) << 4);
 	t.vert_mm = x[13] + ((x[14] & 0x0f) << 8);
-	double refresh = (double)t.pixclk_khz * 1000.0 / ((t.w + hbl) * (t.h + vbl));
+	double vtotal = t.h + vbl;
+	if (t.interlaced && !t.even_vtotal)
+		vtotal += 0.5;
+	double refresh = (double)t.pixclk_khz * 1000.0 / ((t.w + hbl) * vtotal);
 	printf("%sDetailed mode: Clock %.3f MHz, %u mm x %u mm\n"
 	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
 	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
 	       "%s               %s%s\n"
-	       "%s               VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
+	       "%s               VertFreq: %.3f%s Hz, HorFreq: %.3f kHz\n",
 	       prefix,
 	       t.pixclk_khz / 1000.0,
 	       t.hor_mm, t.vert_mm,
@@ -1331,7 +1343,8 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	       prefix,
 	       s_sync.c_str(), s_flags.c_str(),
 	       prefix,
-	       refresh, t.w + hbl ? (double)t.pixclk_khz / (t.w + hbl) : 0.0);
+	       refresh, t.interlaced ? "i" : "",
+	       t.w + hbl ? (double)t.pixclk_khz / (t.w + hbl) : 0.0);
 	if (t.hbp <= 0)
 		fail("0 or negative horizontal back porch\n");
 	if (t.vbp <= 0)

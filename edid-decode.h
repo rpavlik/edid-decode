@@ -37,8 +37,8 @@ struct timings {
 	int vbp;
 	bool pos_pol_vsync;
 	unsigned hborder, vborder;
-	unsigned hor_mm, vert_mm;
 	bool even_vtotal; // special for VIC 39
+	unsigned hor_mm, vert_mm;
 };
 
 struct edid_state {
