@@ -1310,13 +1310,13 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	bool ok = true;
 
-	if (!t.w || !hbl || !t.hbp || !t.hsync || !t.h || !vbl || !t.vbp || !t.vsync) {
+	if (!t.w || !hbl || !t.hfp || !t.hsync || !t.h || !vbl || !t.vfp || !t.vsync) {
 		fail("0 values in the detailed timings:\n"
 		     "    Horizontal Active/Blanking %u/%u\n"
-		     "    Horizontal Backporch/Sync Width %u/%u\n"
+		     "    Horizontal Frontporch/Sync Width %u/%u\n"
 		     "    Vertical Active/Blanking %u/%u\n"
-		     "    Vertical Backporch/Sync Width %u/%u\n",
-		     t.w, hbl, t.hbp, t.hsync, t.h, vbl, t.vbp, t.vsync);
+		     "    Vertical Frontporch/Sync Width %u/%u\n",
+		     t.w, hbl, t.hfp, t.hsync, t.h, vbl, t.vfp, t.vsync);
 		ok = false;
 	}
 
@@ -1335,10 +1335,10 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	       t.pixclk_khz / 1000.0,
 	       t.hor_mm, t.vert_mm,
 	       prefix,
-	       t.w, t.w + t.hbp, t.w + t.hbp + t.hsync, t.w + hbl, t.hfp, t.hsync, t.hbp,
+	       t.w, t.w + t.hfp, t.w + t.hfp + t.hsync, t.w + hbl, t.hfp, t.hsync, t.hbp,
 	       t.hborder ? (std::string(" hborder ") + std::to_string(t.hborder)).c_str() : "",
 	       prefix,
-	       t.h, t.h + t.vbp, t.h + t.vbp + t.vsync, t.h + vbl, t.vfp, t.vsync, t.vbp,
+	       t.h, t.h + t.vfp, t.h + t.vfp + t.vsync, t.h + vbl, t.vfp, t.vsync, t.vbp,
 	       t.vborder ? (std::string(" vborder ") + std::to_string(t.vborder)).c_str() : "",
 	       prefix,
 	       s_sync.c_str(), s_flags.c_str(),

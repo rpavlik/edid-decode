@@ -104,8 +104,8 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	       "                   %chsync %cvsync\n"
 	       "                   VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
 	       (double)t.pixclk_khz/1000.0, s.c_str(),
-	       t.w, t.w + t.hbp, t.w + t.hbp + t.hsync, t.w + hbl, t.hfp, t.hsync, t.hbp,
-	       t.h, t.h + t.vbp, t.h + t.vbp + t.vsync, t.h + vbl, t.vfp, t.vsync, t.vbp,
+	       t.w, t.w + t.hfp, t.w + t.hfp + t.hsync, t.w + hbl, t.hfp, t.hsync, t.hbp,
+	       t.h, t.h + t.vfp, t.h + t.vfp + t.vsync, t.h + vbl, t.vfp, t.vsync, t.vbp,
 	       t.pos_pol_hsync ? '+' : '-', t.pos_pol_vsync ? '+' : '-',
 	       (t.pixclk_khz * 1000.0) / ((t.w + hbl) * (t.h + vbl)),
 	       (double)(t.pixclk_khz) / (t.w + hbl)
