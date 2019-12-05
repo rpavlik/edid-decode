@@ -377,9 +377,34 @@ void edid_state::parse_displayid_type_4_8_timing(unsigned char type, unsigned sh
 		print_timings("    ", t, suffix);
 }
 
-// tag 0x0b
+// tag 0x09
 
-static void parse_displayid_gp_string(const unsigned char *x)
+static void parse_displayid_video_timing_range_limits(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	if (!check_displayid_datablock_length(x, 15, 15))
+		return;
+	printf("    Pixel Clock: %.3f-%.3f MHz\n",
+	       (double)(x[3] | (x[4] << 8) | (x[5] << 16)) / 100.0,
+	       (double)(x[6] | (x[7] << 8) | (x[8] << 16)) / 100.0);
+	printf("    Horizontal Frequency: %u-%u kHz\n", x[9], x[10]);
+	printf("    Minimum Horizontal Blanking: %u pixels\n", x[11] | (x[12] << 8));
+	printf("    Vertical Refresh: %u-%u Hz\n", x[13], x[14]);
+	printf("    Minimum Vertical Blanking: %u lines\n", x[15] | (x[16] << 8));
+	if (x[17] & 0x80)
+		printf("    Supports Interlaced\n");
+	if (x[17] & 0x40)
+		printf("    Supports CVT\n");
+	if (x[17] & 0x20)
+		printf("    Supports CVT Reduced Blanking\n");
+	if (x[17] & 0x10)
+		printf("    Discrete frequency display device\n");
+}
+
+// tag 0x0a and 0x0b
+
+static void parse_displayid_string(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 	if (check_displayid_datablock_length(x))
@@ -917,7 +942,9 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 					   print_timings("    ", find_vic_id(i + 1), suffix);
 				   }
 			   break;
-		case 0x0b: parse_displayid_gp_string(x + offset); break;
+		case 0x09: parse_displayid_video_timing_range_limits(x + offset); break;
+		case 0x0a:
+		case 0x0b: parse_displayid_string(x + offset); break;
 		case 0x0e: parse_displayid_transfer_characteristics(x + offset); break;
 		case 0x11:
 			   for (i = 0; i < len / 7; i++)
