@@ -99,42 +99,42 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	switch (x[3] & 0xf) {
 	case 0:
 		s += "1:1";
-		t.ratio_w = t.ratio_h = 1;
+		t.hratio = t.vratio = 1;
 		break;
 	case 1:
 		s += "5:4";
-		t.ratio_w = 5;
-		t.ratio_h = 4;
+		t.hratio = 5;
+		t.vratio = 4;
 		break;
 	case 2:
 		s += "4:3";
-		t.ratio_w = 4;
-		t.ratio_h = 3;
+		t.hratio = 4;
+		t.vratio = 3;
 		break;
 	case 3:
 		s += "15:9";
-		t.ratio_w = 15;
-		t.ratio_h = 9;
+		t.hratio = 15;
+		t.vratio = 9;
 		break;
 	case 4:
 		s += "16:9";
-		t.ratio_w = 16;
-		t.ratio_h = 9;
+		t.hratio = 16;
+		t.vratio = 9;
 		break;
 	case 5:
 		s += "16:10";
-		t.ratio_w = 16;
-		t.ratio_h = 10;
+		t.hratio = 16;
+		t.vratio = 10;
 		break;
 	case 6:
 		s += "64:27";
-		t.ratio_w = 64;
-		t.ratio_h = 27;
+		t.hratio = 64;
+		t.vratio = 27;
 		break;
 	case 7:
 		s += "256:135";
-		t.ratio_w = 256;
-		t.ratio_h = 135;
+		t.hratio = 256;
+		t.vratio = 135;
 		break;
 	default:
 		s += "undefined";
@@ -156,22 +156,16 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 		fail("Reserved stereo 0x03\n");
 		break;
 	}
-	if (x[3] & 0x10) {
-		t.interlaced = true;
-		s += ", interlaced";
-	}
-	if (x[3] & 0x80)
-		s += ", preferred";
 
 	t.pixclk_khz = 10 * (1 + (x[0] + (x[1] << 8) + (x[2] << 16)));
-	t.w = 1 + (x[4] | (x[5] << 8));
+	t.hact = 1 + (x[4] | (x[5] << 8));
 	hbl = 1 + (x[6] | (x[7] << 8));
 	t.hfp = 1 + (x[8] | ((x[9] & 0x7f) << 8));
 	t.hsync = 1 + (x[10] | (x[11] << 8));
 	t.hbp = hbl - t.hfp - t.hsync;
 	if ((x[9] >> 7) & 0x1)
 		t.pos_pol_hsync = true;
-	t.h = 1 + (x[12] | (x[13] << 8));
+	t.vact = 1 + (x[12] | (x[13] << 8));
 	vbl = 1 + (x[14] | (x[15] << 8));
 	t.vfp = 1 + (x[16] | ((x[17] & 0x7f) << 8));
 	t.vsync = 1 + (x[18] | (x[19] << 8));
@@ -179,17 +173,32 @@ static void parse_displayid_detailed_timing(const unsigned char *x)
 	if ((x[17] >> 7) & 0x1)
 		t.pos_pol_vsync = true;
 
+	unsigned vact = t.vact;
+
+	if (x[3] & 0x10) {
+		t.interlaced = true;
+		t.vact *= 2;
+		s += ", interlaced";
+	}
+	if (x[3] & 0x80)
+		s += ", preferred";
+
+	double vtotal = vact + vbl;
+	if (t.interlaced)
+		vtotal = vact + t.vfp + t.vsync + t.vbp + 0.5;
+	double refresh = (double)t.pixclk_khz * 1000.0 / ((t.hact + hbl) * vtotal);
+
 	printf("    Detailed mode: Clock %.3f MHz, %s\n"
 	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
 	       "                   %4u %4u %4u %4u (%3u %3u %3d)\n"
 	       "                   %chsync %cvsync\n"
-	       "                   VertFreq: %.3f Hz, HorFreq: %.3f kHz\n",
+	       "                   VertFreq: %.3f%s Hz, HorFreq: %.3f kHz\n",
 	       (double)t.pixclk_khz/1000.0, s.c_str(),
-	       t.w, t.w + t.hfp, t.w + t.hfp + t.hsync, t.w + hbl, t.hfp, t.hsync, t.hbp,
-	       t.h, t.h + t.vfp, t.h + t.vfp + t.vsync, t.h + vbl, t.vfp, t.vsync, t.vbp,
+	       t.hact, t.hact + t.hfp, t.hact + t.hfp + t.hsync, t.hact + hbl, t.hfp, t.hsync, t.hbp,
+	       vact, vact + t.vfp, vact + t.vfp + t.vsync, vact + vbl, t.vfp, t.vsync, t.vbp,
 	       t.pos_pol_hsync ? '+' : '-', t.pos_pol_vsync ? '+' : '-',
-	       (t.pixclk_khz * 1000.0) / ((t.w + hbl) * (t.h + vbl)),
-	       (double)(t.pixclk_khz) / (t.w + hbl)
+	       refresh, t.interlaced ? "i" : "",
+	       (double)(t.pixclk_khz) / (t.hact + hbl)
 	      );
 }
 

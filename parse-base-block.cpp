@@ -392,7 +392,7 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings &t)
 	 *  [H PIXELS RND] = ((ROUND([H PIXELS]/[CELL GRAN RND],0))*[CELLGRAN RND])
 	 */
 
-	h_pixels_rnd = rint((double)t.w / CELL_GRAN) * CELL_GRAN;
+	h_pixels_rnd = rint((double)t.hact / CELL_GRAN) * CELL_GRAN;
 
 	/*  2. If interlace is requested, the number of vertical lines assumed
 	 *  by the calculation must be halved, as the computation calculates
@@ -403,7 +403,7 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings &t)
 	 *                                     ROUND([V LINES],0))
 	 */
 
-	v_lines_rnd = t.h;
+	v_lines_rnd = t.vact;
 
 	/*  3. Find the frame rate required:
 	 *
@@ -528,8 +528,8 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings &t)
  */
 void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 {
-	int HDisplay = t.w;
-	int VDisplay = t.h;
+	int HDisplay = t.hact;
+	int VDisplay = t.vact;
 
 	/* 2) character cell horizontal granularity (pixels) - default 8 */
 #define CVT_H_GRANULARITY 8
@@ -706,33 +706,33 @@ void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
 		return;
 
 	uses_cvt = true;
-	cvt_t.h = x[0];
-	if (!cvt_t.h)
+	cvt_t.vact = x[0];
+	if (!cvt_t.vact)
 		fail("CVT byte 0 is 0, which is a reserved value\n");
-	cvt_t.h |= (x[1] & 0xf0) << 4;
-	cvt_t.h++;
-	cvt_t.h *= 2;
+	cvt_t.vact |= (x[1] & 0xf0) << 4;
+	cvt_t.vact++;
+	cvt_t.vact *= 2;
 
 	switch (x[1] & 0x0c) {
 	case 0x00:
 	default: /* avoids 'width/ratio may be used uninitialized' warnings */
-		cvt_t.ratio_w = 4;
-		cvt_t.ratio_h = 3;
+		cvt_t.hratio = 4;
+		cvt_t.vratio = 3;
 		break;
 	case 0x04:
-		cvt_t.ratio_w = 16;
-		cvt_t.ratio_h = 9;
+		cvt_t.hratio = 16;
+		cvt_t.vratio = 9;
 		break;
 	case 0x08:
-		cvt_t.ratio_w = 16;
-		cvt_t.ratio_h = 10;
+		cvt_t.hratio = 16;
+		cvt_t.vratio = 10;
 		break;
 	case 0x0c:
-		cvt_t.ratio_w = 15;
-		cvt_t.ratio_h = 9;
+		cvt_t.hratio = 15;
+		cvt_t.vratio = 9;
 		break;
 	}
-	cvt_t.w = 8 * (((cvt_t.h * cvt_t.ratio_w) / cvt_t.ratio_h) / 8);
+	cvt_t.hact = 8 * (((cvt_t.vact * cvt_t.hratio) / cvt_t.vratio) / 8);
 
 	if (x[1] & 0x03)
 		fail("Reserved bits of CVT byte 1 are non-zero\n");
@@ -812,8 +812,8 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 {
 	const struct timings *t;
 	struct timings formula = {};
-	unsigned ratio_w, ratio_h;
-	unsigned w, h, refresh;
+	unsigned hratio, vratio;
+	unsigned hact, vact, refresh;
 
 	if (b1 <= 0x01) {
 		if (b1 != 0x01 || b2 != 0x01)
@@ -831,41 +831,41 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 		print_timings("  ", t, "DMT");
 		return;
 	}
-	w = (b1 + 31) * 8;
+	hact = (b1 + 31) * 8;
 	switch ((b2 >> 6) & 0x3) {
 	case 0x00:
 		if (edid_minor >= 3) {
-			h = w * 10 / 16;
-			ratio_w = 16;
-			ratio_h = 10;
+			vact = hact * 10 / 16;
+			hratio = 16;
+			vratio = 10;
 		} else {
-			h = w;
-			ratio_w = 1;
-			ratio_h = 1;
+			vact = hact;
+			hratio = 1;
+			vratio = 1;
 		}
 		break;
 	case 0x01:
-		h = w * 3 / 4;
-		ratio_w = 4;
-		ratio_h = 3;
+		vact = hact * 3 / 4;
+		hratio = 4;
+		vratio = 3;
 		break;
 	case 0x02:
-		h = w * 4 / 5;
-		ratio_w = 5;
-		ratio_h = 4;
+		vact = hact * 4 / 5;
+		hratio = 5;
+		vratio = 4;
 		break;
 	case 0x03:
-		h = w * 9 / 16;
-		ratio_w = 16;
-		ratio_h = 9;
+		vact = hact * 9 / 16;
+		hratio = 16;
+		vratio = 9;
 		break;
 	}
 	refresh = 60 + (b2 & 0x3f);
 
-	formula.w = w;
-	formula.h = h;
-	formula.ratio_w = ratio_w;
-	formula.ratio_h = ratio_h;
+	formula.hact = hact;
+	formula.vact = vact;
+	formula.hratio = hratio;
+	formula.vratio = vratio;
 
 	if (edid_minor >= 4) {
 		uses_cvt = true;
@@ -884,7 +884,7 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 		print_timings("  ", &formula, "GTF");
 	} else {
 		printf("  %5ux%-5u %3u.00 Hz %3u:%-3u\n",
-		       w, h, refresh, ratio_w, ratio_h);
+		       hact, vact, refresh, hratio, vratio);
 		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
 		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	}
@@ -1214,13 +1214,13 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 		return;
 	}
 
-	t.w = (x[2] + ((x[4] & 0xf0) << 4));
+	t.hact = (x[2] + ((x[4] & 0xf0) << 4));
 	hbl = (x[3] + ((x[4] & 0x0f) << 8));
 	t.hfp = (x[8] + ((x[11] & 0xc0) << 2));
 	t.hsync = (x[9] + ((x[11] & 0x30) << 4));
 	t.hbp = hbl - t.hsync - t.hfp;
 	t.hborder = x[15];
-	t.h = (x[5] + ((x[7] & 0xf0) << 4));
+	t.vact = (x[5] + ((x[7] & 0xf0) << 4));
 	vbl = (x[6] + ((x[7] & 0x0f) << 8));
 	t.vfp = ((x[10] >> 4) + ((x[11] & 0x0c) << 2));
 	t.vsync = ((x[10] & 0x0f) + ((x[11] & 0x03) << 4));
@@ -1228,6 +1228,7 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	t.vborder = x[16];
 
 	unsigned char flags = x[17];
+	unsigned vact = t.vact;
 
 	if (has_spwg && timing_descr_cnt == 2)
 		flags = *(x - 1);
@@ -1274,12 +1275,13 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	}
 	if (flags & 0x80) {
 		t.interlaced = true;
+		t.vact *= 2;
 		add_str(s_flags, "interlaced");
 		/*
 		 * Check if this DTD matches VIC code 39 with special
 		 * interlaced timings.
 		 */
-		if (t.w == 1920 && t.h == 540 && t.pixclk_khz == 72000 &&
+		if (t.hact == 1920 && t.vact == 1080 && t.pixclk_khz == 72000 &&
 		    t.hfp == 32 && t.hsync == 168 && t.hbp == 184 && !t.hborder &&
 		    t.vfp == 23 && t.vsync == 5 && t.vbp == 57 && !t.vborder &&
 		    !has_spwg && has_vic[0][39] && (flags & 0x1e) == 0x1a)
@@ -1310,22 +1312,24 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	bool ok = true;
 
-	if (!t.w || !hbl || !t.hfp || !t.hsync || !t.h || !vbl || !t.vfp || !t.vsync) {
+	if (!t.hact || !hbl || !t.hfp || !t.hsync || !vact || !vbl || !t.vfp || !t.vsync) {
 		fail("0 values in the detailed timings:\n"
 		     "    Horizontal Active/Blanking %u/%u\n"
 		     "    Horizontal Frontporch/Sync Width %u/%u\n"
 		     "    Vertical Active/Blanking %u/%u\n"
 		     "    Vertical Frontporch/Sync Width %u/%u\n",
-		     t.w, hbl, t.hfp, t.hsync, t.h, vbl, t.vfp, t.vsync);
+		     t.hact, hbl, t.hfp, t.hsync, vact, vbl, t.vfp, t.vsync);
 		ok = false;
 	}
 
-	t.hor_mm = x[12] + ((x[14] & 0xf0) << 4);
-	t.vert_mm = x[13] + ((x[14] & 0x0f) << 8);
-	double vtotal = t.h + vbl;
-	if (t.interlaced && !t.even_vtotal)
-		vtotal += 0.5;
-	double refresh = (double)t.pixclk_khz * 1000.0 / ((t.w + hbl) * vtotal);
+	t.hsize_mm = x[12] + ((x[14] & 0xf0) << 4);
+	t.vsize_mm = x[13] + ((x[14] & 0x0f) << 8);
+	double vtotal = t.vact + vbl;
+	if (t.even_vtotal)
+		vtotal = t.vact / 2.0 + t.vfp + t.vsync + t.vbp;
+	else if (t.interlaced)
+		vtotal = t.vact / 2.0 + t.vfp + t.vsync + t.vbp + 0.5;
+	double refresh = (double)t.pixclk_khz * 1000.0 / ((t.hact + hbl) * vtotal);
 	printf("%sDetailed mode: Clock %.3f MHz, %u mm x %u mm\n"
 	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
 	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
@@ -1333,46 +1337,46 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	       "%s               VertFreq: %.3f%s Hz, HorFreq: %.3f kHz\n",
 	       prefix,
 	       t.pixclk_khz / 1000.0,
-	       t.hor_mm, t.vert_mm,
+	       t.hsize_mm, t.vsize_mm,
 	       prefix,
-	       t.w, t.w + t.hfp, t.w + t.hfp + t.hsync, t.w + hbl, t.hfp, t.hsync, t.hbp,
+	       t.hact, t.hact + t.hfp, t.hact + t.hfp + t.hsync, t.hact + hbl, t.hfp, t.hsync, t.hbp,
 	       t.hborder ? (std::string(" hborder ") + std::to_string(t.hborder)).c_str() : "",
 	       prefix,
-	       t.h, t.h + t.vfp, t.h + t.vfp + t.vsync, t.h + vbl, t.vfp, t.vsync, t.vbp,
+	       vact, vact + t.vfp, vact + t.vfp + t.vsync, vact + vbl, t.vfp, t.vsync, t.vbp,
 	       t.vborder ? (std::string(" vborder ") + std::to_string(t.vborder)).c_str() : "",
 	       prefix,
 	       s_sync.c_str(), s_flags.c_str(),
 	       prefix,
 	       refresh, t.interlaced ? "i" : "",
-	       t.w + hbl ? (double)t.pixclk_khz / (t.w + hbl) : 0.0);
+	       t.hact + hbl ? (double)t.pixclk_khz / (t.hact + hbl) : 0.0);
 	if (t.hbp <= 0)
 		fail("0 or negative horizontal back porch\n");
 	if (t.vbp <= 0)
 		fail("0 or negative vertical back porch\n");
-	if ((!max_display_width_mm && t.hor_mm) ||
-	    (!max_display_height_mm && t.vert_mm)) {
+	if ((!max_display_width_mm && t.hsize_mm) ||
+	    (!max_display_height_mm && t.vsize_mm)) {
 		fail("Mismatch of image size vs display size: image size is set, but not display size\n");
-	} else if ((max_display_width_mm && !t.hor_mm) ||
-		   (max_display_height_mm && !t.vert_mm)) {
+	} else if ((max_display_width_mm && !t.hsize_mm) ||
+		   (max_display_height_mm && !t.vsize_mm)) {
 		fail("Mismatch of image size vs display size: image size is not set, but display size is\n");
-	} else if (!t.hor_mm && !t.vert_mm) {
+	} else if (!t.hsize_mm && !t.vsize_mm) {
 		/* this is valid */
-	} else if (t.hor_mm > max_display_width_mm + 9 ||
-		   t.vert_mm > max_display_height_mm + 9) {
+	} else if (t.hsize_mm > max_display_width_mm + 9 ||
+		   t.vsize_mm > max_display_height_mm + 9) {
 		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
-		     t.hor_mm, t.vert_mm, max_display_width_mm, max_display_height_mm);
-	} else if (t.hor_mm < max_display_width_mm - 9 &&
-		   t.vert_mm < max_display_height_mm - 9) {
+		     t.hsize_mm, t.vsize_mm, max_display_width_mm, max_display_height_mm);
+	} else if (t.hsize_mm < max_display_width_mm - 9 &&
+		   t.vsize_mm < max_display_height_mm - 9) {
 		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
-		     t.hor_mm, t.vert_mm, max_display_width_mm, max_display_height_mm);
+		     t.hsize_mm, t.vsize_mm, max_display_width_mm, max_display_height_mm);
 	}
 	if (refresh) {
 		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
 		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	}
-	if (t.pixclk_khz && (t.w + hbl)) {
-		min_hor_freq_hz = min(min_hor_freq_hz, (t.pixclk_khz * 1000) / (t.w + hbl));
-		max_hor_freq_hz = max(max_hor_freq_hz, (t.pixclk_khz * 1000) / (t.w + hbl));
+	if (t.pixclk_khz && (t.hact + hbl)) {
+		min_hor_freq_hz = min(min_hor_freq_hz, (t.pixclk_khz * 1000) / (t.hact + hbl));
+		max_hor_freq_hz = max(max_hor_freq_hz, (t.pixclk_khz * 1000) / (t.hact + hbl));
 		max_pixclk_khz = max(max_pixclk_khz, t.pixclk_khz);
 	}
 	if (has_spwg && timing_descr_cnt == 2)

@@ -150,15 +150,15 @@ void edid_state::print_timings(const char *prefix, const struct timings *t,
 		return;
 	}
 
-	unsigned w_total = t->w + t->hfp + t->hsync + t->hbp;
-	double hor_freq_khz = (double)t->pixclk_khz / w_total;
+	unsigned htotal = t->hact + t->hfp + t->hsync + t->hbp;
+	double hor_freq_khz = (double)t->pixclk_khz / htotal;
 
-	double h_total = t->h + t->vfp + t->vsync + t->vbp;
+	double vtotal = t->vact + t->vfp + t->vsync + t->vbp;
 	if (t->even_vtotal)
-		h_total = t->h / 2.0 + t->vfp + t->vsync + t->vbp;
+		vtotal = t->vact / 2.0 + t->vfp + t->vsync + t->vbp;
 	else if (t->interlaced)
-		h_total = t->h / 2.0 + t->vfp + t->vsync + t->vbp + 0.5;
-	double refresh = (double)t->pixclk_khz * 1000.0 / (w_total * h_total);
+		vtotal = t->vact / 2.0 + t->vfp + t->vsync + t->vbp + 0.5;
+	double refresh = (double)t->pixclk_khz * 1000.0 / (htotal * vtotal);
 
 	min_vert_freq_hz = min(min_vert_freq_hz, (unsigned)floor(refresh));
 	max_vert_freq_hz = max(max_vert_freq_hz, (unsigned)ceil(refresh));
@@ -177,12 +177,12 @@ void edid_state::print_timings(const char *prefix, const struct timings *t,
 		s = " (" + s + ")";
 
 	char buf[10];
-	sprintf(buf, "%u%s", t->h, t->interlaced ? "i" : "");
+	sprintf(buf, "%u%s", t->vact, t->interlaced ? "i" : "");
 	printf("%s%5ux%-5s %7.3f Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
 	       prefix,
-	       t->w, buf,
+	       t->hact, buf,
 	       refresh,
-	       t->ratio_w, t->ratio_h,
+	       t->hratio, t->vratio,
 	       hor_freq_khz,
 	       t->pixclk_khz / 1000.0,
 	       s.c_str());

@@ -22,12 +22,17 @@
 
 // Video Timings
 // If interlaced is true, then the vertical blanking
-// for each field is (vfp + vsync + vbp + 0.5)
+// for each field is (vfp + vsync + vbp + 0.5), except for
+// the VIC 39 timings that doesn't have the 0.5 constant.
 struct timings {
-	unsigned w, h;
-	unsigned ratio_w, ratio_h;
+	// Active horizontal and vertical frame height, including any
+	// borders, if present.
+	// Note: for interlaced formats the active field height is vact / 2
+	unsigned hact, vact;
+	unsigned hratio, vratio;
 	unsigned pixclk_khz;
-	bool rb, interlaced;
+	bool rb; // true if CVT with reduced blanking
+	bool interlaced;
 	// The backporch may be negative in buggy detailed timings.
 	// So use int instead of unsigned for hbp and vbp.
 	unsigned hfp, hsync;
@@ -38,7 +43,7 @@ struct timings {
 	bool pos_pol_vsync;
 	unsigned hborder, vborder;
 	bool even_vtotal; // special for VIC 39
-	unsigned hor_mm, vert_mm;
+	unsigned hsize_mm, vsize_mm;
 };
 
 struct edid_state {
