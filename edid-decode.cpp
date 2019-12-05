@@ -144,6 +144,25 @@ void do_checksum(const char *prefix, const unsigned char *x, size_t len)
 	printf("\n");
 }
 
+static unsigned gcd(unsigned a, unsigned b)
+{
+	while (b) {
+		unsigned t = b;
+
+		b = a % b;
+		a = t;
+	}
+	return a;
+}
+
+void calc_ratio(struct timings *t)
+{
+	unsigned d = gcd(t->hact, t->vact);
+
+	t->hratio = t->hact / d;
+	t->vratio = t->vact / d;
+}
+
 void edid_state::print_timings(const char *prefix, const struct timings *t,
 			       const char *suffix)
 {
@@ -175,6 +194,8 @@ void edid_state::print_timings(const char *prefix, const struct timings *t,
 			s = "RB";
 		else
 			s += ", RB";
+		if (t->rb == 2)
+			s += "v2";
 	}
 	if (!s.empty())
 		s = " (" + s + ")";
@@ -189,6 +210,88 @@ void edid_state::print_timings(const char *prefix, const struct timings *t,
 	       hor_freq_khz,
 	       t->pixclk_khz / 1000.0,
 	       s.c_str());
+}
+
+bool edid_state::print_detailed_timings(const char *prefix, const struct timings &t, const char *flags)
+{
+	unsigned vact = t.vact;
+	unsigned hbl = t.hfp + t.hsync + t.hbp;
+	unsigned vbl = t.vfp + t.vsync + t.vbp;
+
+	if (t.interlaced)
+		vact /= 2;
+
+	double vtotal = vact + vbl;
+
+	bool ok = true;
+
+	if (!t.hact || !hbl || !t.hfp || !t.hsync || !vact || !vbl || !t.vfp || !t.vsync) {
+		fail("0 values in the detailed timings:\n"
+		     "    Horizontal Active/Blanking %u/%u\n"
+		     "    Horizontal Frontporch/Sync Width %u/%u\n"
+		     "    Vertical Active/Blanking %u/%u\n"
+		     "    Vertical Frontporch/Sync Width %u/%u\n",
+		     t.hact, hbl, t.hfp, t.hsync, vact, vbl, t.vfp, t.vsync);
+		ok = false;
+	}
+
+	if (t.even_vtotal)
+		vtotal = vact + t.vfp + t.vsync + t.vbp;
+	else if (t.interlaced)
+		vtotal = vact + t.vfp + t.vsync + t.vbp + 0.5;
+
+	double refresh = (double)t.pixclk_khz * 1000.0 / ((t.hact + hbl) * vtotal);
+
+	printf("%sDetailed mode: Clock %.3f MHz", prefix, t.pixclk_khz / 1000.0);
+	if (flags && *flags)
+		printf(", %s", flags);
+	if (t.hsize_mm || t.vsize_mm)
+		printf(", %u mm x %u mm", t.hsize_mm, t.vsize_mm);
+	printf("\n");
+	printf("%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
+	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
+	       "%s               %chsync%s\n"
+	       "%s               VertFreq: %.3f%s Hz, HorFreq: %.3f kHz\n",
+	       prefix,
+	       t.hact, t.hact + t.hfp, t.hact + t.hfp + t.hsync, t.hact + hbl, t.hfp, t.hsync, t.hbp,
+	       t.hborder ? (std::string(" hborder ") + std::to_string(t.hborder)).c_str() : "",
+	       prefix,
+	       vact, vact + t.vfp, vact + t.vfp + t.vsync, vact + vbl, t.vfp, t.vsync, t.vbp,
+	       t.vborder ? (std::string(" vborder ") + std::to_string(t.vborder)).c_str() : "",
+	       prefix,
+	       t.pos_pol_hsync ? '+' : '-', t.no_pol_vsync ? "" : (t.pos_pol_vsync ? " +vsync" : " -vsync"),
+	       prefix,
+	       refresh, t.interlaced ? "i" : "",
+	       t.hact + hbl ? (double)t.pixclk_khz / (t.hact + hbl) : 0.0);
+
+	if (t.hbp <= 0)
+		fail("0 or negative horizontal back porch\n");
+	if (t.vbp <= 0)
+		fail("0 or negative vertical back porch\n");
+	if ((!max_display_width_mm && t.hsize_mm) ||
+	    (!max_display_height_mm && t.vsize_mm)) {
+		fail("Mismatch of image size vs display size: image size is set, but not display size\n");
+	} else if (!t.hsize_mm && !t.vsize_mm) {
+		/* this is valid */
+	} else if (t.hsize_mm > max_display_width_mm + 9 ||
+		   t.vsize_mm > max_display_height_mm + 9) {
+		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
+		     t.hsize_mm, t.vsize_mm, max_display_width_mm, max_display_height_mm);
+	} else if (t.hsize_mm < max_display_width_mm - 9 &&
+		   t.vsize_mm < max_display_height_mm - 9) {
+		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
+		     t.hsize_mm, t.vsize_mm, max_display_width_mm, max_display_height_mm);
+	}
+	if (refresh) {
+		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
+		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
+	}
+	if (t.pixclk_khz && (t.hact + hbl)) {
+		min_hor_freq_hz = min(min_hor_freq_hz, (t.pixclk_khz * 1000) / (t.hact + hbl));
+		max_hor_freq_hz = max(max_hor_freq_hz, (t.pixclk_khz * 1000) / (t.hact + hbl));
+		max_pixclk_khz = max(max_pixclk_khz, t.pixclk_khz);
+	}
+	return ok;
 }
 
 std::string utohex(unsigned char x)

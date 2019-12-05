@@ -35,208 +35,208 @@ static const struct {
 	unsigned cvt_id;
 	struct timings t;
 } dmt_timings[] = {
-	{ 0x01, 0x0000, 0x000000, { 640, 350, 64, 35, 31500, false, false,
+	{ 0x01, 0x0000, 0x000000, { 640, 350, 64, 35, 31500, 0, false,
 				    32, 64, 96, true, 32, 3, 60, false } },
 
-	{ 0x02, 0x3119, 0x000000, { 640, 400, 16, 10, 31500, false, false,
+	{ 0x02, 0x3119, 0x000000, { 640, 400, 16, 10, 31500, 0, false,
 				    32, 64, 96, false, 1, 3, 41, true } },
 
-	{ 0x03, 0x0000, 0x000000, { 720, 400, 9, 5, 35500, false, false,
+	{ 0x03, 0x0000, 0x000000, { 720, 400, 9, 5, 35500, 0, false,
 				    36, 72, 108, false, 1, 3, 42, true } },
 
-	{ 0x04, 0x3140, 0x000000, { 640, 480, 4, 3, 25175, false, false,
+	{ 0x04, 0x3140, 0x000000, { 640, 480, 4, 3, 25175, 0, false,
 				    16, 96, 48, false, 10, 2, 33, false, 8, 8 } },
-	{ 0x05, 0x314c, 0x000000, { 640, 480, 4, 3, 31500, false, false,
+	{ 0x05, 0x314c, 0x000000, { 640, 480, 4, 3, 31500, 0, false,
 				    24, 40, 128, false, 9, 3, 28, false, 8, 8 } },
-	{ 0x06, 0x314f, 0x000000, { 640, 480, 4, 3, 31500, false, false,
+	{ 0x06, 0x314f, 0x000000, { 640, 480, 4, 3, 31500, 0, false,
 				    16, 64, 120, false, 1, 3, 16, false } },
-	{ 0x07, 0x3159, 0x000000, { 640, 480, 4, 3, 36000, false, false,
+	{ 0x07, 0x3159, 0x000000, { 640, 480, 4, 3, 36000, 0, false,
 				    56, 56, 80, false, 1, 3, 25, false } },
 
-	{ 0x08, 0x0000, 0x000000, { 800, 600, 4, 3, 36000, false, false,
+	{ 0x08, 0x0000, 0x000000, { 800, 600, 4, 3, 36000, 0, false,
 				    24, 72, 128, true, 1, 2, 22, true } },
-	{ 0x09, 0x4540, 0x000000, { 800, 600, 4, 3, 40000, false, false,
+	{ 0x09, 0x4540, 0x000000, { 800, 600, 4, 3, 40000, 0, false,
 				    40, 128, 88, true, 1, 4, 23, true } },
-	{ 0x0a, 0x454c, 0x000000, { 800, 600, 4, 3, 50000, false, false,
+	{ 0x0a, 0x454c, 0x000000, { 800, 600, 4, 3, 50000, 0, false,
 				    56, 120, 64, true, 37, 6, 23, true } },
-	{ 0x0b, 0x454f, 0x000000, { 800, 600, 4, 3, 49500, false, false,
+	{ 0x0b, 0x454f, 0x000000, { 800, 600, 4, 3, 49500, 0, false,
 				    16, 80, 160, true, 1, 3, 21, true } },
-	{ 0x0c, 0x4559, 0x000000, { 800, 600, 4, 3, 56250, false, false,
+	{ 0x0c, 0x4559, 0x000000, { 800, 600, 4, 3, 56250, 0, false,
 				    32, 64, 152, true, 1, 3, 27, true } },
-	{ 0x0d, 0x0000, 0x000000, { 800, 600, 4, 3, 73250, true, false,
+	{ 0x0d, 0x0000, 0x000000, { 800, 600, 4, 3, 73250, 1, false,
 				    48, 32, 80, true, 3, 4, 29, false } },
 
-	{ 0x0e, 0x0000, 0x000000, { 848, 480, 16, 9, 33750, false, false,
+	{ 0x0e, 0x0000, 0x000000, { 848, 480, 16, 9, 33750, 0, false,
 				    16, 112, 112, true, 6, 8, 23, true } },
 
-	{ 0x0f, 0x0000, 0x000000, { 1024, 768, 4, 3, 44900, false, true,
+	{ 0x0f, 0x0000, 0x000000, { 1024, 768, 4, 3, 44900, 0, true,
 				    8, 176, 56, true, 0, 4, 20, true } },
-	{ 0x10, 0x6140, 0x000000, { 1024, 768, 4, 3, 65000, false, false,
+	{ 0x10, 0x6140, 0x000000, { 1024, 768, 4, 3, 65000, 0, false,
 				    24, 136, 160, false, 3, 6, 29, false } },
-	{ 0x11, 0x614c, 0x000000, { 1024, 768, 4, 3, 75000, false, false,
+	{ 0x11, 0x614c, 0x000000, { 1024, 768, 4, 3, 75000, 0, false,
 				    24, 136, 144, false, 3, 6, 29, false } },
-	{ 0x12, 0x614f, 0x000000, { 1024, 768, 4, 3, 78750, false, false,
+	{ 0x12, 0x614f, 0x000000, { 1024, 768, 4, 3, 78750, 0, false,
 				    16, 96, 176, true, 1, 3, 28, true } },
-	{ 0x13, 0x6159, 0x000000, { 1024, 768, 4, 3, 94500, false, false,
+	{ 0x13, 0x6159, 0x000000, { 1024, 768, 4, 3, 94500, 0, false,
 				    48, 96, 208, true, 1, 3, 36, true } },
-	{ 0x14, 0x0000, 0x000000, { 1024, 768, 4, 3, 115500, true, false,
+	{ 0x14, 0x0000, 0x000000, { 1024, 768, 4, 3, 115500, 1, false,
 				    48, 32, 80, true, 3, 4, 38, false } },
 
-	{ 0x15, 0x714f, 0x000000, { 1152, 864, 4, 3, 108000, false, false,
+	{ 0x15, 0x714f, 0x000000, { 1152, 864, 4, 3, 108000, 0, false,
 				    64, 128, 256, true, 1, 3, 32, true } },
 
-	{ 0x55, 0x81c0, 0x000000, { 1280, 720, 16, 9, 74250, false, false,
+	{ 0x55, 0x81c0, 0x000000, { 1280, 720, 16, 9, 74250, 0, false,
 				    110, 40, 220, true, 5, 5, 20, true } },
 
-	{ 0x16, 0x0000, 0x7f1c21, { 1280, 768, 5, 3, 68250, true, false,
+	{ 0x16, 0x0000, 0x7f1c21, { 1280, 768, 5, 3, 68250, 1, false,
 				    48, 32, 80, true, 3, 7, 12, false } },
-	{ 0x17, 0x0000, 0x7f1c28, { 1280, 768, 5, 3, 79500, false, false,
+	{ 0x17, 0x0000, 0x7f1c28, { 1280, 768, 5, 3, 79500, 0, false,
 				    64, 128, 192, false, 3, 7, 20, true } },
-	{ 0x18, 0x0000, 0x7f1c44, { 1280, 768, 5, 3, 102250, false, false,
+	{ 0x18, 0x0000, 0x7f1c44, { 1280, 768, 5, 3, 102250, 0, false,
 				    80, 128, 208, false, 3, 7, 27, true } },
-	{ 0x19, 0x0000, 0x7f1c62, { 1280, 768, 5, 3, 117500, false, false,
+	{ 0x19, 0x0000, 0x7f1c62, { 1280, 768, 5, 3, 117500, 0, false,
 				    80, 136, 216, false, 3, 7, 31, true } },
-	{ 0x1a, 0x0000, 0x000000, { 1280, 768, 5, 3, 140250, false, false,
+	{ 0x1a, 0x0000, 0x000000, { 1280, 768, 5, 3, 140250, 0, false,
 				    48, 32, 80, true, 3, 7, 35, false } },
 
-	{ 0x1b, 0x0000, 0x8f1821, { 1280, 800, 16, 10, 71000, true, false,
+	{ 0x1b, 0x0000, 0x8f1821, { 1280, 800, 16, 10, 71000, 1, false,
 				    48, 32, 80, true, 3, 6, 14, false } },
-	{ 0x1c, 0x8100, 0x8f1828, { 1280, 800, 16, 10, 83500, false, false,
+	{ 0x1c, 0x8100, 0x8f1828, { 1280, 800, 16, 10, 83500, 0, false,
 				    72, 128, 200, false, 3, 6, 22, true } },
-	{ 0x1d, 0x810f, 0x8f1844, { 1280, 800, 16, 10, 106500, false, false,
+	{ 0x1d, 0x810f, 0x8f1844, { 1280, 800, 16, 10, 106500, 0, false,
 				    80, 128, 208, false, 3, 6, 29, true } },
-	{ 0x1e, 0x8119, 0x8f1862, { 1280, 800, 16, 10, 122500, false, false,
+	{ 0x1e, 0x8119, 0x8f1862, { 1280, 800, 16, 10, 122500, 0, false,
 				    80, 136, 216, false, 3, 6, 34, true } },
-	{ 0x1f, 0x0000, 0x000000, { 1280, 800, 16, 10, 146250, true, false,
+	{ 0x1f, 0x0000, 0x000000, { 1280, 800, 16, 10, 146250, 1, false,
 				    48, 32, 80, true, 3, 6, 38, false } },
 
-	{ 0x20, 0x8140, 0x000000, { 1280, 960, 4, 3, 108000, false, false,
+	{ 0x20, 0x8140, 0x000000, { 1280, 960, 4, 3, 108000, 0, false,
 				    96, 112, 312, true, 1, 3, 36, true } },
-	{ 0x21, 0x8159, 0x000000, { 1280, 960, 4, 3, 148500, false, false,
+	{ 0x21, 0x8159, 0x000000, { 1280, 960, 4, 3, 148500, 0, false,
 				    64, 160, 224, true, 1, 3, 47, true } },
-	{ 0x22, 0x0000, 0x000000, { 1280, 960, 4, 3, 175500, true, false,
+	{ 0x22, 0x0000, 0x000000, { 1280, 960, 4, 3, 175500, 1, false,
 				    48, 32, 80, true, 3, 4, 50, false } },
 
-	{ 0x23, 0x8180, 0x000000, { 1280, 1024, 5, 4, 108000, false, false,
+	{ 0x23, 0x8180, 0x000000, { 1280, 1024, 5, 4, 108000, 0, false,
 				    48, 112, 248, true, 1, 3, 38, true } },
-	{ 0x24, 0x818f, 0x000000, { 1280, 1024, 5, 4, 135000, false, false,
+	{ 0x24, 0x818f, 0x000000, { 1280, 1024, 5, 4, 135000, 0, false,
 				    16, 144, 248, true, 1, 3, 38, true } },
-	{ 0x25, 0x8199, 0x000000, { 1280, 1024, 5, 4, 157500, false, false,
+	{ 0x25, 0x8199, 0x000000, { 1280, 1024, 5, 4, 157500, 0, false,
 				    64, 160, 224, true, 1, 3, 44, true } },
-	{ 0x26, 0x0000, 0x000000, { 1280, 1024, 5, 4, 187250, true, false,
+	{ 0x26, 0x0000, 0x000000, { 1280, 1024, 5, 4, 187250, 1, false,
 				    48, 32, 80, true, 3, 7, 50, false } },
 
-	{ 0x27, 0x0000, 0x000000, { 1360, 768, 85, 48, 85500, false, false,
+	{ 0x27, 0x0000, 0x000000, { 1360, 768, 85, 48, 85500, 0, false,
 				    64, 112, 256, true, 3, 6, 18, true } },
-	{ 0x28, 0x0000, 0x000000, { 1360, 768, 85, 48, 148250, true, false,
+	{ 0x28, 0x0000, 0x000000, { 1360, 768, 85, 48, 148250, 1, false,
 				    48, 32, 80, true, 3, 5, 37, false } },
 
-	{ 0x51, 0x0000, 0x000000, { 1366, 768, 85, 48, 85500, false, false,
+	{ 0x51, 0x0000, 0x000000, { 1366, 768, 85, 48, 85500, 0, false,
 				    70, 143, 213, true, 3, 3, 24, true } },
-	{ 0x56, 0x0000, 0x000000, { 1366, 768, 85, 48, 72000, true, false,
+	{ 0x56, 0x0000, 0x000000, { 1366, 768, 85, 48, 72000, 1, false,
 				    14, 56, 64, true, 1, 3, 28, true } },
 
-	{ 0x29, 0x0000, 0x0c2021, { 1400, 1050, 4, 3, 101000, true, false,
+	{ 0x29, 0x0000, 0x0c2021, { 1400, 1050, 4, 3, 101000, 1, false,
 				    48, 32, 80, true, 3, 4, 23, false } },
-	{ 0x2a, 0x9040, 0x0c2028, { 1400, 1050, 4, 3, 121750, false, false,
+	{ 0x2a, 0x9040, 0x0c2028, { 1400, 1050, 4, 3, 121750, 0, false,
 				    88, 144, 232, false, 3, 4, 32, true } },
-	{ 0x2b, 0x904f, 0x0c2044, { 1400, 1050, 4, 3, 156000, false, false,
+	{ 0x2b, 0x904f, 0x0c2044, { 1400, 1050, 4, 3, 156000, 0, false,
 				    104, 144, 248, false, 3, 4, 42, true } },
-	{ 0x2c, 0x9059, 0x0c2062, { 1400, 1050, 4, 3, 179500, false, false,
+	{ 0x2c, 0x9059, 0x0c2062, { 1400, 1050, 4, 3, 179500, 0, false,
 				    104, 152, 256, false, 3, 4, 48, true } },
-	{ 0x2d, 0x0000, 0x000000, { 1400, 1050, 4, 3, 208000, true, false,
+	{ 0x2d, 0x0000, 0x000000, { 1400, 1050, 4, 3, 208000, 1, false,
 				    48, 32, 80, true, 3, 4, 55, false } },
 
-	{ 0x2e, 0x0000, 0xc11821, { 1440, 900, 16, 10, 88750, true, false,
+	{ 0x2e, 0x0000, 0xc11821, { 1440, 900, 16, 10, 88750, 1, false,
 				    48, 32, 80, true, 3, 6, 17, false } },
-	{ 0x2f, 0x9500, 0xc11828, { 1440, 900, 16, 10, 106500, false, false,
+	{ 0x2f, 0x9500, 0xc11828, { 1440, 900, 16, 10, 106500, 0, false,
 				    80, 152, 232, false, 3, 6, 25, true } },
-	{ 0x30, 0x950f, 0xc11844, { 1440, 900, 16, 10, 136750, false, false,
+	{ 0x30, 0x950f, 0xc11844, { 1440, 900, 16, 10, 136750, 0, false,
 				    96, 152, 248, false, 3, 6, 33, true } },
-	{ 0x31, 0x9519, 0xc11868, { 1440, 900, 16, 10, 157000, false, false,
+	{ 0x31, 0x9519, 0xc11868, { 1440, 900, 16, 10, 157000, 0, false,
 				    104, 152, 256, false, 3, 6, 39, true } },
-	{ 0x32, 0x0000, 0x000000, { 1440, 900, 16, 10, 182750, true, false,
+	{ 0x32, 0x0000, 0x000000, { 1440, 900, 16, 10, 182750, 1, false,
 				    48, 32, 80, true, 3, 6, 44, false } },
 
-	{ 0x53, 0xa9c0, 0x000000, { 1600, 900, 16, 9, 108000, true, false,
+	{ 0x53, 0xa9c0, 0x000000, { 1600, 900, 16, 9, 108000, 1, false,
 				    24, 80, 96, true, 1, 3, 96, true } },
 
-	{ 0x33, 0xa940, 0x000000, { 1600, 1200, 4, 3, 162000, false, false,
+	{ 0x33, 0xa940, 0x000000, { 1600, 1200, 4, 3, 162000, 0, false,
 				    64, 192, 304, true, 1, 3, 46, true } },
-	{ 0x34, 0xa945, 0x000000, { 1600, 1200, 4, 3, 175500, false, false,
+	{ 0x34, 0xa945, 0x000000, { 1600, 1200, 4, 3, 175500, 0, false,
 				    64, 192, 304, true, 1, 3, 46, true } },
-	{ 0x35, 0xa94a, 0x000000, { 1600, 1200, 4, 3, 189000, false, false,
+	{ 0x35, 0xa94a, 0x000000, { 1600, 1200, 4, 3, 189000, 0, false,
 				    64, 192, 304, true, 1, 3, 46, true } },
-	{ 0x36, 0xa94f, 0x000000, { 1600, 1200, 4, 3, 202500, false, false,
+	{ 0x36, 0xa94f, 0x000000, { 1600, 1200, 4, 3, 202500, 0, false,
 				    64, 192, 304, true, 1, 3, 46, true } },
-	{ 0x37, 0xa959, 0x000000, { 1600, 1200, 4, 3, 229500, false, false,
+	{ 0x37, 0xa959, 0x000000, { 1600, 1200, 4, 3, 229500, 0, false,
 				    64, 192, 304, true, 1, 3, 46, true } },
-	{ 0x38, 0x0000, 0x000000, { 1600, 1200, 4, 3, 268250, true, false,
+	{ 0x38, 0x0000, 0x000000, { 1600, 1200, 4, 3, 268250, 1, false,
 				    48, 32, 80, true, 3, 4, 64, false } },
 
-	{ 0x39, 0x0000, 0x0c2821, { 1680, 1050, 16, 10, 119000, true, false,
+	{ 0x39, 0x0000, 0x0c2821, { 1680, 1050, 16, 10, 119000, 1, false,
 				    48, 32, 80, true, 3, 6, 21, false } },
-	{ 0x3a, 0xb300, 0x0c2828, { 1680, 1050, 16, 10, 146250, false, false,
+	{ 0x3a, 0xb300, 0x0c2828, { 1680, 1050, 16, 10, 146250, 0, false,
 				    104, 176, 280, false, 3, 6, 30, true } },
-	{ 0x3b, 0xb30f, 0x0c2844, { 1680, 1050, 16, 10, 187000, false, false,
+	{ 0x3b, 0xb30f, 0x0c2844, { 1680, 1050, 16, 10, 187000, 0, false,
 				    120, 176, 296, false, 3, 6, 40, true } },
-	{ 0x3c, 0xb319, 0x0c2868, { 1680, 1050, 16, 10, 214750, false, false,
+	{ 0x3c, 0xb319, 0x0c2868, { 1680, 1050, 16, 10, 214750, 0, false,
 				    128, 176, 304, false, 3, 6, 46, true } },
-	{ 0x3d, 0x0000, 0x000000, { 1680, 1050, 16, 10, 245500, true, false,
+	{ 0x3d, 0x0000, 0x000000, { 1680, 1050, 16, 10, 245500, 1, false,
 				    48, 32, 80, true, 3, 6, 53, false } },
 
-	{ 0x3e, 0xc140, 0x000000, { 1792, 1344, 4, 3, 204750, false, false,
+	{ 0x3e, 0xc140, 0x000000, { 1792, 1344, 4, 3, 204750, 0, false,
 				    128, 200, 328, false, 1, 3, 46, true } },
-	{ 0x3f, 0xc14f, 0x000000, { 1792, 1344, 4, 3, 261000, false, false,
+	{ 0x3f, 0xc14f, 0x000000, { 1792, 1344, 4, 3, 261000, 0, false,
 				    96, 216, 352, false, 1, 3, 69, true } },
-	{ 0x40, 0x0000, 0x000000, { 1792, 1344, 4, 3, 333250, true, false,
+	{ 0x40, 0x0000, 0x000000, { 1792, 1344, 4, 3, 333250, 1, false,
 				    48, 32, 80, true, 3, 4, 72, false } },
 
-	{ 0x41, 0xc940, 0x000000, { 1856, 1392, 4, 3, 218250, false, false,
+	{ 0x41, 0xc940, 0x000000, { 1856, 1392, 4, 3, 218250, 0, false,
 				    96, 224, 352, false, 1, 3, 43, true } },
-	{ 0x42, 0xc94f, 0x000000, { 1856, 1392, 4, 3, 288000, false, false,
+	{ 0x42, 0xc94f, 0x000000, { 1856, 1392, 4, 3, 288000, 0, false,
 				    128, 224, 352, false, 1, 3, 104, true } },
-	{ 0x43, 0x0000, 0x000000, { 1856, 1392, 4, 3, 356500, true, false,
+	{ 0x43, 0x0000, 0x000000, { 1856, 1392, 4, 3, 356500, 1, false,
 				    48, 32, 80, true, 3, 4, 74, false } },
 
-	{ 0x52, 0xd1c0, 0x000000, { 1920, 1080, 16, 9, 148500, false, false,
+	{ 0x52, 0xd1c0, 0x000000, { 1920, 1080, 16, 9, 148500, 0, false,
 				    88, 44, 148, true, 4, 5, 36, true } },
 
-	{ 0x44, 0x0000, 0x572821, { 1920, 1200, 16, 10, 154000, true, false,
+	{ 0x44, 0x0000, 0x572821, { 1920, 1200, 16, 10, 154000, 1, false,
 				    48, 32, 80, true, 3, 6, 26, false } },
-	{ 0x45, 0xd100, 0x572828, { 1920, 1200, 16, 10, 193250, false, false,
+	{ 0x45, 0xd100, 0x572828, { 1920, 1200, 16, 10, 193250, 0, false,
 				    136, 200, 336, false, 3, 6, 36, true } },
-	{ 0x46, 0xd10f, 0x572844, { 1920, 1200, 16, 10, 245250, false, false,
+	{ 0x46, 0xd10f, 0x572844, { 1920, 1200, 16, 10, 245250, 0, false,
 				    136, 208, 344, false, 3, 6, 46, true } },
-	{ 0x47, 0xd119, 0x572862, { 1920, 1200, 16, 10, 281250, false, false,
+	{ 0x47, 0xd119, 0x572862, { 1920, 1200, 16, 10, 281250, 0, false,
 				    144, 208, 352, false, 3, 6, 53, true } },
-	{ 0x48, 0x0000, 0x000000, { 1920, 1200, 16, 10, 317000, true, false,
+	{ 0x48, 0x0000, 0x000000, { 1920, 1200, 16, 10, 317000, 1, false,
 				    48, 32, 80, true, 3, 6, 62, false } },
 
-	{ 0x49, 0xd140, 0x000000, { 1920, 1440, 4, 3, 234000, false, false,
+	{ 0x49, 0xd140, 0x000000, { 1920, 1440, 4, 3, 234000, 0, false,
 				    128, 208, 344, false, 1, 3, 56, true } },
-	{ 0x4a, 0xd14f, 0x000000, { 1920, 1440, 4, 3, 297000, false, false,
+	{ 0x4a, 0xd14f, 0x000000, { 1920, 1440, 4, 3, 297000, 0, false,
 				    144, 224, 352, false, 1, 3, 56, true } },
-	{ 0x4b, 0x0000, 0x000000, { 1920, 1440, 4, 3, 380500, true, false,
+	{ 0x4b, 0x0000, 0x000000, { 1920, 1440, 4, 3, 380500, 1, false,
 				    48, 32, 80, true, 2, 3, 78, false } },
 
-	{ 0x54, 0xe1c0, 0x000000, { 2048, 1152, 16, 9, 162000, true, false,
+	{ 0x54, 0xe1c0, 0x000000, { 2048, 1152, 16, 9, 162000, 1, false,
 				    26, 80, 96, true, 1, 3, 44, true } },
 
-	{ 0x4c, 0x0000, 0x1f3821, { 2560, 1600, 16, 10, 268500, true, false,
+	{ 0x4c, 0x0000, 0x1f3821, { 2560, 1600, 16, 10, 268500, 1, false,
 				    48, 32, 80, true, 3, 6, 37, false } },
-	{ 0x4d, 0x0000, 0x1f3828, { 2560, 1600, 16, 10, 348500, false, false,
+	{ 0x4d, 0x0000, 0x1f3828, { 2560, 1600, 16, 10, 348500, 0, false,
 				    192, 280, 472, false, 3, 6, 49, true } },
-	{ 0x4e, 0x0000, 0x1f3844, { 2560, 1600, 16, 10, 443250, false, false,
+	{ 0x4e, 0x0000, 0x1f3844, { 2560, 1600, 16, 10, 443250, 0, false,
 				    208, 280, 488, false, 3, 6, 63, true } },
-	{ 0x4f, 0x0000, 0x1f3862, { 2560, 1600, 16, 10, 505250, false, false,
+	{ 0x4f, 0x0000, 0x1f3862, { 2560, 1600, 16, 10, 505250, 0, false,
 				    208, 280, 488, false, 3, 6, 73, true } },
-	{ 0x50, 0x0000, 0x000000, { 2560, 1600, 16, 10, 552750, true, false,
+	{ 0x50, 0x0000, 0x000000, { 2560, 1600, 16, 10, 552750, 1, false,
 				    48, 32, 80, true, 3, 6, 85, false } },
 
-	{ 0x57, 0x0000, 0x000000, { 4096, 2160, 256, 135, 556744, true, false,
+	{ 0x57, 0x0000, 0x000000, { 4096, 2160, 256, 135, 556744, 1, false,
 				    8, 32, 40, true, 48, 8, 6, false } },
-	{ 0x58, 0x0000, 0x000000, { 4096, 2160, 256, 135, 556188, true, false,
+	{ 0x58, 0x0000, 0x000000, { 4096, 2160, 256, 135, 556188, 1, false,
 				    8, 32, 40, true, 48, 8, 6, false } },
 };
 
@@ -251,12 +251,12 @@ static const struct {
 	const char *std_name;
 } established_timings12[] = {
 	/* 0x23 bit 7 - 0 */
-	{ 0x00, { 720, 400, 9, 5, 28320, false, false,
+	{ 0x00, { 720, 400, 9, 5, 28320, 0, false,
 	          18, 108, 54, false, 21, 2, 26, true }, "IBM" },
-	{ 0x00, { 720, 400, 9, 5, 35500, false, false,
+	{ 0x00, { 720, 400, 9, 5, 35500, 0, false,
 	          18, 108, 54, false, 12, 2, 35, true }, "IBM" },
 	{ 0x04 },
-	{ 0x00, { 640, 480, 4, 3, 30240, false, false,
+	{ 0x00, { 640, 480, 4, 3, 30240, 0, false,
 	          64, 64, 96, false, 3, 3, 39, false }, "Apple" },
 	{ 0x05 },
 	{ 0x06 },
@@ -265,7 +265,7 @@ static const struct {
 	/* 0x24 bit 7 - 0 */
 	{ 0x0a },
 	{ 0x0b },
-	{ 0x00, { 832, 624, 4, 3, 57284, false, false,
+	{ 0x00, { 832, 624, 4, 3, 57284, 0, false,
 	          32, 64, 224, false, 1, 3, 39, false }, "Apple" },
 	{ 0x0f },
 	{ 0x10 },
@@ -273,7 +273,7 @@ static const struct {
 	{ 0x12 },
 	{ 0x24 },
 	/* 0x25 bit 7 */
-	{ 0x00, { 1152, 870, 192, 145, 100000, false, false,
+	{ 0x00, { 1152, 870, 192, 145, 100000, 0, false,
 	          48, 128, 128, true, 3, 3, 39, true }, "Apple" },
 };
 
@@ -1228,7 +1228,6 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	t.vborder = x[16];
 
 	unsigned char flags = x[17];
-	unsigned vact = t.vact;
 
 	if (has_spwg && timing_descr_cnt == 2)
 		flags = *(x - 1);
@@ -1257,7 +1256,7 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	case 0x02:
 		if (flags & (1 << 1))
 			t.pos_pol_hsync = true;
-		s_sync = t.pos_pol_hsync ? "+hsync " : "-hsync ";
+		t.no_pol_vsync = true;
 		s_flags = "digital composite";
 		if (flags & (1 << 2))
 		    add_str(s_flags, "serrate");
@@ -1276,7 +1275,6 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	if (flags & 0x80) {
 		t.interlaced = true;
 		t.vact *= 2;
-		add_str(s_flags, "interlaced");
 		/*
 		 * Check if this DTD matches VIC code 39 with special
 		 * interlaced timings.
@@ -1310,74 +1308,14 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 		break;
 	}
 
-	bool ok = true;
-
-	if (!t.hact || !hbl || !t.hfp || !t.hsync || !vact || !vbl || !t.vfp || !t.vsync) {
-		fail("0 values in the detailed timings:\n"
-		     "    Horizontal Active/Blanking %u/%u\n"
-		     "    Horizontal Frontporch/Sync Width %u/%u\n"
-		     "    Vertical Active/Blanking %u/%u\n"
-		     "    Vertical Frontporch/Sync Width %u/%u\n",
-		     t.hact, hbl, t.hfp, t.hsync, vact, vbl, t.vfp, t.vsync);
-		ok = false;
-	}
-
 	t.hsize_mm = x[12] + ((x[14] & 0xf0) << 4);
 	t.vsize_mm = x[13] + ((x[14] & 0x0f) << 8);
-	double vtotal = t.vact + vbl;
-	if (t.even_vtotal)
-		vtotal = t.vact / 2.0 + t.vfp + t.vsync + t.vbp;
-	else if (t.interlaced)
-		vtotal = t.vact / 2.0 + t.vfp + t.vsync + t.vbp + 0.5;
-	double refresh = (double)t.pixclk_khz * 1000.0 / ((t.hact + hbl) * vtotal);
-	printf("%sDetailed mode: Clock %.3f MHz, %u mm x %u mm\n"
-	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
-	       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
-	       "%s               %s%s\n"
-	       "%s               VertFreq: %.3f%s Hz, HorFreq: %.3f kHz\n",
-	       prefix,
-	       t.pixclk_khz / 1000.0,
-	       t.hsize_mm, t.vsize_mm,
-	       prefix,
-	       t.hact, t.hact + t.hfp, t.hact + t.hfp + t.hsync, t.hact + hbl, t.hfp, t.hsync, t.hbp,
-	       t.hborder ? (std::string(" hborder ") + std::to_string(t.hborder)).c_str() : "",
-	       prefix,
-	       vact, vact + t.vfp, vact + t.vfp + t.vsync, vact + vbl, t.vfp, t.vsync, t.vbp,
-	       t.vborder ? (std::string(" vborder ") + std::to_string(t.vborder)).c_str() : "",
-	       prefix,
-	       s_sync.c_str(), s_flags.c_str(),
-	       prefix,
-	       refresh, t.interlaced ? "i" : "",
-	       t.hact + hbl ? (double)t.pixclk_khz / (t.hact + hbl) : 0.0);
-	if (t.hbp <= 0)
-		fail("0 or negative horizontal back porch\n");
-	if (t.vbp <= 0)
-		fail("0 or negative vertical back porch\n");
-	if ((!max_display_width_mm && t.hsize_mm) ||
-	    (!max_display_height_mm && t.vsize_mm)) {
-		fail("Mismatch of image size vs display size: image size is set, but not display size\n");
-	} else if ((max_display_width_mm && !t.hsize_mm) ||
-		   (max_display_height_mm && !t.vsize_mm)) {
+
+	bool ok = print_detailed_timings(prefix, t, s_flags.c_str());
+
+	if ((max_display_width_mm && !t.hsize_mm) ||
+	    (max_display_height_mm && !t.vsize_mm)) {
 		fail("Mismatch of image size vs display size: image size is not set, but display size is\n");
-	} else if (!t.hsize_mm && !t.vsize_mm) {
-		/* this is valid */
-	} else if (t.hsize_mm > max_display_width_mm + 9 ||
-		   t.vsize_mm > max_display_height_mm + 9) {
-		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
-		     t.hsize_mm, t.vsize_mm, max_display_width_mm, max_display_height_mm);
-	} else if (t.hsize_mm < max_display_width_mm - 9 &&
-		   t.vsize_mm < max_display_height_mm - 9) {
-		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
-		     t.hsize_mm, t.vsize_mm, max_display_width_mm, max_display_height_mm);
-	}
-	if (refresh) {
-		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
-		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
-	}
-	if (t.pixclk_khz && (t.hact + hbl)) {
-		min_hor_freq_hz = min(min_hor_freq_hz, (t.pixclk_khz * 1000) / (t.hact + hbl));
-		max_hor_freq_hz = max(max_hor_freq_hz, (t.pixclk_khz * 1000) / (t.hact + hbl));
-		max_pixclk_khz = max(max_pixclk_khz, t.pixclk_khz);
 	}
 	if (has_spwg && timing_descr_cnt == 2)
 		printf("SPWG Module Revision: %hhu\n", x[17]);

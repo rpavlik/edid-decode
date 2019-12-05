@@ -31,7 +31,7 @@ struct timings {
 	unsigned hact, vact;
 	unsigned hratio, vratio;
 	unsigned pixclk_khz;
-	bool rb; // true if CVT with reduced blanking
+	unsigned rb; // 1 if CVT with reduced blanking, 2 if CVT with reduced blanking v2
 	bool interlaced;
 	// The backporch may be negative in buggy detailed timings.
 	// So use int instead of unsigned for hbp and vbp.
@@ -43,6 +43,7 @@ struct timings {
 	bool pos_pol_vsync;
 	unsigned hborder, vborder;
 	bool even_vtotal; // special for VIC 39
+	bool no_pol_vsync; // digital composite signals have no vsync polarity
 	unsigned hsize_mm, vsize_mm;
 };
 
@@ -101,7 +102,7 @@ struct edid_state {
 
 	void print_timings(const char *prefix, const struct timings *t,
 			   const char *suffix);
-
+	bool print_detailed_timings(const char *prefix, const struct timings &t, const char *flags);
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
 	void edid_cvt_mode(unsigned refresh, struct timings &t);
 	void detailed_cvt_descriptor(const unsigned char *x, bool first);
@@ -127,6 +128,13 @@ struct edid_state {
 	void parse_display_device(const unsigned char *x);
 	void parse_display_caps(const unsigned char *x);
 	void parse_display_xfer(const unsigned char *x);
+	void parse_displayid_type_1_timing(const unsigned char *x);
+	void parse_displayid_type_2_timing(const unsigned char *x);
+	void parse_displayid_type_3_timing(const unsigned char *x);
+	void parse_displayid_type_4_timing(unsigned char type, unsigned char id);
+	void parse_displayid_type_5_timing(const unsigned char *x);
+	void parse_displayid_type_6_timing(const unsigned char *x);
+
 	void parse_di_ext_block(const unsigned char *x);
 
 	void parse_ls_ext_block(const unsigned char *x);
@@ -150,9 +158,11 @@ void hex_block(const char *prefix, const unsigned char *x, unsigned length,
 	       bool show_ascii = true, unsigned step = 16);
 std::string block_name(unsigned char block);
 void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
+void calc_ratio(struct timings *t);
 
 const struct timings *find_dmt_id(unsigned char dmt_id);
-const struct timings *vic_to_mode(unsigned char vic);
+const struct timings *find_vic_id(unsigned char vic);
+const struct timings *find_hdmi_vic_id(unsigned char hdmi_vic);
 char *extract_string(const unsigned char *x, unsigned len);
 
 #endif
