@@ -42,6 +42,7 @@ enum Option {
 	OptHelp = 'h',
 	OptOutputFormat = 'o',
 	OptSkipHexDump = 's',
+	OptSkipSHA = 128,
 	OptLast = 256
 };
 
@@ -52,6 +53,7 @@ static struct option long_options[] = {
 	{ "output-format", required_argument, 0, OptOutputFormat },
 	{ "extract", no_argument, 0, OptExtract },
 	{ "skip-hex-dump", no_argument, 0, OptSkipHexDump },
+	{ "skip-sha", no_argument, 0, OptSkipSHA },
 	{ "check-inline", no_argument, 0, OptCheckInline },
 	{ "check", no_argument, 0, OptCheck },
 	{ 0, 0, 0, 0 }
@@ -76,6 +78,7 @@ static void usage(void)
 	       "  -C, --check-inline    check if the EDID conforms to the standards, failures and\n"
 	       "                        warnings are reported inline.\n"
 	       "  -s, --skip-hex-dump   skip the initial hex dump of the EDID\n"
+	       "  --skip-sha            skip the SHA report\n"
 	       "  -e, --extract         extract the contents of the first block in hex values\n"
 	       "  -h, --help            display this help message\n");
 }
@@ -759,15 +762,17 @@ int edid_state::parse_edid()
 	if (!options[OptCheck] && !options[OptCheckInline])
 		return 0;
 
-	printf("\n----------------\n\n");
+	printf("\n----------------\n");
 
+	if (!options[OptSkipSHA]) {
 #ifdef SHA
 #define STR(x) #x
 #define STRING(x) STR(x)
-	printf("edid-decode SHA: %s\n", STRING(SHA));
+		printf("\nedid-decode SHA: %s\n", STRING(SHA));
 #else
-	printf("edid-decode SHA: not available\n");
+		printf("\nedid-decode SHA: not available\n");
 #endif
+	}
 
 	if (options[OptCheck]) {
 		if (warnings)
