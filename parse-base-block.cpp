@@ -525,6 +525,8 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings &t)
 
 /*
  * Copied from xserver/hw/xfree86/modes/xf86cvt.c
+ *
+ * TODO: add support for reduced blanking v2 and interlacing
  */
 void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 {
