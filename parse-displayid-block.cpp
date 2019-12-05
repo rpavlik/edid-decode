@@ -71,20 +71,78 @@ static void parse_displayid_parameters(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 
-	if (check_displayid_datablock_length(x, 12, 12)) {
-		printf("    Image size: %.1f mm x %.1f mm\n",
-		       ((x[4] << 8) + x[3]) / 10.0,
-		       ((x[6] << 8) + x[5]) / 10.0);
-		printf("    Pixels: %d x %d\n",
-		       (x[8] << 8) + x[7], (x[10] << 8) + x[9]);
-		print_flag_lines("      ", "    Feature support flags:",
-				 x[11], feature_support_flags);
+	if (!check_displayid_datablock_length(x, 12, 12))
+		return;
 
-		if (x[12] != 0xff)
-			printf("    Gamma: %.2f\n", ((x[12] + 100.0) / 100.0));
-		printf("    Aspect ratio: %.2f\n", ((x[13] + 100.0) / 100.0));
-		printf("    Dynamic bpc native: %d\n", (x[14] & 0xf) + 1);
-		printf("    Dynamic bpc overall: %d\n", ((x[14] >> 4) & 0xf) + 1);
+	printf("    Image size: %.1f mm x %.1f mm\n",
+	       ((x[4] << 8) + x[3]) / 10.0,
+	       ((x[6] << 8) + x[5]) / 10.0);
+	printf("    Pixels: %d x %d\n",
+	       (x[8] << 8) + x[7], (x[10] << 8) + x[9]);
+	print_flag_lines("      ", "    Feature support flags:",
+			 x[11], feature_support_flags);
+
+	if (x[12] != 0xff)
+		printf("    Gamma: %.2f\n", ((x[12] + 100.0) / 100.0));
+	printf("    Aspect ratio: %.2f\n", ((x[13] + 100.0) / 100.0));
+	printf("    Dynamic bpc native: %d\n", (x[14] & 0xf) + 1);
+	printf("    Dynamic bpc overall: %d\n", ((x[14] >> 4) & 0xf) + 1);
+}
+
+// tag 0x02
+
+static const char *std_colorspace_ids[] = {
+	"sRGB",
+	"BT.601",
+	"BT.709",
+	"Adobe RGB",
+	"DCI-P3",
+	"NTSC",
+	"EBU",
+	"Adobe Wide Gamut RGB",
+	"DICOM"
+};
+
+static double fp2d(unsigned short fp)
+{
+	return fp / 4096.0;
+}
+
+static void parse_displayid_color_characteristics(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	unsigned cie_year = (x[1] & 0x80) ? 1976 : 1931;
+	unsigned xfer_id = (x[1] >> 3) & 0x0f;
+	unsigned num_whitepoints = x[3] & 0x0f;
+	unsigned num_primaries = (x[3] >> 4) & 0x07;
+	bool temporal_color = x[3] & 0x80;
+	unsigned offset = 4;
+
+	printf("    Uses %s color\n", temporal_color ? "temporal" : "spatial");
+	printf("    Uses %u CIE (x, y) coordinates\n", cie_year);
+	if (xfer_id)
+		printf("    Associated with Transfer Characteristic Data Block with Identifier %u\n", xfer_id);
+	if (!num_primaries) {
+		printf("    Uses color space %s\n",
+		       x[4] >= ARRAY_SIZE(std_colorspace_ids) ? "Reserved" :
+								std_colorspace_ids[x[4]]);
+		offset++;
+	}
+	for (unsigned i = 0; i < num_primaries; i++) {
+		unsigned idx = offset + 3 * i;
+
+		printf("    Primary #%u: (%.6f. %.6f)\n", i,
+		       fp2d(x[idx] | ((x[idx + 1] & 0x0f) << 8)),
+		       fp2d(((x[idx + 1] & 0xf0) >> 4) | (x[idx + 2] << 4)));
+	}
+	offset += 3 * num_primaries;
+	for (unsigned i = 0; i < num_whitepoints; i++) {
+		unsigned idx = offset + 3 * i;
+
+		printf("    White point #%u: (%.6f. %.6f)\n", i,
+		       fp2d(x[idx] | ((x[idx + 1] & 0x0f) << 8)),
+		       fp2d(((x[idx + 1] & 0xf0) >> 4) | (x[idx + 2] << 4)));
 	}
 }
 
@@ -326,6 +384,48 @@ static void parse_displayid_gp_string(const unsigned char *x)
 	check_displayid_datablock_revision(x);
 	if (check_displayid_datablock_length(x))
 		printf("    %s\n", extract_string(x + 3, x[2]));
+}
+
+// tag 0x0e
+
+static void parse_displayid_transfer_characteristics(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	unsigned xfer_id = x[1] >> 4;
+	bool first_is_white = x[3] & 0x80;
+	bool four_param = x[3] & 0x20;
+
+	if (xfer_id)
+		printf("    Transfer Characteristics Data Block Identifier: %u\n", xfer_id);
+	if (first_is_white)
+		printf("    The first curve is the 'white' transfer characteristic\n");
+	if (x[3] & 0x40)
+		printf("    Individual response curves\n");
+
+	unsigned offset = 4;
+	unsigned len = x[2] - 1;
+
+	for (unsigned i = 0; len; i++) {
+		if ((x[3] & 0x80) && !i)
+			printf("    White curve:      ");
+		else
+			printf("    Response curve #%u:",
+			       i - first_is_white);
+		unsigned samples = x[offset];
+		if (four_param) {
+			printf(" A0=%u A1=%u A2=%u A3=%u Gamma=%.2f\n",
+			       x[offset + 1], x[offset + 2], x[offset + 3], x[offset + 4],
+			       (double)(x[offset + 5] + 100.0) / 100.0);
+			samples++;
+		} else {
+			for (unsigned j = offset + 1; j < offset + samples; j++)
+				printf(" %3u", x[j]);
+			printf(" 255\n");
+		}
+		offset += samples;
+		len -= samples;
+	}
 }
 
 // tag 0x11
@@ -786,6 +886,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 
 		switch (tag) {
 		case 0x01: parse_displayid_parameters(x + offset); break;
+		case 0x02: parse_displayid_color_characteristics(x + offset); break;
 		case 0x03:
 			   for (i = 0; i < len / 20; i++)
 				   parse_displayid_type_1_7_timing(&x[offset + 3 + (i * 20)], false);
@@ -817,6 +918,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 				   }
 			   break;
 		case 0x0b: parse_displayid_gp_string(x + offset); break;
+		case 0x0e: parse_displayid_transfer_characteristics(x + offset); break;
 		case 0x11:
 			   for (i = 0; i < len / 7; i++)
 				   parse_displayid_type_5_timing(&x[offset + 3 + (i * 7)]);
