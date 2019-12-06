@@ -418,6 +418,126 @@ static void parse_displayid_string(const unsigned char *x)
 		printf("    %s\n", extract_string(x + 3, x[2]));
 }
 
+// tag 0x0c
+
+static void parse_displayid_display_device(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	if (!check_displayid_datablock_length(x, 13, 13))
+		return;
+
+	printf("    Display Device Technology: ");
+	switch (x[3]) {
+	case 0x00: printf("Monochrome CRT\n"); break;
+	case 0x01: printf("Standard tricolor CRT\n"); break;
+	case 0x02: printf("Other/undefined CRT\n"); break;
+	case 0x10: printf("Passive matrix TN\n"); break;
+	case 0x11: printf("Passive matrix cholesteric LC\n"); break;
+	case 0x12: printf("Passive matrix ferroelectric LC\n"); break;
+	case 0x13: printf("Other passive matrix LC type\n"); break;
+	case 0x14: printf("Active-matrix TN\n"); break;
+	case 0x15: printf("Active-matrix IPS (all types)\n"); break;
+	case 0x16: printf("Active-matrix VA (all types)\n"); break;
+	case 0x17: printf("Active-matrix OCB\n"); break;
+	case 0x18: printf("Active-matrix ferroelectric\n"); break;
+	case 0x1f: printf("Other LC type\n"); break;
+	case 0x20: printf("DC plasma\n"); break;
+	case 0x21: printf("AC plasma\n"); break;
+	}
+	switch (x[3] & 0xf0) {
+	case 0x30: printf("Electroluminescent, except OEL/OLED\n"); break;
+	case 0x40: printf("Inorganic LED\n"); break;
+	case 0x50: printf("Organic LED/OEL\n"); break;
+	case 0x60: printf("FED or sim. \"cold-cathode,\" phosphor-based types\n"); break;
+	case 0x70: printf("Electrophoretic\n"); break;
+	case 0x80: printf("Electrochromic\n"); break;
+	case 0x90: printf("Electromechanical\n"); break;
+	case 0xa0: printf("Electrowetting\n"); break;
+	case 0xf0: printf("Other type not defined here\n"); break;
+	}
+	printf("    Display operating mode: ");
+	switch (x[4] >> 4) {
+	case 0x00: printf("Direct-view reflective, ambient light\n"); break;
+	case 0x01: printf("Direct-view reflective, ambient light, also has light source\n"); break;
+	case 0x02: printf("Direct-view reflective, uses light source\n"); break;
+	case 0x03: printf("Direct-view transmissive, ambient light\n"); break;
+	case 0x04: printf("Direct-view transmissive, ambient light, also has light source\n"); break;
+	case 0x05: printf("Direct-view transmissive, uses light source\n"); break;
+	case 0x06: printf("Direct-view emissive\n"); break;
+	case 0x07: printf("Direct-view transflective, backlight off by default\n"); break;
+	case 0x08: printf("Direct-view transflective, backlight on by default\n"); break;
+	case 0x09: printf("Transparent display, ambient light\n"); break;
+	case 0x0a: printf("Transparent emissive display\n"); break;
+	case 0x0b: printf("Projection device using reflective light modulator\n"); break;
+	case 0x0c: printf("Projection device using transmissive light modulator\n"); break;
+	case 0x0d: printf("Projection device using emissive image transducer\n"); break;
+	default: printf("Reserved\n"); break;
+	}
+	if (x[4] & 0x08)
+		printf("    The backlight may be switched on and off\n");
+	if (x[4] & 0x04)
+		printf("    The backlight's intensity can be controlled\n");
+	printf("    Display native pixel format: %ux%u\n",
+	       x[5] | (x[6] << 8), x[7] | (x[8] << 8));
+	printf("    Aspect ratio and orientation:\n");
+	printf("      Aspect Ratio: %.2f\n", (100 + x[9]) / 100.0);
+	unsigned char v = x[0x0a];
+	printf("      Default Orientation: ");
+	switch ((v & 0xc0) >> 6) {
+	case 0x00: printf("Landscape\n"); break;
+	case 0x01: printf("Portrait\n"); break;
+	case 0x02: printf("Not Fixed\n"); break;
+	case 0x03: printf("Undefined\n"); break;
+	}
+	printf("      Rotation Capability: ");
+	switch ((v & 0x30) >> 4) {
+	case 0x00: printf("None\n"); break;
+	case 0x01: printf("Can rotate 90 degrees clockwise\n"); break;
+	case 0x02: printf("Can rotate 90 degrees counterclockwise\n"); break;
+	case 0x03: printf("Can rotate 90 degrees in either direction)\n"); break;
+	}
+	printf("      Zero Pixel Location: ");
+	switch ((v & 0x0c) >> 2) {
+	case 0x00: printf("Upper Left\n"); break;
+	case 0x01: printf("Upper Right\n"); break;
+	case 0x02: printf("Lower Left\n"); break;
+	case 0x03: printf("Lower Right\n"); break;
+	}
+	printf("      Scan Direction: ");
+	switch (v & 0x03) {
+	case 0x00: printf("Not defined\n"); break;
+	case 0x01: printf("Fast Scan is on the Major (Long) Axis and Slow Scan is on the Minor Axis\n"); break;
+	case 0x02: printf("Fast Scan is on the Minor (Short) Axis and Slow Scan is on the Major Axis\n"); break;
+	case 0x03: printf("Reserved\n");
+		   fail("Scan Direction used the reserved value 0x03\n");
+		   break;
+	}
+	printf("    Sub-pixel layout/configuration/shape: ");
+	switch (x[0x0b]) {
+	case 0x00: printf("Not defined\n"); break;
+	case 0x01: printf("RGB vertical stripes\n"); break;
+	case 0x02: printf("RGB horizontal stripes\n"); break;
+	case 0x03: printf("Vertical stripes using primary order\n"); break;
+	case 0x04: printf("Horizontal stripes using primary order\n"); break;
+	case 0x05: printf("Quad sub-pixels, red at top left\n"); break;
+	case 0x06: printf("Quad sub-pixels, red at bottom left\n"); break;
+	case 0x07: printf("Delta (triad) RGB sub-pixels\n"); break;
+	case 0x08: printf("Mosaic\n"); break;
+	case 0x09: printf("Quad sub-pixels, RGB + 1 additional color\n"); break;
+	case 0x0a: printf("Five sub-pixels, RGB + 2 additional colors\n"); break;
+	case 0x0b: printf("Six sub-pixels, RGB + 3 additional colors\n"); break;
+	case 0x0c: printf("Clairvoyante, Inc. PenTile Matrix (tm) layout\n"); break;
+	default: printf("Reserved\n"); break;
+	}
+	printf("    Horizontal and vertical dot/pixel pitch: %.2fx%.2f mm\n",
+	       (double)(x[0x0c]) / 100.0, (double)(x[0x0d]) / 100.0);
+	printf("    Color bit depth: %u\n", x[0x0e] & 0x0f);
+	v = x[0x0f];
+	printf("    Response time for %s transition: %u ms\n",
+	       (v & 0x80) ? "white-to-black" : "black-to-white", v & 0x7f);
+}
+
 // tag 0x0e
 
 void edid_state::parse_displayid_transfer_characteristics(const unsigned char *x)
@@ -996,6 +1116,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x09: parse_displayid_video_timing_range_limits(x + offset); break;
 		case 0x0a:
 		case 0x0b: parse_displayid_string(x + offset); break;
+		case 0x0c: parse_displayid_display_device(x + offset); break;
 		case 0x0e: parse_displayid_transfer_characteristics(x + offset); break;
 		case 0x11:
 			   for (i = 0; i < len / 7; i++)
