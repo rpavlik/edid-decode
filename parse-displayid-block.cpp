@@ -11,7 +11,34 @@
 
 #include "edid-decode.h"
 
+static const char *bpc444[] = {"6", "8", "10", "12", "14", "16", NULL, NULL};
+static const char *bpc4xx[] = {"8", "10", "12", "14", "16", NULL, NULL, NULL};
+static const char *audiorates[] = {"32", "44.1", "48", NULL, NULL, NULL, NULL, NULL};
+
 // misc functions
+
+static void print_flags(const char *label, unsigned char flag_byte,
+			const char **flags, bool reverse = false)
+{
+	if (!flag_byte)
+		return;
+
+	unsigned countflags = 0;
+
+	printf("%s: ", label);
+	for (unsigned i = 0; i < 8; i++) {
+		if (flag_byte & (1 << (reverse ? 7 - i : i))) {
+			if (countflags)
+				printf(", ");
+			if (flags[i])
+				printf("%s", flags[i]);
+			else
+				printf("Undefined (%u)", i);
+			countflags++;
+		}
+	}
+	printf("\n");
+}
 
 static void check_displayid_datablock_revision(const unsigned char *x)
 {
@@ -538,6 +565,23 @@ static void parse_displayid_display_device(const unsigned char *x)
 	       (v & 0x80) ? "white-to-black" : "black-to-white", v & 0x7f);
 }
 
+// tag 0x0d
+
+static void parse_displayid_intf_power_sequencing(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	if (!check_displayid_datablock_length(x, 6, 6))
+		return;
+
+	printf("    Power Sequence T1: %.1f-%u.0 ms\n", (x[3] >> 4) / 10.0, (x[3] & 0xf) * 2);
+	printf("    Power Sequence T2: 0.0-%u.0 ms\n", (x[4] & 0x3f) * 2);
+	printf("    Power Sequence T3: 0.0-%u.0 ms\n", (x[5] & 0x3f) * 2);
+	printf("    Power Sequence T4: 0.0-%u.0 ms\n", (x[6] & 0x7f) * 10);
+	printf("    Power Sequence T5: 0.0-%u.0 ms\n", (x[7] & 0x3f) * 10);
+	printf("    Power Sequence T6: 0.0-%u.0 ms\n", (x[8] & 0x3f) * 10);
+}
+
 // tag 0x0e
 
 void edid_state::parse_displayid_transfer_characteristics(const unsigned char *x)
@@ -580,6 +624,89 @@ void edid_state::parse_displayid_transfer_characteristics(const unsigned char *x
 		}
 		offset += samples;
 		len -= samples;
+	}
+}
+
+// tag 0x0f
+
+static void parse_displayid_display_intf(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	if (!check_displayid_datablock_length(x, 10, 10))
+		return;
+
+	printf("    Interface Type: ");
+	switch (x[3] >> 4) {
+	case 0x00:
+		switch (x[3] & 0xf) {
+		case 0x00: printf("Analog 15HD/VGA\n"); break;
+		case 0x01: printf("Analog VESA NAVI-V (15HD)\n"); break;
+		case 0x02: printf("Analog VESA NAVI-D\n"); break;
+		default: printf("Reserved\n"); break;
+		}
+		break;
+	case 0x01: printf("LVDS\n"); break;
+	case 0x02: printf("TMDS\n"); break;
+	case 0x03: printf("RSDS\n"); break;
+	case 0x04: printf("DVI-D\n"); break;
+	case 0x05: printf("DVI-I, analog\n"); break;
+	case 0x06: printf("DVI-I, digital\n"); break;
+	case 0x07: printf("HDMI-A\n"); break;
+	case 0x08: printf("HDMI-B\n"); break;
+	case 0x09: printf("MDDI\n"); break;
+	case 0x0a: printf("DisplayPort\n"); break;
+	case 0x0b: printf("Proprietary Digital Interface\n"); break;
+	default: printf("Reserved\n"); break;
+	}
+	if (x[3] >> 4)
+		printf("    Number of Links: %u\n", x[3] & 0xf);
+	printf("    Interface Standard Version: %u.%u\n",
+	       x[4] >> 4, x[4] & 0xf);
+	print_flags("    Supported bpc for RGB encoding", x[5], bpc444);
+	print_flags("    Supported bpc for YCbCr 4:4:4 encoding", x[6], bpc444);
+	print_flags("    Supported bpc for YCbCr 4:2:2 encoding", x[7], bpc4xx);
+	printf("    Supported Content Protection: ");
+	switch (x[8] & 0xf) {
+	case 0x00: printf("None\n"); break;
+	case 0x01: printf("HDCP "); break;
+	case 0x02: printf("DTCP "); break;
+	case 0x03: printf("DPCP "); break;
+	default: printf("Reserved "); break;
+	}
+	if (x[8] & 0xf)
+		printf("%u.%u\n", x[9] >> 4, x[9] & 0xf);
+	unsigned char v = x[0x0a] & 0xf;
+	printf("    Spread Spectrum: ");
+	switch (x[0x0a] >> 6) {
+	case 0x00: printf("None\n"); break;
+	case 0x01: printf("Down Spread %.1f%%\n", v / 10.0); break;
+	case 0x02: printf("Center Spread %.1f%%\n", v / 10.0); break;
+	case 0x03: printf("Reserved\n"); break;
+	}
+	switch (x[3] >> 4) {
+	case 0x01:
+		printf("    LVDS Color Mapping: %s mode\n",
+		       (x[0x0b] & 0x10) ? "6 bit compatible" : "normal");
+		if (x[0x0b] & 0x08) printf("    LVDS supports 2.8V\n");
+		if (x[0x0b] & 0x04) printf("    LVDS supports 12V\n");
+		if (x[0x0b] & 0x02) printf("    LVDS supports 5V\n");
+		if (x[0x0b] & 0x01) printf("    LVDS supports 3.3V\n");
+		printf("    LVDS %s Mode\n", (x[0x0c] & 0x04) ? "Fixed" : "DE");
+		if (x[0x0c] & 0x04)
+			printf("    LVDS %s Signal Level\n", (x[0x0c] & 0x02) ? "Low" : "High");
+		else
+			printf("    LVDS DE Polarity Active %s\n", (x[0x0c] & 0x02) ? "Low" : "High");
+		printf("    LVDS Shift Clock Data Strobe at %s Edge\n", (x[0x0c] & 0x01) ? "Rising" : "Falling");
+		break;
+	case 0x0b:
+		printf("    PDI %s Mode\n", (x[0x0b] & 0x04) ? "Fixed" : "DE");
+		if (x[0x0b] & 0x04)
+			printf("    PDI %s Signal Level\n", (x[0x0b] & 0x02) ? "Low" : "High");
+		else
+			printf("    PDI DE Polarity Active %s\n", (x[0x0b] & 0x02) ? "Low" : "High");
+		printf("    PDI Shift Clock Data Strobe at %s Edge\n", (x[0x0b] & 0x01) ? "Rising" : "Falling");
+		break;
 	}
 }
 
@@ -770,10 +897,6 @@ void edid_state::parse_displayid_type_9_timing(const unsigned char *x)
 
 // tag 0x26
 
-static const char *bpc444[] = {"6", "8", "10", "12", "14", "16", NULL, NULL};
-static const char *bpc4xx[] = {"8", "10", "12", "14", "16", NULL, NULL, NULL};
-static const char *audiorates[] = {"32", "44.1", "48", NULL, NULL, NULL, NULL, NULL};
-
 static const char *colorspace_eotf_combinations[] = {
 	"sRGB",
 	"BT.601",
@@ -810,29 +933,6 @@ static const char *eotfs[] = {
 	"Hybrid Log",
 	"Custom"
 };
-
-static void print_flags(const char *label, unsigned char flag_byte,
-			const char **flags, bool reverse = false)
-{
-	if (!flag_byte)
-		return;
-
-	unsigned countflags = 0;
-
-	printf("%s: ", label);
-	for (unsigned i = 0; i < 8; i++) {
-		if (flag_byte & (1 << (reverse ? 7 - i : i))) {
-			if (countflags)
-				printf(", ");
-			if (flags[i])
-				printf("%s", flags[i]);
-			else
-				printf("Undefined (%u)", i);
-			countflags++;
-		}
-	}
-	printf("\n");
-}
 
 static void parse_displayid_interface_features(const unsigned char *x)
 {
@@ -1117,7 +1217,9 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x0a:
 		case 0x0b: parse_displayid_string(x + offset); break;
 		case 0x0c: parse_displayid_display_device(x + offset); break;
+		case 0x0d: parse_displayid_intf_power_sequencing(x + offset); break;
 		case 0x0e: parse_displayid_transfer_characteristics(x + offset); break;
+		case 0x0f: parse_displayid_display_intf(x + offset); break;
 		case 0x11:
 			   for (i = 0; i < len / 7; i++)
 				   parse_displayid_type_5_timing(&x[offset + 3 + (i * 7)]);
