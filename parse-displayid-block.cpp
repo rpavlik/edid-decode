@@ -108,7 +108,7 @@ static double fp2d(unsigned short fp)
 	return fp / 4096.0;
 }
 
-static void parse_displayid_color_characteristics(const unsigned char *x)
+void edid_state::parse_displayid_color_characteristics(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 
@@ -121,8 +121,11 @@ static void parse_displayid_color_characteristics(const unsigned char *x)
 
 	printf("    Uses %s color\n", temporal_color ? "temporal" : "spatial");
 	printf("    Uses %u CIE (x, y) coordinates\n", cie_year);
-	if (xfer_id)
-		printf("    Associated with Transfer Characteristic Data Block with Identifier %u\n", xfer_id);
+	if (xfer_id) {
+		printf("    Associated with Transfer Characteristics Data Block with Identifier %u\n", xfer_id);
+		if (!(preparse_xfer_ids & (1 << xfer_id)))
+			fail("Missing Transfer Characteristics Data Block with Identifier %u\n", xfer_id);
+	}
 	if (!num_primaries) {
 		printf("    Uses color space %s\n",
 		       x[4] >= ARRAY_SIZE(std_colorspace_ids) ? "Reserved" :
@@ -417,7 +420,7 @@ static void parse_displayid_string(const unsigned char *x)
 
 // tag 0x0e
 
-static void parse_displayid_transfer_characteristics(const unsigned char *x)
+void edid_state::parse_displayid_transfer_characteristics(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 
@@ -425,8 +428,11 @@ static void parse_displayid_transfer_characteristics(const unsigned char *x)
 	bool first_is_white = x[3] & 0x80;
 	bool four_param = x[3] & 0x20;
 
-	if (xfer_id)
+	if (xfer_id) {
 		printf("    Transfer Characteristics Data Block Identifier: %u\n", xfer_id);
+		if (!(preparse_color_ids & (1 << xfer_id)))
+			fail("Missing Color Characteristics Data Block using Identifier %u\n", xfer_id);
+	}
 	if (first_is_white)
 		printf("    The first curve is the 'white' transfer characteristic\n");
 	if (x[3] & 0x40)
@@ -818,6 +824,45 @@ static std::string product_type(unsigned version, unsigned char x, bool heading)
 	}
 	fail("Unknown %s 0x%02x\n", headingstr.c_str(), x);
 	return std::string("Unknown " + headingstr + " (") + utohex(x) + ")";
+}
+
+void edid_state::preparse_displayid_block(const unsigned char *x)
+{
+	unsigned length = x[2];
+
+	if (length > 121)
+		length = 121;
+
+	unsigned offset = 5;
+
+	while (length > 0) {
+		unsigned tag = x[offset];
+
+		switch (tag) {
+		case 0x02:
+			preparse_color_ids |= 1 << ((x[offset + 1] >> 3) & 0x0f);
+			break;
+		case 0x0e:
+			preparse_xfer_ids |= 1 << ((x[offset + 1] >> 4) & 0x0f);
+			break;
+		default:
+			break;
+		}
+
+		if (length < 3)
+			break;
+
+		unsigned len = x[offset + 2];
+
+		if (length < len + 3)
+			break;
+
+		if (!tag && !len)
+			break;
+
+		length -= len + 3;
+		offset += len + 3;
+	}
 }
 
 void edid_state::parse_displayid_block(const unsigned char *x)

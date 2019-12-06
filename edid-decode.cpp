@@ -758,6 +758,9 @@ void edid_state::preparse_extension(const unsigned char *x)
 	case 0x02:
 		preparse_cta_block(x);
 		break;
+	case 0x70:
+		preparse_displayid_block(x);
+		break;
 	}
 }
 

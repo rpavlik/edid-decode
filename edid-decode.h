@@ -84,6 +84,10 @@ struct edid_state {
 	bool preparsed_has_vic[2][256];
 	std::vector<unsigned char> preparsed_svds[2];
 
+	// DisplayID block state
+	unsigned short preparse_color_ids;
+	unsigned short preparse_xfer_ids;
+
 	// Global state
 	unsigned edid_size;
 	unsigned num_blocks;
@@ -122,12 +126,14 @@ struct edid_state {
 	void preparse_cta_block(const unsigned char *x);
 	void parse_cta_block(const unsigned char *x);
 
-	void parse_displayid_block(const unsigned char *x);
-
 	void parse_digital_interface(const unsigned char *x);
 	void parse_display_device(const unsigned char *x);
 	void parse_display_caps(const unsigned char *x);
 	void parse_display_xfer(const unsigned char *x);
+	void parse_di_ext_block(const unsigned char *x);
+
+	void parse_displayid_color_characteristics(const unsigned char *x);
+	void parse_displayid_transfer_characteristics(const unsigned char *x);
 	void parse_displayid_type_1_7_timing(const unsigned char *x, bool type7);
 	void parse_displayid_type_2_timing(const unsigned char *x);
 	void parse_displayid_type_3_timing(const unsigned char *x);
@@ -135,8 +141,8 @@ struct edid_state {
 	void parse_displayid_type_5_timing(const unsigned char *x);
 	void parse_displayid_type_6_timing(const unsigned char *x);
 	void parse_displayid_type_9_timing(const unsigned char *x);
-
-	void parse_di_ext_block(const unsigned char *x);
+	void preparse_displayid_block(const unsigned char *x);
+	void parse_displayid_block(const unsigned char *x);
 
 	void parse_ls_ext_block(const unsigned char *x);
 
