@@ -233,7 +233,9 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 
 	if (x[3] & 0x10) {
 		t.interlaced = true;
-		t.vact *= 2;
+		t.vfp /= 2;
+		t.vsync /= 2;
+		t.vbp /= 2;
 	}
 	if (x[3] & 0x80)
 		s += ", preferred";
@@ -267,7 +269,9 @@ void edid_state::parse_displayid_type_2_timing(const unsigned char *x)
 
 	if (x[3] & 0x10) {
 		t.interlaced = true;
-		t.vact *= 2;
+		t.vfp /= 2;
+		t.vsync /= 2;
+		t.vbp /= 2;
 	}
 
 	calc_ratio(&t);
@@ -562,7 +566,9 @@ void edid_state::parse_displayid_type_6_timing(const unsigned char *x)
 
 	if (x[13] & 0x80) {
 		t.interlaced = true;
-		t.vact *= 2;
+		t.vfp /= 2;
+		t.vsync /= 2;
+		t.vbp /= 2;
 	}
 	calc_ratio(&t);
 	s += std::to_string(t.hratio) + ":" + std::to_string(t.vratio);
