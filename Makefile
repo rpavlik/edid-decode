@@ -3,7 +3,7 @@ mandir ?= /usr/share/man
 
 SOURCES = edid-decode.cpp parse-base-block.cpp parse-cta-block.cpp \
 	  parse-displayid-block.cpp parse-ls-ext-block.cpp \
-	  parse-di-ext-block.cpp
+	  parse-di-ext-block.cpp parse-vtb-ext-block.cpp
 WARN_FLAGS = -Wall -Wextra -Wno-missing-field-initializers -Wno-unused-parameter
 
 all: edid-decode

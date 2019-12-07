@@ -775,6 +775,9 @@ void edid_state::parse_extension(const unsigned char *x)
 	case 0x02:
 		parse_cta_block(x);
 		break;
+	case 0x10:
+		parse_vtb_ext_block(x);
+		break;
 	case 0x20:
 		printf("%s\n", block.c_str());
 		fail("Deprecated extension block, do not use\n");

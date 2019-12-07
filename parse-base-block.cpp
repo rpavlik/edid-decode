@@ -499,7 +499,7 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings &t)
 	 *  [PIXEL FREQ] = [TOTAL PIXELS] / [H PERIOD]
 	 */
 
-	t.pixclk_khz = (int)(1000.0 * total_pixels / h_period);
+	t.pixclk_khz = (int)(1000.0 * total_pixels / h_period + 0.5);
 
 	/* Stage 1 computations are now complete; I should really pass
 	   the results to another function and do the Stage 2
@@ -698,7 +698,7 @@ void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 	t.interlaced = false;
 }
 
-void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
+void edid_state::detailed_cvt_descriptor(const char *prefix, const unsigned char *x, bool first)
 {
 	static const unsigned char empty[3] = { 0, 0, 0 };
 	struct timings cvt_t = {};
@@ -752,24 +752,24 @@ void edid_state::detailed_cvt_descriptor(const unsigned char *x, bool first)
 
 	if (x[2] & 0x10) {
 		edid_cvt_mode(50, cvt_t);
-		print_timings("    ", &cvt_t, preferred == 0 ? s_pref : "CVT");
+		print_timings(prefix, &cvt_t, preferred == 0 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x08) {
 		edid_cvt_mode(60, cvt_t);
-		print_timings("    ", &cvt_t, preferred == 1 ? s_pref : "CVT");
+		print_timings(prefix, &cvt_t, preferred == 1 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x04) {
 		edid_cvt_mode(75, cvt_t);
-		print_timings("    ", &cvt_t, preferred == 2 ? s_pref : "CVT");
+		print_timings(prefix, &cvt_t, preferred == 2 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x02) {
 		edid_cvt_mode(85, cvt_t);
-		print_timings("    ", &cvt_t, preferred == 3 ? s_pref : "CVT");
+		print_timings(prefix, &cvt_t, preferred == 3 ? s_pref : "CVT");
 	}
 	if (x[2] & 0x01) {
 		cvt_t.rb = true;
 		edid_cvt_mode(60, cvt_t);
-		print_timings("    ", &cvt_t, preferred == 4 ? s_pref : "CVT");
+		print_timings(prefix, &cvt_t, preferred == 4 ? s_pref : "CVT");
 	}
 }
 
@@ -810,7 +810,8 @@ char *extract_string(const unsigned char *x, unsigned len)
 	return s;
 }
 
-void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
+void edid_state::print_standard_timing(const char *prefix, unsigned char b1, unsigned char b2,
+				       bool gtf_only, unsigned vrefresh_offset)
 {
 	const struct timings *t;
 	struct timings formula = {};
@@ -830,63 +831,60 @@ void edid_state::print_standard_timing(unsigned char b1, unsigned char b2)
 
 	t = find_std_id((b1 << 8) | b2);
 	if (t) {
-		print_timings("  ", t, "DMT");
+		print_timings(prefix, t, "DMT");
 		return;
 	}
 	hact = (b1 + 31) * 8;
 	switch ((b2 >> 6) & 0x3) {
 	case 0x00:
-		if (edid_minor >= 3) {
-			vact = hact * 10 / 16;
+		if (gtf_only || edid_minor >= 3) {
 			hratio = 16;
 			vratio = 10;
 		} else {
-			vact = hact;
 			hratio = 1;
 			vratio = 1;
 		}
 		break;
 	case 0x01:
-		vact = hact * 3 / 4;
 		hratio = 4;
 		vratio = 3;
 		break;
 	case 0x02:
-		vact = hact * 4 / 5;
 		hratio = 5;
 		vratio = 4;
 		break;
 	case 0x03:
-		vact = hact * 9 / 16;
 		hratio = 16;
 		vratio = 9;
 		break;
 	}
-	refresh = 60 + (b2 & 0x3f);
+	vact = (double)hact * vratio / hratio;
+	vact = 8 * ((vact + 7) / 8);
+	refresh = vrefresh_offset + (b2 & 0x3f);
 
 	formula.hact = hact;
 	formula.vact = vact;
 	formula.hratio = hratio;
 	formula.vratio = vratio;
 
-	if (edid_minor >= 4) {
+	if (!gtf_only && edid_minor >= 4) {
 		uses_cvt = true;
 		edid_cvt_mode(refresh, formula);
-		print_timings("  ", &formula, "EDID 1.4 source: CVT");
+		print_timings(prefix, &formula, "EDID 1.4 source: CVT");
 		/*
 		 * A EDID 1.3 source will assume GTF, so both GTF and CVT
 		 * have to be supported.
 		 */
 		uses_gtf = true;
 		edid_gtf_mode(refresh, formula);
-		print_timings("  ", &formula, "EDID 1.3 source: GTF");
-	} else if (edid_minor >= 2) {
+		print_timings(prefix, &formula, "EDID 1.3 source: GTF");
+	} else if (gtf_only || edid_minor >= 2) {
 		uses_gtf = true;
 		edid_gtf_mode(refresh, formula);
-		print_timings("  ", &formula, "GTF");
+		print_timings(prefix, &formula, "GTF");
 	} else {
-		printf("  %5ux%-5u %3u.00 Hz %3u:%-3u\n",
-		       hact, vact, refresh, hratio, vratio);
+		printf("%s%5ux%-5u %3u.00 Hz %3u:%-3u\n",
+		       prefix, hact, vact, refresh, hratio, vratio);
 		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
 		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	}
@@ -1396,7 +1394,7 @@ void edid_state::detailed_block(const unsigned char *x)
 			return;
 		}
 		for (i = 0; i < 4; i++)
-			detailed_cvt_descriptor(x + 6 + (i * 3), !i);
+			detailed_cvt_descriptor("    ", x + 6 + (i * 3), !i);
 		return;
 	case 0xf9:
 		data_block = "Display Color Management Data";
@@ -1415,7 +1413,7 @@ void edid_state::detailed_block(const unsigned char *x)
 		for (cnt = i = 0; i < 6; i++) {
 			if (x[5 + i * 2] != 0x01 || x[5 + i * 2 + 1] != 0x01)
 				cnt++;
-			print_standard_timing(x[5 + i * 2], x[5 + i * 2 + 1]);
+			print_standard_timing("  ", x[5 + i * 2], x[5 + i * 2 + 1]);
 		}
 		if (!cnt)
 			warn("%s block without any timings\n", data_block.c_str());
@@ -1764,7 +1762,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 	if (found) {
 		printf("%s\n", data_block.c_str());
 		for (i = 0; i < 8; i++)
-			print_standard_timing(x[0x26 + i * 2], x[0x26 + i * 2 + 1]);
+			print_standard_timing("  ", x[0x26 + i * 2], x[0x26 + i * 2 + 1]);
 	} else {
 		printf("%s: none\n", data_block.c_str());
 	}

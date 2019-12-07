@@ -109,8 +109,9 @@ struct edid_state {
 	bool print_detailed_timings(const char *prefix, const struct timings &t, const char *flags);
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
 	void edid_cvt_mode(unsigned refresh, struct timings &t);
-	void detailed_cvt_descriptor(const unsigned char *x, bool first);
-	void print_standard_timing(unsigned char b1, unsigned char b2);
+	void detailed_cvt_descriptor(const char *prefix, const unsigned char *x, bool first);
+	void print_standard_timing(const char *prefix, unsigned char b1, unsigned char b2,
+				   bool gtf_only = false, unsigned vrefresh_offset = 60);
 	void detailed_display_range_limits(const unsigned char *x);
 	void detailed_epi(const unsigned char *x);
 	void detailed_timings(const char *prefix, const unsigned char *x);
@@ -144,6 +145,8 @@ struct edid_state {
 	void parse_displayid_type_9_timing(const unsigned char *x);
 	void preparse_displayid_block(const unsigned char *x);
 	void parse_displayid_block(const unsigned char *x);
+
+	void parse_vtb_ext_block(const unsigned char *x);
 
 	void parse_ls_ext_block(const unsigned char *x);
 
