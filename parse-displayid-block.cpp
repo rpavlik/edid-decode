@@ -69,6 +69,33 @@ static bool check_displayid_datablock_length(const unsigned char *x,
 	return false;
 }
 
+// tag 0x00
+
+static void parse_displayid_product_id(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	printf("    Vendor ID: %c%c%c\n", x[3], x[4], x[5]);
+	printf("    Product Code: %u\n", x[6] | (x[7] << 8));
+	unsigned sn = x[8] | (x[9] << 8) | (x[10] << 16) | (x[11] << 24);
+	if (sn)
+		printf("    Serial Number: %u\n", sn);
+	unsigned week = x[12];
+	unsigned year = 2000 + x[13];
+	printf("    %s: %u",
+	       week == 0xff ? "Model Year" : "Year of Manufacture", year);
+	if (week && week <= 0x36)
+		printf(", Week %u", week);
+	printf("\n");
+	if (x[14]) {
+		char buf[256];
+
+		memcpy(buf, x + 15, x[14]);
+		buf[x[14]] = 0;
+		printf("    Product ID: %s\n", buf);
+	}
+}
+
 // tag 0x01
 
 static const char *feature_support_flags[] = {
@@ -710,6 +737,99 @@ static void parse_displayid_display_intf(const unsigned char *x)
 	}
 }
 
+// tag 0x10
+
+void edid_state::parse_displayid_stereo_display_intf(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	switch (x[1] >> 6) {
+	case 0x00: printf("    Timings that explicitly reports 3D capability\n"); break;
+	case 0x01: printf("    Timings that explicitly reports 3D capability & Timing Codes listed here\n"); break;
+	case 0x02: printf("    All listed timings\n"); break;
+	case 0x03: printf("    Only Timings Codes listed here\n"); break;
+	}
+
+	unsigned len = x[2];
+
+	switch (x[4]) {
+	case 0x00:
+		printf("    Field Sequential Stereo (L/R Polarity: %s)\n",
+		       (x[5] & 1) ? "0/1" : "1/0");
+		break;
+	case 0x01:
+		printf("    Side-by-side Stereo (Left Half = %s Eye View)\n",
+		       (x[5] & 1) ? "Right" : "Left");
+		break;
+	case 0x02:
+		printf("    Pixel Interleaved Stereo:\n");
+		for (unsigned y = 0; y < 8; y++) {
+			unsigned char v = x[5 + y];
+
+			printf("      ");
+			for (int x = 7; x >= 0; x--)
+				printf("%c", (v & (1 << x)) ? 'L' : 'R');
+			printf("\n");
+		}
+		break;
+	case 0x03:
+		printf("    Dual Interface, Left and Right Separate\n");
+		printf("      Carries the %s-eye view\n",
+		       (x[5] & 1) ? "Right" : "Left");
+		printf("      ");
+		switch ((x[5] >> 1) & 3) {
+		case 0x00: printf("No mirroring\n"); break;
+		case 0x01: printf("Left/Right mirroring\n"); break;
+		case 0x02: printf("Top/Bottom mirroring\n"); break;
+		case 0x03: printf("Reserved\n"); break;
+		}
+		break;
+	case 0x04:
+		printf("    Multi-View: %u views, Interleaving Method Code: %u\n",
+		       x[5], x[6]);
+		break;
+	case 0x05:
+		printf("    Stacked Frame Stereo (Top Half = %s Eye View)\n",
+		       (x[5] & 1) ? "Right" : "Left");
+		break;
+	case 0xff:
+		printf("    Proprietary\n");
+		break;
+	default:
+		printf("    Reserved\n");
+		break;
+	}
+	if (!(x[1] & 0x40)) // Has No Timing Codes
+		return;
+	len -= 1 + x[3];
+	x += 4 + x[3];
+	while (1U + (x[0] & 0x1f) <= len) {
+		unsigned num_codes = x[0] & 0x1f;
+		unsigned type = x[0] >> 6;
+		char suffix[16];
+
+		for (unsigned i = 1; i <= num_codes; i++) {
+			switch (type) {
+			case 0x00:
+				strcpy(suffix, "DMT");
+				print_timings("    ", find_dmt_id(x[i]), suffix);
+				break;
+			case 0x01:
+				sprintf(suffix, "VIC %3u", x[i]);
+				print_timings("    ", find_vic_id(x[i]), suffix);
+				break;
+			case 0x02:
+				sprintf(suffix, "HDMI VIC %u", x[i]);
+				print_timings("    ", find_hdmi_vic_id(x[i]), suffix);
+				break;
+			}
+		}
+
+		len -= 1 + num_codes;
+		x += 1 + num_codes;
+	}
+}
+
 // tag 0x11
 
 void edid_state::parse_displayid_type_5_timing(const unsigned char *x)
@@ -1181,6 +1301,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		printf("  %s\n", data_block.c_str());
 
 		switch (tag) {
+		case 0x00: parse_displayid_product_id(x + offset); break;
 		case 0x01: parse_displayid_parameters(x + offset); break;
 		case 0x02: parse_displayid_color_characteristics(x + offset); break;
 		case 0x03:
@@ -1220,6 +1341,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x0d: parse_displayid_intf_power_sequencing(x + offset); break;
 		case 0x0e: parse_displayid_transfer_characteristics(x + offset); break;
 		case 0x0f: parse_displayid_display_intf(x + offset); break;
+		case 0x10: parse_displayid_stereo_display_intf(x + offset); break;
 		case 0x11:
 			   for (i = 0; i < len / 7; i++)
 				   parse_displayid_type_5_timing(&x[offset + 3 + (i * 7)]);

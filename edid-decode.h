@@ -134,6 +134,7 @@ struct edid_state {
 
 	void parse_displayid_color_characteristics(const unsigned char *x);
 	void parse_displayid_transfer_characteristics(const unsigned char *x);
+	void parse_displayid_stereo_display_intf(const unsigned char *x);
 	void parse_displayid_type_1_7_timing(const unsigned char *x, bool type7);
 	void parse_displayid_type_2_timing(const unsigned char *x);
 	void parse_displayid_type_3_timing(const unsigned char *x);
