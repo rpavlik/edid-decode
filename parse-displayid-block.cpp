@@ -8,6 +8,7 @@
  */
 
 #include <string.h>
+#include <math.h>
 
 #include "edid-decode.h"
 
@@ -69,13 +70,16 @@ static bool check_displayid_datablock_length(const unsigned char *x,
 	return false;
 }
 
-// tag 0x00
+// tag 0x00 and 0x20
 
-static void parse_displayid_product_id(const unsigned char *x)
+static void parse_displayid_product_id(const unsigned char *x, bool is_v2)
 {
 	check_displayid_datablock_revision(x);
 
-	printf("    Vendor ID: %c%c%c\n", x[3], x[4], x[5]);
+	if (is_v2)
+		printf("    Vendor IEEE OUI: %02X-%02X-%02X\n", x[3], x[4], x[5]);
+	else
+		printf("    Vendor ID: %c%c%c\n", x[3], x[4], x[5]);
 	printf("    Product Code: %u\n", x[6] | (x[7] << 8));
 	unsigned sn = x[8] | (x[9] << 8) | (x[10] << 16) | (x[11] << 24);
 	if (sn)
@@ -189,7 +193,7 @@ void edid_state::parse_displayid_color_characteristics(const unsigned char *x)
 	for (unsigned i = 0; i < num_primaries; i++) {
 		unsigned idx = offset + 3 * i;
 
-		printf("    Primary #%u: (%.6f. %.6f)\n", i,
+		printf("    Primary #%u: (%.6f, %.6f)\n", i,
 		       fp2d(x[idx] | ((x[idx + 1] & 0x0f) << 8)),
 		       fp2d(((x[idx + 1] & 0xf0) >> 4) | (x[idx + 2] << 4)));
 	}
@@ -197,7 +201,7 @@ void edid_state::parse_displayid_color_characteristics(const unsigned char *x)
 	for (unsigned i = 0; i < num_whitepoints; i++) {
 		unsigned idx = offset + 3 * i;
 
-		printf("    White point #%u: (%.6f. %.6f)\n", i,
+		printf("    White point #%u: (%.6f, %.6f)\n", i,
 		       fp2d(x[idx] | ((x[idx + 1] & 0x0f) << 8)),
 		       fp2d(((x[idx + 1] & 0xf0) >> 4) | (x[idx + 2] << 4)));
 	}
@@ -737,15 +741,15 @@ static void parse_displayid_display_intf(const unsigned char *x)
 	}
 }
 
-// tag 0x10
+// tag 0x10 and 0x27
 
 void edid_state::parse_displayid_stereo_display_intf(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 
 	switch (x[1] >> 6) {
-	case 0x00: printf("    Timings that explicitly reports 3D capability\n"); break;
-	case 0x01: printf("    Timings that explicitly reports 3D capability & Timing Codes listed here\n"); break;
+	case 0x00: printf("    Timings that explicitly report 3D capability\n"); break;
+	case 0x01: printf("    Timings that explicitly report 3D capability & Timing Codes listed here\n"); break;
 	case 0x02: printf("    All listed timings\n"); break;
 	case 0x03: printf("    Only Timings Codes listed here\n"); break;
 	}
@@ -872,16 +876,16 @@ void edid_state::parse_displayid_type_5_timing(const unsigned char *x)
 	print_detailed_timings("    ", t, s.c_str());
 }
 
-// tag 0x12
+// tag 0x12 and 0x28
 
-static void parse_displayid_tiled_display_topology(const unsigned char *x)
+static void parse_displayid_tiled_display_topology(const unsigned char *x, bool is_v2)
 {
 	check_displayid_datablock_revision(x);
 
 	if (!check_displayid_datablock_length(x, 22, 22))
 		return;
 
-	unsigned capabilities = x[3];
+	unsigned caps = x[3];
 	unsigned num_v_tile = (x[4] & 0xf) | (x[6] & 0x30);
 	unsigned num_h_tile = (x[4] >> 4) | ((x[6] >> 2) & 0x30);
 	unsigned tile_v_location = (x[5] & 0xf) | ((x[6] & 0x3) << 4);
@@ -890,21 +894,39 @@ static void parse_displayid_tiled_display_topology(const unsigned char *x)
 	unsigned tile_height = x[9] | (x[10] << 8);
 	unsigned pix_mult = x[11];
 
-	printf("    Capabilities: 0x%08x\n", capabilities);
+	printf("    Capabilities:\n");
+	printf("      Behavior if it is the only tile: ");
+	switch (caps & 0x07) {
+	case 0x00: printf("Undefined\n"); break;
+	case 0x01: printf("Image is displayed at the Tile Location\n"); break;
+	case 0x02: printf("Image is scaled to fit the entire tiled display\n"); break;
+	case 0x03: printf("Image is cloned to all other tiles\n"); break;
+	default: printf("Reserved\n"); break;
+	}
+	printf("      Behavior if more than one tile and fewer than total number of tiles: ");
+	switch ((caps >> 3) & 0x03) {
+	case 0x00: printf("Undefined\n"); break;
+	case 0x01: printf("Image is displayed at the Tile Location\n"); break;
+	default: printf("Reserved\n"); break;
+	}
+	if (caps & 0x80)
+		printf("    Tiled display consists of multiple physical display enclosures\n");
+	else
+		printf("    Tiled display consists of a single physical display enclosure\n");
 	printf("    Num horizontal tiles: %u Num vertical tiles: %u\n",
 	       num_h_tile + 1, num_v_tile + 1);
 	printf("    Tile location: %u, %u\n", tile_h_location, tile_v_location);
 	printf("    Tile resolution: %ux%u\n", tile_width + 1, tile_height + 1);
-	if (capabilities & 0x40) {
+	if (caps & 0x40) {
 		if (pix_mult) {
-			printf("    Top bevel size: %u pixels\n",
-			       pix_mult * x[12] / 10);
-			printf("    Bottom bevel size: %u pixels\n",
-			       pix_mult * x[13] / 10);
-			printf("    Right bevel size: %u pixels\n",
-			       pix_mult * x[14] / 10);
-			printf("    Left bevel size: %u pixels\n",
-			       pix_mult * x[15] / 10);
+			printf("    Top bevel size: %.1f pixels\n",
+			       pix_mult * x[12] / 10.0);
+			printf("    Bottom bevel size: %.1f pixels\n",
+			       pix_mult * x[13] / 10.0);
+			printf("    Right bevel size: %.1f pixels\n",
+			       pix_mult * x[14] / 10.0);
+			printf("    Left bevel size: %.1f pixels\n",
+			       pix_mult * x[15] / 10.0);
 		} else {
 			fail("No bevel information, but the pixel multiplier is non-zero\n");
 		}
@@ -912,6 +934,16 @@ static void parse_displayid_tiled_display_topology(const unsigned char *x)
 	} else if (pix_mult) {
 		fail("No bevel information, but the pixel multiplier is non-zero\n");
 	}
+	if (is_v2)
+		printf("    Tiled Display Manufacturer/Vendor ID: %02X-%02X-%02X\n",
+		       x[0x10], x[0x11], x[0x12]);
+	else
+		printf("    Tiled Display Manufacturer/Vendor ID: %c%c%c\n",
+		       x[0x10], x[0x11], x[0x12]);
+	printf("    Tiled Display Product ID Code: %u\n",
+	       x[0x13] | (x[0x14] << 8));
+	printf("    Tiled Display Serial Number: %u\n",
+	       x[0x15] | (x[0x16] << 8) | (x[0x17] << 16)| (x[0x18] << 24));
 }
 
 // tag 0x13
@@ -975,6 +1007,96 @@ void edid_state::parse_displayid_type_6_timing(const unsigned char *x)
 	print_detailed_timings("    ", t, s.c_str());
 }
 
+static std::string ieee7542d(unsigned short fp)
+{
+	int exp = ((fp & 0x7c00) >> 10) - 15;
+	unsigned fract = (fp & 0x3ff) | 0x400;
+
+	if (fp == 0x8000)
+		return "do not use";
+	if (fp & 0x8000)
+		return "reserved";
+	return std::to_string(pow(2, exp) * fract / 1024.0) + " cd/m^2";
+}
+
+// tag 0x21
+
+static void parse_displayid_parameters_v2(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	if (!check_displayid_datablock_length(x, 29, 29))
+		return;
+
+	unsigned hor_size = (x[4] << 8) + x[3];
+	unsigned vert_size = (x[6] << 8) + x[5];
+
+	if (x[1] & 0x80)
+		printf("    Image size: %u mm x %u mm\n",
+		       hor_size, vert_size);
+	else
+		printf("    Image size: %.1f mm x %.1f mm\n",
+		       hor_size / 10.0, vert_size / 10.0);
+	printf("    Pixels: %d x %d\n",
+	       (x[8] << 8) + x[7], (x[10] << 8) + x[9]);
+	unsigned char v = x[11];
+	printf("    Scan Orientation: ");
+	switch (v & 0x07) {
+	case 0x00: printf("Left to Right, Top to Bottom\n"); break;
+	case 0x01: printf("Right to Left, Top to Bottom\n"); break;
+	case 0x02: printf("Top to Bottom, Right to Left\n"); break;
+	case 0x03: printf("Bottom to Top, Right to Left\n"); break;
+	case 0x04: printf("Right to Left, Bottom to Top\n"); break;
+	case 0x05: printf("Left to Right, Bottom to Top\n"); break;
+	case 0x06: printf("Bottom to Top, Left to Right\n"); break;
+	case 0x07: printf("Top to Bottom, Left to Right\n"); break;
+	}
+	printf("    Luminance Information: ");
+	switch ((v >> 3) & 0x03) {
+	case 0x00: printf("Minimum guaranteed value\n"); break;
+	case 0x01: printf("Guidance for the Source device\n"); break;
+	default: printf("Reserved\n"); break;
+	}
+	printf("    Color Information: CIE %u\n",
+	       (v & 0x40) ? 1976 : 1931);
+	printf("    Audio Speaker Information: %sintegrated\n",
+	       (v & 0x80) ? "not " : "");
+	printf("    Native Color Chromaticity:\n");
+	printf("      Primary #1:  (%.6f, %.6f)\n",
+	       fp2d(x[0x0c] | ((x[0x0d] & 0x0f) << 8)),
+	       fp2d(((x[0x0d] & 0xf0) >> 4) | (x[0x0e] << 4)));
+	printf("      Primary #2:  (%.6f, %.6f)\n",
+	       fp2d(x[0x0f] | ((x[0x10] & 0x0f) << 8)),
+	       fp2d(((x[0x10] & 0xf0) >> 4) | (x[0x11] << 4)));
+	printf("      Primary #3:  (%.6f, %.6f)\n",
+	       fp2d(x[0x12] | ((x[0x13] & 0x0f) << 8)),
+	       fp2d(((x[0x13] & 0xf0) >> 4) | (x[0x14] << 4)));
+	printf("      White Point: (%.6f, %.6f)\n",
+	       fp2d(x[0x15] | ((x[0x16] & 0x0f) << 8)),
+	       fp2d(((x[0x16] & 0xf0) >> 4) | (x[0x17] << 4)));
+	printf("    Native Maximum Luminance (Full Coverage): %s\n",
+	       ieee7542d(x[0x18] | (x[0x19] << 8)).c_str());
+	printf("    Native Maximum Luminance (10%% Rectangular Coverage): %s\n",
+	       ieee7542d(x[0x1a] | (x[0x1b] << 8)).c_str());
+	printf("    Native Minimum Luminance: %s\n",
+	       ieee7542d(x[0x1c] | (x[0x1d] << 8)).c_str());
+	printf("    Native Color Depth: ");
+	if (bpc444[x[0x1e] & 0x07])
+		printf("%s bpc\n", bpc444[x[0x1e] & 0x07]);
+	else
+		printf("Reserved\n");
+	printf("    Display Device Technology: ");
+	switch ((x[0x1e] >> 4) & 0x07) {
+	case 0x00: printf("Not Specified\n"); break;
+	case 0x01: printf("Active Matrix LCD\n"); break;
+	case 0x02: printf("Organic LED\n"); break;
+	default: printf("Reserved\n"); break;
+	}
+	if (x[0x1f] != 0xff)
+		printf("    Native Gamma EOTF: %.2f\n",
+		       (100 + x[0x1f]) / 100.0);
+}
+
 // tag 0x24
 
 void edid_state::parse_displayid_type_9_timing(const unsigned char *x)
@@ -1013,6 +1135,25 @@ void edid_state::parse_displayid_type_9_timing(const unsigned char *x)
 	edid_cvt_mode(1 + x[5], t);
 
 	print_detailed_timings("    ", t, s.c_str());
+}
+
+// tag 0x25
+
+static void parse_displayid_dynamic_video_timings_range_limits(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	if (!check_displayid_datablock_length(x, 9, 9))
+		return;
+
+	printf("    Minimum Pixel Clock: %u kHz\n",
+	       1 + (x[3] | (x[4] << 8) | (x[5] << 16)));
+	printf("    Maximum Pixel Clock: %u kHz\n",
+	       1 + (x[6] | (x[7] << 8) | (x[8] << 16)));
+	printf("    Minimum Vertical Refresh Rate: %u Hz\n", x[9]);
+	printf("    Maximum Vertical Refresh Rate: %u Hz\n", x[10]);
+	printf("    Seamless Dynamic Video Timing Support: %s\n",
+	       (x[11] & 0x80) ? "Yes" : "No");
 }
 
 // tag 0x26
@@ -1301,7 +1442,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		printf("  %s\n", data_block.c_str());
 
 		switch (tag) {
-		case 0x00: parse_displayid_product_id(x + offset); break;
+		case 0x00: parse_displayid_product_id(x + offset, false); break;
 		case 0x01: parse_displayid_parameters(x + offset); break;
 		case 0x02: parse_displayid_color_characteristics(x + offset); break;
 		case 0x03:
@@ -1346,11 +1487,13 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			   for (i = 0; i < len / 7; i++)
 				   parse_displayid_type_5_timing(&x[offset + 3 + (i * 7)]);
 			   break;
-		case 0x12: parse_displayid_tiled_display_topology(x + offset); break;
+		case 0x12: parse_displayid_tiled_display_topology(x + offset, false); break;
 		case 0x13:
 			   for (i = 0; i < len; i += (x[offset + 3 + i + 2] & 0x40) ? 17 : 14)
 				   parse_displayid_type_6_timing(&x[offset + 3 + i]);
 			   break;
+		case 0x20: parse_displayid_product_id(x + offset, true); break;
+		case 0x21: parse_displayid_parameters_v2(x + offset); break;
 		case 0x22:
 			   for (i = 0; i < len / 20; i++)
 				   parse_displayid_type_1_7_timing(&x[offset + 3 + i * 20], true);
@@ -1371,7 +1514,10 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			   for (i = 0; i < len / 6; i++)
 				   parse_displayid_type_9_timing(&x[offset + 3 + i * 6]);
 			   break;
+		case 0x25: parse_displayid_dynamic_video_timings_range_limits(x + offset); break;
 		case 0x26: parse_displayid_interface_features(x + offset); break;
+		case 0x27: parse_displayid_stereo_display_intf(x + offset); break;
+		case 0x28: parse_displayid_tiled_display_topology(x + offset, true); break;
 		case 0x29: parse_displayid_ContainerID(x + offset); break;
 		default: hex_block("    ", x + offset + 3, len); break;
 		}
