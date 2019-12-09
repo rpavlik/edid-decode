@@ -182,10 +182,10 @@ void edid_state::print_timings(const char *prefix, const struct timings *t,
 		vtotal = t->vact / 2.0 + t->vfp + t->vsync + t->vbp + 0.5;
 	double refresh = (double)t->pixclk_khz * 1000.0 / (htotal * vtotal);
 
-	min_vert_freq_hz = min(min_vert_freq_hz, (unsigned)floor(refresh));
-	max_vert_freq_hz = max(max_vert_freq_hz, (unsigned)ceil(refresh));
-	min_hor_freq_hz = min(min_hor_freq_hz, (unsigned)floor(hor_freq_khz * 1000.0));
-	max_hor_freq_hz = max(max_hor_freq_hz, (unsigned)ceil(hor_freq_khz * 1000.0));
+	min_vert_freq_hz = min(min_vert_freq_hz, refresh);
+	max_vert_freq_hz = max(max_vert_freq_hz, refresh);
+	min_hor_freq_hz = min(min_hor_freq_hz, hor_freq_khz * 1000);
+	max_hor_freq_hz = max(max_hor_freq_hz, hor_freq_khz * 1000);
 	max_pixclk_khz = max(max_pixclk_khz, t->pixclk_khz);
 
 	std::string s(suffix);
@@ -842,8 +842,8 @@ int edid_state::parse_edid()
 	if (has_display_range_descriptor &&
 	    (min_vert_freq_hz < min_display_vert_freq_hz ||
 	     max_vert_freq_hz > max_display_vert_freq_hz ||
-	     min_hor_freq_hz < min_display_hor_freq_hz ||
-	     max_hor_freq_hz > max_display_hor_freq_hz ||
+	     min_hor_freq_hz / 1000 < min_display_hor_freq_hz / 1000 ||
+	     max_hor_freq_hz / 1000  > max_display_hor_freq_hz / 1000 ||
 	     max_pixclk_khz > max_display_pixclk_khz)) {
 		/*
 		 * EDID 1.4 states (in an Errata) that explicitly defined
