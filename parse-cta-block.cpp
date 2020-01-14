@@ -912,6 +912,190 @@ static void cta_sadb(const unsigned char *x, unsigned length)
 	}
 }
 
+static void cta_vesa_dtcdb(const unsigned char *x, unsigned length)
+{
+	if (length != 7 && length != 15 && length != 31) {
+		fail("Invalid length %u\n", length);
+		return;
+	}
+
+	switch (x[0] >> 6) {
+	case 0: printf("    White"); break;
+	case 1: printf("    Red"); break;
+	case 2: printf("    Green"); break;
+	case 3: printf("    Blue"); break;
+	}
+	unsigned v = x[0] & 0x3f;
+	printf(" transfer characteristics: %u", v);
+	for (unsigned i = 1; i < length; i++)
+		printf(" %u", v += x[i]);
+	printf(" 1023\n");
+}
+
+static void cta_vesa_vdddb(const unsigned char *x, unsigned length)
+{
+	if (length != 30) {
+		fail("Invalid length %u\n", length);
+		return;
+	}
+
+	printf("    Interface Type: ");
+	unsigned char v = x[0];
+	switch (v >> 4) {
+	case 0: printf("Analog (");
+		switch (v & 0xf) {
+		case 0: printf("15HD/VGA"); break;
+		case 1: printf("VESA NAVI-V (15HD)"); break;
+		case 2: printf("VESA NAVI-D"); break;
+		default: printf("Reserved"); break;
+		}
+		printf(")\n");
+		break;
+	case 1: printf("LVDS %u lanes", v & 0xf); break;
+	case 2: printf("RSDS %u lanes", v & 0xf); break;
+	case 3: printf("DVI-D %u channels", v & 0xf); break;
+	case 4: printf("DVI-I analog"); break;
+	case 5: printf("DVI-I digital %u channels", v & 0xf); break;
+	case 6: printf("HDMI-A"); break;
+	case 7: printf("HDMI-B"); break;
+	case 8: printf("MDDI %u channels", v & 0xf); break;
+	case 9: printf("DisplayPort %u channels", v & 0xf); break;
+	case 10: printf("IEEE-1394"); break;
+	case 11: printf("M1 analog"); break;
+	case 12: printf("M1 digital %u channels", v & 0xf); break;
+	default: printf("Reserved"); break;
+	}
+	printf("\n");
+
+	printf("    Interface Standard Version: %u.%u\n", x[1] >> 4, x[1] & 0xf);
+	printf("    Content Protection Support: ");
+	switch (x[2]) {
+	case 0: printf("None\n"); break;
+	case 1: printf("HDCP\n"); break;
+	case 2: printf("DTCP\n"); break;
+	case 3: printf("DPCP\n"); break;
+	default: printf("Reserved\n"); break;
+	}
+
+	printf("    Minimum Clock Frequency: %u MHz\n", x[3] >> 2);
+	printf("    Maximum Clock Frequency: %u MHz\n", ((x[3] & 0x03) << 8) | x[4]);
+	printf("    Device Native Pixel Format: %ux%u\n",
+	       x[5] | (x[6] << 8), x[7] | (x[8] << 8));
+	printf("    Aspect Ratio: %.2f\n", (100 + x[9]) / 100.0);
+	v = x[0x0a];
+	printf("    Default Orientation: ");
+	switch ((v & 0xc0) >> 6) {
+	case 0x00: printf("Landscape\n"); break;
+	case 0x01: printf("Portrait\n"); break;
+	case 0x02: printf("Not Fixed\n"); break;
+	case 0x03: printf("Undefined\n"); break;
+	}
+	printf("    Rotation Capability: ");
+	switch ((v & 0x30) >> 4) {
+	case 0x00: printf("None\n"); break;
+	case 0x01: printf("Can rotate 90 degrees clockwise\n"); break;
+	case 0x02: printf("Can rotate 90 degrees counterclockwise\n"); break;
+	case 0x03: printf("Can rotate 90 degrees in either direction)\n"); break;
+	}
+	printf("    Zero Pixel Location: ");
+	switch ((v & 0x0c) >> 2) {
+	case 0x00: printf("Upper Left\n"); break;
+	case 0x01: printf("Upper Right\n"); break;
+	case 0x02: printf("Lower Left\n"); break;
+	case 0x03: printf("Lower Right\n"); break;
+	}
+	printf("    Scan Direction: ");
+	switch (v & 0x03) {
+	case 0x00: printf("Not defined\n"); break;
+	case 0x01: printf("Fast Scan is on the Major (Long) Axis and Slow Scan is on the Minor Axis\n"); break;
+	case 0x02: printf("Fast Scan is on the Minor (Short) Axis and Slow Scan is on the Major Axis\n"); break;
+	case 0x03: printf("Reserved\n");
+		   fail("Scan Direction used the reserved value 0x03\n");
+		   break;
+	}
+	printf("    Subpixel Information: ");
+	switch (x[0x0b]) {
+	case 0x00: printf("Not defined\n"); break;
+	case 0x01: printf("RGB vertical stripes\n"); break;
+	case 0x02: printf("RGB horizontal stripes\n"); break;
+	case 0x03: printf("Vertical stripes using primary order\n"); break;
+	case 0x04: printf("Horizontal stripes using primary order\n"); break;
+	case 0x05: printf("Quad sub-pixels, red at top left\n"); break;
+	case 0x06: printf("Quad sub-pixels, red at bottom left\n"); break;
+	case 0x07: printf("Delta (triad) RGB sub-pixels\n"); break;
+	case 0x08: printf("Mosaic\n"); break;
+	case 0x09: printf("Quad sub-pixels, RGB + 1 additional color\n"); break;
+	case 0x0a: printf("Five sub-pixels, RGB + 2 additional colors\n"); break;
+	case 0x0b: printf("Six sub-pixels, RGB + 3 additional colors\n"); break;
+	case 0x0c: printf("Clairvoyante, Inc. PenTile Matrix (tm) layout\n"); break;
+	default: printf("Reserved\n"); break;
+	}
+	printf("    Horizontal and vertical dot/pixel pitch: %.2f x %.2f mm\n",
+	       (double)(x[0x0c]) / 100.0, (double)(x[0x0d]) / 100.0);
+	v = x[0x0e];
+	printf("    Dithering: ");
+	switch (v >> 6) {
+	case 0: printf("None\n"); break;
+	case 1: printf("Spatial\n"); break;
+	case 2: printf("Temporal\n"); break;
+	case 3: printf("Spatial and Temporal\n"); break;
+	}
+	printf("    Direct Drive: %s\n", (v & 0x20) ? "Yes" : "No");
+	printf("    Overdrive %srecommended\n", (v & 0x10) ? "not " : "");
+	printf("    Deinterlacing: %s\n", (v & 0x08) ? "Yes" : "No");
+
+	v = x[0x0f];
+	printf("    Audio Support: %s\n", (v & 0x80) ? "Yes" : "No");
+	printf("    Separate Audio Inputs Provided: %s\n", (v & 0x40) ? "Yes" : "No");
+	printf("    Audio Input Override: %s\n", (v & 0x20) ? "Yes" : "No");
+	v = x[0x10];
+	if (v)
+		printf("    Audio Delay: %s%u ms\n", (v & 0x80) ? "" : "-", (v & 0x7f) * 2);
+	else
+		printf("    Audio Delay: no information provided\n");
+	v = x[0x11];
+	printf("    Frame Rate/Mode Conversion: ");
+	switch (v >> 6) {
+	case 0: printf("None\n"); break;
+	case 1: printf("Single Buffering\n"); break;
+	case 2: printf("Double Buffering\n"); break;
+	case 3: printf("Advanced Frame Rate Conversion\n"); break;
+	}
+	if (v & 0x3f)
+		printf("    Frame Rate Range: %u fps +/- %u fps\n",
+		       x[0x12], v & 0x3f);
+	else
+		printf("    Nominal Frame Rate: %u fps\n", x[0x12]);
+	printf("    Color Bit Depth: %u @ interface, %u @ display\n",
+	       (x[0x13] >> 4) + 1, (x[0x13] & 0xf) + 1);
+	v = x[0x15] & 3;
+	if (v) {
+		printf("    Additional Primary Chromaticities:\n");
+		unsigned col_x = (x[0x16] << 2) | (x[0x14] >> 6);
+		unsigned col_y = (x[0x17] << 2) | ((x[0x14] >> 4) & 3);
+		printf("      Primary 4:   0.%04u, 0.%04u\n",
+		       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
+		if (v > 1) {
+			col_x = (x[0x18] << 2) | ((x[0x14] >> 2) & 3);
+			col_y = (x[0x19] << 2) | (x[0x14] & 3);
+			printf("      Primary 5:   0.%04u, 0.%04u\n",
+			       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
+			if (v > 2) {
+				col_x = (x[0x1a] << 2) | (x[0x15] >> 6);
+				col_y = (x[0x1b] << 2) | ((x[0x15] >> 4) & 3);
+				printf("      Primary 6:   0.%04u, 0.%04u\n",
+				       (col_x * 10000) / 1024, (col_y * 10000) / 1024);
+			}
+		}
+	}
+
+	v = x[0x1c];
+	printf("    Response Time %s: %u ms\n",
+	       (v & 0x80) ? "White -> Black" : "Black -> White", v & 0x7f);
+	v = x[0x1d];
+	printf("    Overscan: %u%% x %u%%\n", v >> 4, v & 0xf);
+}
+
 static double decode_uchar_as_double(unsigned char x)
 {
 	signed char s = (signed char)x;
@@ -1310,8 +1494,8 @@ void edid_state::cta_block(const unsigned char *x)
 		cta_sadb(x + 1, length);
 		break;
 	case 0x05:
-		printf("  VESA DTC Data Block\n");
-		hex_block("  ", x + 1, length);
+		printf("  VESA Display Transfer Characteristics Data Block\n");
+		cta_vesa_dtcdb(x + 1, length);
 		break;
 	case 0x07:
 		printf("  Extended tag: ");
@@ -1342,7 +1526,7 @@ void edid_state::cta_block(const unsigned char *x)
 			break;
 		case 0x02:
 			printf("VESA Video Display Device Data Block\n");
-			hex_block("  ", x + 2, length - 1);
+			cta_vesa_vdddb(x + 2, length - 1);
 			break;
 		case 0x03:
 			printf("VESA Video Timing Block Extension\n");
