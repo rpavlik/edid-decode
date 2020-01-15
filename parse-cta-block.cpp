@@ -492,7 +492,6 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 {
 	unsigned len_vic, len_3d;
 
-	printf(" (HDMI)\n");
 	printf("    Source physical address %u.%u.%u.%u\n", x[3] >> 4, x[3] & 0x0f,
 	       x[4] >> 4, x[4] & 0x0f);
 
@@ -867,7 +866,10 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 static void cta_hdr10plus(const unsigned char *x, unsigned length)
 {
 	printf("    Application Version: %u", x[0]);
-	hex_block("  ", x + 1, length - 1);
+	if (length > 1)
+		hex_block("  ", x + 1, length - 1);
+	else
+		printf("\n");
 }
 
 static const char *speaker_map[] = {
@@ -1424,22 +1426,124 @@ static const char *oui_name(unsigned oui)
 {
 	switch (oui) {
 	case 0x00001a: return "AMD";
+	case 0x000c03: return "HDMI";
 	case 0x00044b: return "NVIDIA";
 	case 0x000c6e: return "ASUS";
 	case 0x0010fa: return "Apple";
 	case 0x0014b9: return "MSTAR";
 	case 0x00d046: return "Dolby";
 	case 0x00e047: return "InFocus";
+	case 0x90848b: return "HDR10+";
+	case 0xc45dd8: return "HDMI Forum";
 	case 0xca125c: return "Microsoft";
 	default: return NULL;
 	}
 }
 
+static int last_block_was_hdmi_vsdb;
+static int have_hf_vsdb, have_hf_scdb;
+static int first_block = 1;
+
+void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
+{
+	const char *name;
+	unsigned oui;
+
+	switch (x[0]) {
+	case 0x00: data_block = "Video Capability Data Block"; break;
+	case 0x01: data_block.clear(); break;
+	case 0x02: data_block = "VESA Video Display Device Data Block"; break;
+	case 0x03: data_block = "VESA Video Timing Block Extension"; break;
+	case 0x04: data_block = "Reserved for HDMI Video Data Block"; break;
+	case 0x05: data_block = "Colorimetry Data Block"; break;
+	case 0x06: data_block = "HDR Static Metadata Data Block"; break;
+	case 0x07: data_block = "HDR Dynamic Metadata Data Block"; break;
+
+	case 0x0d: data_block = "Video Format Preference Data Block"; break;
+	case 0x0e: data_block = "YCbCr 4:2:0 Video Data Block"; break;
+	case 0x0f: data_block = "YCbCr 4:2:0 Capability Map Data Block"; break;
+	case 0x10: data_block = "Reserved for CTA Miscellaneous Audio Fields"; break;
+	case 0x11: data_block = "Vendor-Specific Audio Data Block"; break;
+	case 0x12: data_block = "HDMI Audio Data Block"; break;
+	case 0x13: data_block = "Room Configuration Data Block"; break;
+	case 0x14: data_block = "Speaker Location Data Block"; break;
+
+	case 0x20: data_block = "InfoFrame Data Block"; break;
+
+	case 0x78: data_block = "HDMI Forum EDID Extension Override Data Block"; break;
+	case 0x79: data_block = "HDMI Forum Sink Capability Data Block"; break;
+	default:
+		if (x[0] <= 12)
+			printf("Unknown CTA Video-Related");
+		else if (x[0] <= 31)
+			printf("Unknown CTA Audio-Related");
+		else if (x[0] >= 120 && x[0] <= 127)
+			printf("Unknown CTA HDMI-Related");
+		else
+			printf("Unknown CTA");
+		printf(" Data Block (extended tag 0x%02x, length %u)\n", x[0], length);
+		hex_block("    ", x + 1, length);
+		data_block.clear();
+		warn("Unknown Extended CTA Data Block 0x%02x\n", x[0]);
+		return;
+	}
+
+	if (data_block.length())
+		printf("%s\n", data_block.c_str());
+
+	switch (x[0]) {
+	case 0x00: cta_vcdb(x + 1, length); return;
+	case 0x01:
+		oui = (x[3] << 16) + (x[2] << 8) + x[1];
+		name = oui_name(oui);
+		if (!name) {
+			printf("Vendor-Specific Video Data Block, OUI 0x%06x\n", oui);
+			hex_block("    ", x + 4, length - 3);
+			data_block.clear();
+			warn("Unknown Extended Vendor-Specific Video Data Block, OUI 0x%06x\n", oui);
+			return;
+		}
+		data_block = std::string("Vendor-Specific Video Data Block (") + name + ")";
+		printf("%s: OUI 0x%06x\n", data_block.c_str(), oui);
+		if (oui == 0x90848b)
+			cta_hdr10plus(x + 4, length - 3);
+		else
+			hex_block("    ", x + 4, length - 3);
+		return;
+	case 0x02: cta_vesa_vdddb(x + 1, length); return;
+	case 0x05: cta_colorimetry_block(x + 1, length); return;
+	case 0x06: cta_hdr_static_metadata_block(x + 1, length); return;
+	case 0x07: cta_hdr_dyn_metadata_block(x + 1, length); return;
+	case 0x0d: cta_vfpdb(x + 1, length); return;
+	case 0x0e: cta_svd(x + 1, length, 1); return;
+	case 0x0f: cta_y420cmdb(x + 1, length); return;
+	case 0x12: cta_hdmi_audio_block(x + 1, length); return;
+	case 0x13: cta_rcdb(x + 1, length); return;
+	case 0x14: cta_sldb(x + 1, length); return;
+	case 0x20: cta_ifdb(x + 1, length); return;
+	case 0x78:
+		cta_hf_eeodb(x + 1, length);
+		// This must be the first CTA block
+		if (!first_block)
+			fail("Block starts at a wrong offset\n");
+		return;
+	case 0x79:
+		if (!last_block_was_hdmi_vsdb)
+			fail("HDMI Forum SCDB did not immediately follow the HDMI VSDB\n");
+		if (have_hf_scdb || have_hf_vsdb)
+			fail("Duplicate HDMI Forum VSDB/SCDB\n");
+		if (x[1] || x[2])
+			printf("  Non-zero SCDB reserved fields!\n");
+		cta_hf_scdb(x + 3, length - 2);
+		have_hf_scdb = 1;
+		return;
+	}
+
+	hex_block("  ", x + 1, length);
+}
+
 void edid_state::cta_block(const unsigned char *x)
 {
-	static int last_block_was_hdmi_vsdb;
-	static int have_hf_vsdb, have_hf_scdb;
-	static int first_block = 1;
 	unsigned length = x[0] & 0x1f;
 	const char *name;
 	unsigned oui;
@@ -1457,10 +1561,17 @@ void edid_state::cta_block(const unsigned char *x)
 		break;
 	case 0x03:
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
-		printf("  Vendor-Specific Data Block, OUI 0x%06x", oui);
 		name = oui_name(oui);
+		if (!name) {
+			printf("  Vendor-Specific Data Block, OUI 0x%06x\n", oui);
+			hex_block("    ", x + 4, length - 3);
+			data_block.clear();
+			warn("Unknown Vendor-Specific Data Block, OUI 0x%06x\n", oui);
+			return;
+		}
+		data_block = std::string("Vendor-Specific Data Block (") + name + ")";
+		printf("  %s: OUI 0x%06x\n", data_block.c_str(), oui);
 		if (oui == 0x000c03) {
-			data_block = "Vendor-Specific Data Block (HDMI)";
 			cta_hdmi_block(x + 1, length);
 			last_block_was_hdmi_vsdb = 1;
 			first_block = 0;
@@ -1469,24 +1580,15 @@ void edid_state::cta_block(const unsigned char *x)
 			return;
 		}
 		if (oui == 0xc45dd8) {
-			data_block = "Vendor-Specific Data Block (HDMI Forum)";
 			if (!last_block_was_hdmi_vsdb)
 				fail("HDMI Forum VSDB did not immediately follow the HDMI VSDB\n");
 			if (have_hf_scdb || have_hf_vsdb)
 				fail("Duplicate HDMI Forum VSDB/SCDB\n");
-			printf(" (HDMI Forum)\n");
 			cta_hf_scdb(x + 4, length - 3);
 			have_hf_vsdb = 1;
-		} else if (name) {
-			data_block = std::string("Vendor-Specific Data Block (") + name + ")";
-			printf(" (%s)\n", name);
-			hex_block("    ", x + 4, length - 3);
-		} else {
-			printf("\n");
-			hex_block("    ", x + 4, length - 3);
-			data_block.clear();
-			warn("Unknown Vendor-Specific Data Block, OUI 0x%06x\n", oui);
+			break;
 		}
+		hex_block("    ", x + 4, length - 3);
 		break;
 	case 0x04:
 		data_block = "Speaker Allocation Data Block";
@@ -1494,144 +1596,18 @@ void edid_state::cta_block(const unsigned char *x)
 		cta_sadb(x + 1, length);
 		break;
 	case 0x05:
-		printf("  VESA Display Transfer Characteristics Data Block\n");
+		data_block = "VESA Display Transfer Characteristics Data Block";
+		printf("  %s\n", data_block.c_str());
 		cta_vesa_dtcdb(x + 1, length);
 		break;
 	case 0x07:
 		printf("  Extended tag: ");
-		switch (x[1]) {
-		case 0x00:
-			data_block = "Video Capability Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_vcdb(x + 2, length - 1);
-			break;
-		case 0x01:
-			oui = (x[4] << 16) + (x[3] << 8) + x[2];
-			printf("Vendor-Specific Video Data Block, OUI 0x%06x", oui);
-			name = oui_name(oui);
-			if (oui == 0x90848b) {
-				data_block = "Vendor-Specific Video Data Block (HDR10+)";
-				printf(" (HDR10+)\n");
-				cta_hdr10plus(x + 5, length - 4);
-			} else if (name) {
-				data_block = std::string("Vendor-Specific Data Block (") + name + ")";
-				printf(" (%s)\n", name);
-				hex_block("    ", x + 5, length - 4);
-			} else {
-				printf("\n");
-				hex_block("    ", x + 5, length - 4);
-				data_block.clear();
-				warn("Unknown Extended Vendor-Specific Data Block, OUI 0x%06x\n", oui);
-			}
-			break;
-		case 0x02:
-			printf("VESA Video Display Device Data Block\n");
-			cta_vesa_vdddb(x + 2, length - 1);
-			break;
-		case 0x03:
-			printf("VESA Video Timing Block Extension\n");
-			hex_block("  ", x + 2, length - 1);
-			break;
-		case 0x04:
-			printf("Reserved for HDMI Video Data Block\n");
-			hex_block("  ", x + 2, length - 1);
-			break;
-		case 0x05:
-			data_block = "Colorimetry Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_colorimetry_block(x + 2, length - 1);
-			break;
-		case 0x06:
-			data_block = "HDR Static Metadata Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_hdr_static_metadata_block(x + 2, length - 1);
-			break;
-		case 0x07:
-			data_block = "HDR Dynamic Metadata Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_hdr_dyn_metadata_block(x + 2, length - 1);
-			break;
-		case 0x0d:
-			data_block = "Video Format Preference Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_vfpdb(x + 2, length - 1);
-			break;
-		case 0x0e:
-			data_block = "YCbCr 4:2:0 Video Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_svd(x + 2, length - 1, 1);
-			break;
-		case 0x0f:
-			data_block = "YCbCr 4:2:0 Capability Map Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_y420cmdb(x + 2, length - 1);
-			break;
-		case 0x10:
-			printf("Reserved for CTA Miscellaneous Audio Fields\n");
-			hex_block("  ", x + 2, length - 1);
-			break;
-		case 0x11:
-			printf("Vendor-Specific Audio Data Block\n");
-			hex_block("  ", x + 2, length - 1);
-			break;
-		case 0x12:
-			data_block = "HDMI Audio Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_hdmi_audio_block(x + 2, length - 1);
-			break;
-		case 0x13:
-			data_block = "Room Configuration Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_rcdb(x + 2, length - 1);
-			break;
-		case 0x14:
-			data_block = "Speaker Location Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_sldb(x + 2, length - 1);
-			break;
-		case 0x20:
-			printf("InfoFrame Data Block\n");
-			cta_ifdb(x + 2, length - 1);
-			break;
-		case 0x78:
-			data_block = "HDMI Forum EDID Extension Override Data Block";
-			printf("%s\n", data_block.c_str());
-			cta_hf_eeodb(x + 2, length - 1);
-			// This must be the first CTA block
-			if (!first_block)
-				fail("Block starts at a wrong offset\n");
-			break;
-		case 0x79:
-			data_block = "HDMI Forum Sink Capability Data Block";
-			printf("%s\n", data_block.c_str());
-			if (!last_block_was_hdmi_vsdb)
-				fail("HDMI Forum SCDB did not immediately follow the HDMI VSDB\n");
-			if (have_hf_scdb || have_hf_vsdb)
-				fail("Duplicate HDMI Forum VSDB/SCDB\n");
-			if (x[2] || x[3])
-				printf("  Non-zero SCDB reserved fields!\n");
-			cta_hf_scdb(x + 4, length - 3);
-			have_hf_scdb = 1;
-			break;
-		default:
-			if (x[1] <= 12)
-				printf("Unknown CTA Video-Related");
-			else if (x[1] <= 31)
-				printf("Unknown CTA Audio-Related");
-			else if (x[1] >= 120 && x[1] <= 127)
-				printf("Unknown CTA HDMI-Related");
-			else
-				printf("Unknown CTA");
-			printf(" Data Block (extended tag 0x%02x, length %u)\n", x[1], length - 1);
-			hex_block("    ", x + 2, length - 1);
-			data_block.clear();
-			warn("Unknown Extended CTA Data Block 0x%02x\n", x[1]);
-			break;
-		}
+		cta_ext_block(x + 1, length - 1);
 		break;
 	default: {
 		unsigned tag = (*x & 0xe0) >> 5;
 		unsigned length = *x & 0x1f;
+
 		printf("  Unknown CTA tag 0x%02x, length %u\n", tag, length);
 		hex_block("    ", x + 1, length);
 		data_block.clear();
@@ -1639,6 +1615,7 @@ void edid_state::cta_block(const unsigned char *x)
 		break;
 	}
 	}
+
 	first_block = 0;
 	last_block_was_hdmi_vsdb = 0;
 }
