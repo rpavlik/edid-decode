@@ -28,6 +28,15 @@ number, e.g. dp1-tile0, dp2-tile1.
 
 All lower case.
 
+The test directory contains some special input files to verify the
+edid-decode parser and hand-crafted EDIDs to test rarely seen
+EDID features.
+
+You can find a very large collection of EDIDs here:
+https://github.com/linuxhw/EDID
+
+This collection has been used to test edid-decode.
+
 I can also be contacted directly:
 
 Hans Verkuil <hverkuil-cisco@xs4all.nl>
