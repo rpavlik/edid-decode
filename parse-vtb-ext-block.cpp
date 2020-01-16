@@ -19,13 +19,13 @@ void edid_state::parse_vtb_ext_block(const unsigned char *x)
 
 	x += 5;
 	for (unsigned i = 0; i < num_dtb; i++, x += 18)
-		detailed_timings("    ", x);
+		detailed_timings("  ", x);
 	for (unsigned i = 0; i < num_cvt; i++, x += 3)
-		detailed_cvt_descriptor("    ", x, false);
+		detailed_cvt_descriptor("  ", x, false);
 	for (unsigned i = 0; i < num_st; i++, x += 2) {
 		if ((x[1] & 0x3f) >= 60)
-			print_standard_timing("    ", x[0], x[1] - 60, true);
+			print_standard_timing("  ", x[0], x[1] - 60, true);
 		else
-			print_standard_timing("    ", x[0], x[1], true, 0);
+			print_standard_timing("  ", x[0], x[1], true, 0);
 	}
 }
