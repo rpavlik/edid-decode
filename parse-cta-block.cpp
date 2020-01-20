@@ -1121,6 +1121,8 @@ static void cta_rcdb(const unsigned char *x, unsigned length)
 		if ((spm >> i) & 1)
 			printf("      %s\n", speaker_map[i]);
 	}
+	if ((x[0] & 0xa0) == 0x80)
+		fail("'Display' flag set, but not the 'SLD' flag\n");
 	if ((x[0] & 0x20) && length >= 7) {
 		printf("    Xmax: %u dm\n", x[4]);
 		printf("    Ymax: %u dm\n", x[5]);
