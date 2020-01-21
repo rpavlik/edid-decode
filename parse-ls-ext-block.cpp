@@ -24,7 +24,7 @@ static void parse_string_table(const unsigned char *x)
 	case 2: printf("UTF 32BE\n"); break;
 	default:
 		printf("Unknown (0x%02x)\n", x[0] & 7);
-		fail("Unknown UTF Type (0x%02x)\n", x[0] & 7);
+		fail("Unknown UTF Type (0x%02x).\n", x[0] & 7);
 		break;
 	}
 	printf("  Country Code ID (ISO 3166-3): %u\n", ((x[1] & 0x3f) << 8) | x[2]);
@@ -63,6 +63,6 @@ void edid_state::parse_ls_ext_block(const unsigned char *x)
 	}
 	if (!memchk(x, orig + 127 - x)) {
 		data_block.clear();
-		fail("Non-zero values in unused space\n");
+		fail("Non-zero values in unused space.\n");
 	}
 }

@@ -41,6 +41,7 @@ enum Option {
 	OptExtract = 'e',
 	OptHelp = 'h',
 	OptOutputFormat = 'o',
+	OptPreferredTiming = 'p',
 	OptSkipHexDump = 's',
 	OptSkipSHA = 128,
 	OptLast = 256
@@ -52,6 +53,7 @@ static struct option long_options[] = {
 	{ "help", no_argument, 0, OptHelp },
 	{ "output-format", required_argument, 0, OptOutputFormat },
 	{ "extract", no_argument, 0, OptExtract },
+	{ "preferred-timing", no_argument, 0, OptPreferredTiming },
 	{ "skip-hex-dump", no_argument, 0, OptSkipHexDump },
 	{ "skip-sha", no_argument, 0, OptSkipSHA },
 	{ "check-inline", no_argument, 0, OptCheckInline },
@@ -77,6 +79,7 @@ static void usage(void)
 	       "                        warnings are reported at the end.\n"
 	       "  -C, --check-inline    check if the EDID conforms to the standards, failures and\n"
 	       "                        warnings are reported inline.\n"
+	       "  -p, --preferred-timing report the preferred timing\n"
 	       "  -s, --skip-hex-dump   skip the initial hex dump of the EDID\n"
 	       "  --skip-sha            skip the SHA report\n"
 	       "  -e, --extract         extract the contents of the first block in hex values\n"
@@ -137,7 +140,7 @@ void do_checksum(const char *prefix, const unsigned char *x, size_t len)
 
 	if ((unsigned char)(check + sum) != 0) {
 		printf(" (should be 0x%02x)\n", -sum & 0xff);
-		fail("Invalid checksum 0x%02x (should be 0x%02x)\n",
+		fail("Invalid checksum 0x%02x (should be 0x%02x).\n",
 		     check, -sum & 0xff);
 		return;
 	}
@@ -163,12 +166,33 @@ void calc_ratio(struct timings *t)
 	t->vratio = t->vact / d;
 }
 
+bool edid_state::match_timings(const timings &t1, const timings &t2)
+{
+	if (t1.hact != t2.hact ||
+	    t1.vact != t2.vact ||
+	    t1.rb != t2.rb ||
+	    t1.interlaced != t2.interlaced ||
+	    t1.hfp != t2.hfp ||
+	    t1.hbp != t2.hbp ||
+	    t1.hsync != t2.hsync ||
+	    t1.pos_pol_hsync != t2.pos_pol_hsync ||
+	    t1.hratio != t2.hratio ||
+	    t1.vfp != t2.vfp ||
+	    t1.vbp != t2.vbp ||
+	    t1.vsync != t2.vsync ||
+	    t1.pos_pol_vsync != t2.pos_pol_vsync ||
+	    t1.vratio != t2.vratio ||
+	    t1.pixclk_khz != t2.pixclk_khz)
+		return false;
+	return true;
+}
+
 void edid_state::print_timings(const char *prefix, const struct timings *t,
 			       const char *suffix)
 {
 	if (!t) {
 		// Should not happen
-		fail("Unknown short timings\n");
+		fail("Unknown short timings.\n");
 		return;
 	}
 
@@ -265,21 +289,21 @@ bool edid_state::print_detailed_timings(const char *prefix, const struct timings
 	       t.hact + hbl ? (double)t.pixclk_khz / (t.hact + hbl) : 0.0);
 
 	if (t.hbp <= 0)
-		fail("0 or negative horizontal back porch\n");
+		fail("0 or negative horizontal back porch.\n");
 	if (t.vbp <= 0)
-		fail("0 or negative vertical back porch\n");
+		fail("0 or negative vertical back porch.\n");
 	if ((!max_display_width_mm && t.hsize_mm) ||
 	    (!max_display_height_mm && t.vsize_mm)) {
-		fail("Mismatch of image size vs display size: image size is set, but not display size\n");
+		fail("Mismatch of image size vs display size: image size is set, but not display size.\n");
 	} else if (!t.hsize_mm && !t.vsize_mm) {
 		/* this is valid */
 	} else if (t.hsize_mm > max_display_width_mm + 9 ||
 		   t.vsize_mm > max_display_height_mm + 9) {
-		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
+		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm.\n",
 		     t.hsize_mm, t.vsize_mm, max_display_width_mm, max_display_height_mm);
 	} else if (t.hsize_mm < max_display_width_mm - 9 &&
 		   t.vsize_mm < max_display_height_mm - 9) {
-		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm\n",
+		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm.\n",
 		     t.hsize_mm, t.vsize_mm, max_display_width_mm, max_display_height_mm);
 	}
 	if (refresh) {
@@ -729,7 +753,7 @@ void edid_state::parse_block_map(const unsigned char *x)
 	if (block_nr == 1)
 		saw_block_1 = true;
 	else if (!saw_block_1)
-		fail("No EDID Block Map Extension found in block 1\n");
+		fail("No EDID Block Map Extension found in block 1.\n");
 
 	if (block_nr > 1)
 		offset = 128;
@@ -740,12 +764,12 @@ void edid_state::parse_block_map(const unsigned char *x)
 		if (x[i]) {
 			last_valid_block_tag++;
 			if (i != last_valid_block_tag && !fail_once) {
-				fail("Valid block tags are not consecutive\n");
+				fail("Valid block tags are not consecutive.\n");
 				fail_once = true;
 			}
 			printf("  Block %3u: %s\n", block, block_name(block).c_str());
 			if (block >= num_blocks && !fail_once) {
-				fail("Invalid block number %u\n", block);
+				fail("Invalid block number %u.\n", block);
 				fail_once = true;
 			}
 		}
@@ -780,7 +804,7 @@ void edid_state::parse_extension(const unsigned char *x)
 		break;
 	case 0x20:
 		printf("%s\n", block.c_str());
-		fail("Deprecated extension block, do not use\n");
+		fail("Deprecated extension block, do not use.\n");
 		break;
 	case 0x40:
 		parse_di_ext_block(x);
@@ -794,12 +818,12 @@ void edid_state::parse_extension(const unsigned char *x)
 	case 0xf0:
 		parse_block_map(x);
 		if (block_nr != 1 && block_nr != 128)
-			fail("Must be used in block 1 and 128\n");
+			fail("Must be used in block 1 and 128.\n");
 		break;
 	default:
 		printf("%s\n", block.c_str());
 		hex_block("  ", x, EDID_PAGE_SIZE);
-		fail("Unknown Extension Block\n");
+		fail("Unknown Extension Block.\n");
 		break;
 	}
 
@@ -836,9 +860,9 @@ int edid_state::parse_edid()
 	block = "";
 	block_nr = EDID_MAX_BLOCKS;
 	if (uses_gtf && !supports_gtf)
-		fail("GTF timings are used, but the EDID does not signal GTF support\n");
+		fail("GTF timings are used, but the EDID does not signal GTF support.\n");
 	if (uses_cvt && !supports_cvt)
-		fail("CVT timings are used, but the EDID does not signal CVT support\n");
+		fail("CVT timings are used, but the EDID does not signal CVT support.\n");
 	if (has_display_range_descriptor &&
 	    (min_vert_freq_hz < min_display_vert_freq_hz ||
 	     max_vert_freq_hz > max_display_vert_freq_hz ||
@@ -861,11 +885,13 @@ int edid_state::parse_edid()
 			min_display_hor_freq_hz / 1000.0, max_display_hor_freq_hz / 1000.0,
 			max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
 
-		if (edid_minor < 4) {
-			fail("%s", buf);
-		} else {
-			warn("%s", buf);
-		}
+		msg(edid_minor >= 4, "%s", buf);
+	}
+
+	if (options[OptPreferredTiming]) {
+		printf("\n----------------\n");
+		printf("\nPreferred Video Timings:\n");
+		print_detailed_timings("", preferred_timings, "");
 	}
 
 	if (!options[OptCheck] && !options[OptCheckInline])

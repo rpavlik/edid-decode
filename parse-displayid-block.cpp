@@ -46,7 +46,7 @@ static void check_displayid_datablock_revision(const unsigned char *x)
 	unsigned char revisionflags = x[1];
 
 	if (revisionflags)
-		warn("Unexpected revision and flags (0x%02x != 0)\n", revisionflags);
+		warn("Unexpected revision and flags (0x%02x != 0).\n", revisionflags);
 }
 
 static bool check_displayid_datablock_length(const unsigned char *x,
@@ -57,11 +57,11 @@ static bool check_displayid_datablock_length(const unsigned char *x,
 	unsigned char len = x[2];
 
 	if (expectedlenmin == expectedlenmax && len != expectedlenmax)
-		fail("DisplayID payload length is different than expected (%d != %d)\n", len, expectedlenmax);
+		fail("DisplayID payload length is different than expected (%d != %d).\n", len, expectedlenmax);
 	else if (len > expectedlenmax)
-		fail("DisplayID payload length is greater than expected (%d > %d)\n", len, expectedlenmax);
+		fail("DisplayID payload length is greater than expected (%d > %d).\n", len, expectedlenmax);
 	else if (len < expectedlenmin)
-		fail("DisplayID payload length is less than expected (%d < %d)\n", len, expectedlenmin);
+		fail("DisplayID payload length is less than expected (%d < %d).\n", len, expectedlenmin);
 	else
 		return true;
 
@@ -182,7 +182,7 @@ void edid_state::parse_displayid_color_characteristics(const unsigned char *x)
 	if (xfer_id) {
 		printf("    Associated with Transfer Characteristics Data Block with Identifier %u\n", xfer_id);
 		if (!(preparse_xfer_ids & (1 << xfer_id)))
-			fail("Missing Transfer Characteristics Data Block with Identifier %u\n", xfer_id);
+			fail("Missing Transfer Characteristics Data Block with Identifier %u.\n", xfer_id);
 	}
 	if (!num_primaries) {
 		printf("    Uses color space %s\n",
@@ -258,7 +258,7 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 		break;
 	default:
 		s += "undefined";
-		fail("Unknown aspect 0x%02x\n", x[3] & 0xf);
+		fail("Unknown aspect 0x%02x.\n", x[3] & 0xf);
 		break;
 	}
 	switch ((x[3] >> 5) & 0x3) {
@@ -273,7 +273,7 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 		break;
 	case 3:
 		s += ", reserved";
-		fail("Reserved stereo 0x03\n");
+		fail("Reserved stereo 0x03.\n");
 		break;
 	}
 
@@ -351,7 +351,7 @@ void edid_state::parse_displayid_type_2_timing(const unsigned char *x)
 		break;
 	case 3:
 		s += ", reserved";
-		fail("Reserved stereo 0x03\n");
+		fail("Reserved stereo 0x03.\n");
 		break;
 	}
 	if (x[3] & 0x80)
@@ -409,7 +409,7 @@ void edid_state::parse_displayid_type_3_timing(const unsigned char *x)
 		break;
 	default:
 		s += "undefined";
-		fail("Unknown aspect 0x%02x\n", x[3] & 0xf);
+		fail("Unknown aspect 0x%02x.\n", x[3] & 0xf);
 		break;
 	}
 
@@ -568,7 +568,7 @@ static void parse_displayid_display_device(const unsigned char *x)
 	case 0x01: printf("Fast Scan is on the Major (Long) Axis and Slow Scan is on the Minor Axis\n"); break;
 	case 0x02: printf("Fast Scan is on the Minor (Short) Axis and Slow Scan is on the Major Axis\n"); break;
 	case 0x03: printf("Reserved\n");
-		   fail("Scan Direction used the reserved value 0x03\n");
+		   fail("Scan Direction used the reserved value 0x03.\n");
 		   break;
 	}
 	printf("    Sub-pixel layout/configuration/shape: ");
@@ -626,7 +626,7 @@ void edid_state::parse_displayid_transfer_characteristics(const unsigned char *x
 	if (xfer_id) {
 		printf("    Transfer Characteristics Data Block Identifier: %u\n", xfer_id);
 		if (!(preparse_color_ids & (1 << xfer_id)))
-			fail("Missing Color Characteristics Data Block using Identifier %u\n", xfer_id);
+			fail("Missing Color Characteristics Data Block using Identifier %u.\n", xfer_id);
 	}
 	if (first_is_white)
 		printf("    The first curve is the 'white' transfer characteristic\n");
@@ -857,7 +857,7 @@ void edid_state::parse_displayid_type_5_timing(const unsigned char *x)
 		break;
 	case 3:
 		s += ", reserved";
-		fail("Reserved stereo 0x03\n");
+		fail("Reserved stereo 0x03.\n");
 		break;
 	}
 	if (x[0] & 0x10)
@@ -928,11 +928,11 @@ static void parse_displayid_tiled_display_topology(const unsigned char *x, bool 
 			printf("    Left bevel size: %.1f pixels\n",
 			       pix_mult * x[15] / 10.0);
 		} else {
-			fail("No bevel information, but the pixel multiplier is non-zero\n");
+			fail("No bevel information, but the pixel multiplier is non-zero.\n");
 		}
 		printf("    Tile resolution: %ux%u\n", tile_width + 1, tile_height + 1);
 	} else if (pix_mult) {
-		fail("No bevel information, but the pixel multiplier is non-zero\n");
+		fail("No bevel information, but the pixel multiplier is non-zero.\n");
 	}
 	if (is_v2)
 		printf("    Tiled Display Manufacturer/Vendor ID: %02X-%02X-%02X\n",
@@ -997,7 +997,7 @@ void edid_state::parse_displayid_type_6_timing(const unsigned char *x)
 		break;
 	case 3:
 		s += ", reserved";
-		fail("Reserved stereo 0x03\n");
+		fail("Reserved stereo 0x03.\n");
 		break;
 	}
 
@@ -1120,7 +1120,7 @@ void edid_state::parse_displayid_type_9_timing(const unsigned char *x)
 		break;
 	case 3:
 		s += ", reserved";
-		fail("Reserved stereo 0x03\n");
+		fail("Reserved stereo 0x03.\n");
 		break;
 	}
 	if (x[0] & 0x10)
@@ -1303,7 +1303,7 @@ static std::string product_type(unsigned version, unsigned char x, bool heading)
 		default: break;
 		}
 	}
-	fail("Unknown %s 0x%02x\n", headingstr.c_str(), x);
+	fail("Unknown %s 0x%02x.\n", headingstr.c_str(), x);
 	return std::string("Unknown " + headingstr + " (") + utohex(x) + ")";
 }
 
@@ -1359,13 +1359,13 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 	       length, ext_count);
 
 	if (ext_count > 0)
-		warn("Non-0 DisplayID extension count %d\n", ext_count);
+		warn("Non-0 DisplayID extension count %d.\n", ext_count);
 
 	printf("%s: %s\n", product_type(version, prod_type, true).c_str(),
 	       product_type(version, prod_type, false).c_str());
 
 	if (length > 121) {
-		fail("DisplayID length %d is greater than 121\n", length);
+		fail("DisplayID length %d is greater than 121.\n", length);
 		length = 121;
 	}
 
@@ -1419,7 +1419,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		if (length < 3) {
 			// report a problem when the remaining bytes are not 0.
 			if (tag || x[offset + 1]) {
-				fail("Not enough bytes remain (%d) for a DisplayID data block or the DisplayID filler is non-0\n", length);
+				fail("Not enough bytes remain (%d) for a DisplayID data block or the DisplayID filler is non-0.\n", length);
 			}
 			break;
 		}
@@ -1427,14 +1427,14 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		unsigned len = x[offset + 2];
 
 		if (length < len + 3) {
-			fail("The length of this DisplayID data block (%d) exceeds the number of bytes remaining (%d)\n", len + 3, length);
+			fail("The length of this DisplayID data block (%d) exceeds the number of bytes remaining (%d).\n", len + 3, length);
 			break;
 		}
 
 		if (!tag && !len) {
 			// A Product Identification Data Block with no payload bytes is not valid - assume this is the end.
 			if (!memchk(x + offset, length)) {
-				fail("Non-0 filler bytes in the DisplayID block\n");
+				fail("Non-0 filler bytes in the DisplayID block.\n");
 			}
 			break;
 		}
@@ -1535,6 +1535,6 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 
 	if (!memchk(x + 1 + x[2] + 5, 0x7f - (1 + x[2] + 5))) {
 		data_block = "Padding";
-		fail("DisplayID padding contains non-zero bytes\n");
+		fail("DisplayID padding contains non-zero bytes.\n");
 	}
 }

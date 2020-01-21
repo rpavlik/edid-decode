@@ -11,7 +11,7 @@ void edid_state::parse_vtb_ext_block(const unsigned char *x)
 {
 	printf("%s Version %u\n", block.c_str(), x[1]);
 	if (x[1] != 1)
-		fail("Invalid version %u\n", x[1]);
+		fail("Invalid version %u.\n", x[1]);
 
 	unsigned num_dtb = x[2];
 	unsigned num_cvt = x[3];

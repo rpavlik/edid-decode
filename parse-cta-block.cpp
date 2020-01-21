@@ -372,20 +372,26 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 				break;
 			}
 			char suffix[16];
+			bool override_pref = i == 0 && first_svd_might_be_preferred &&
+					     !match_timings(*t, preferred_timings);
 
 			sprintf(suffix, "VIC %3u%s", vic, native ? ", native" : "");
 			print_timings("    ", t, suffix);
+			if (override_pref) {
+				preferred_timings = *t;
+				warn("VIC %u is the preferred timing, overriding the first detailed timings. Is this intended?\n", vic);
+			}
 		} else {
 			printf("    Unknown (VIC %3u)\n", vic);
-			fail("Unknown VIC %u\n", vic);
+			fail("Unknown VIC %u.\n", vic);
 		}
 
 		if (vic == 1 && !for_ycbcr420)
 			has_cta861_vic_1 = 1;
 		if (++vics[vic][for_ycbcr420] == 2)
-			fail("Duplicate %sVIC %u\n", for_ycbcr420 ? "YCbCr 4:2:0 " : "", vic);
+			fail("Duplicate %sVIC %u.\n", for_ycbcr420 ? "YCbCr 4:2:0 " : "", vic);
 		if (for_ycbcr420 && preparsed_has_vic[0][vic])
-			fail("YCbCr 4:2:0-only VIC %u is also a regular VIC\n", vic);
+			fail("YCbCr 4:2:0-only VIC %u is also a regular VIC.\n", vic);
 	}
 }
 
@@ -402,7 +408,7 @@ void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *s
 
 		if (t)
 			print_timings(prefix, t, buf);
-		else 
+		else
 			printf("%sUnknown (%s)\n", prefix, buf);
 	} else {
 		// Should not happen!
@@ -425,7 +431,7 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 
 	if (memchk(x, length)) {
 		printf("    Empty Capability Map\n");
-		fail("Empty Capability Map\n");
+		fail("Empty Capability Map.\n");
 		return;
 	}
 
@@ -442,12 +448,12 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 			if (max_idx < preparsed_svds[0].size()) {
 				unsigned vic = preparsed_svds[0][max_idx];
 				if (preparsed_has_vic[1][vic])
-					fail("VIC %u is also a YCbCr 4:2:0-only VIC\n", vic);
+					fail("VIC %u is also a YCbCr 4:2:0-only VIC.\n", vic);
 			}
 		}
 	}
 	if (max_idx >= preparsed_svds[0].size())
-		fail("Max index %u > %u (#SVDs)\n",
+		fail("Max index %u > %u (#SVDs).\n",
 		     max_idx + 1, preparsed_svds[0].size());
 }
 
@@ -470,7 +476,7 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 				print_timings("    ", t, suffix);
 			} else {
 				printf("    Unknown (VIC %3u)\n", vic);
-				fail("Unknown VIC %u\n", vic);
+				fail("Unknown VIC %u.\n", vic);
 			}
 
 		} else if (svr > 128 && svr < 145) {
@@ -517,7 +523,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 
 	printf("    Maximum TMDS clock: %u MHz\n", x[6] * 5);
 	if (x[6] * 5 > 340)
-		fail("HDMI VSDB Max TMDS rate is > 340\n");
+		fail("HDMI VSDB Max TMDS rate is > 340.\n");
 
 	if (length < 8)
 		return;
@@ -601,7 +607,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 				print_timings("        ", t, suffix.c_str());
 			} else {
 				printf("         Unknown (HDMI VIC %u)\n", vic);
-				fail("Unknown HDMI VIC %u\n", vic);
+				fail("Unknown HDMI VIC %u.\n", vic);
 			}
 		}
 
@@ -654,7 +660,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 			b += 2;
 			len_3d -= 2;
 			if (max_idx >= (int)preparsed_svds[0].size())
-				fail("HDMI 3D VIC indices max index %d > %u (#SVDs)\n",
+				fail("HDMI 3D VIC indices max index %d > %u (#SVDs).\n",
 				     max_idx + 1, preparsed_svds[0].size());
 		}
 
@@ -690,7 +696,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 					case 0x01: s += ", horizontal"; break;
 					case 0x02: case 0x03: case 0x04: case 0x05:
 						   s += ", not in use";
-						   fail("not-in-use 3D_Detail_X value 0x%02x\n",
+						   fail("not-in-use 3D_Detail_X value 0x%02x.\n",
 							x[b + 1] >> 4);
 						   break;
 					case 0x06: s += ", all quincunx combinations"; break;
@@ -700,7 +706,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 					case 0x0a: s += ", quincunx even/left, even/right"; break;
 					default:
 						   s += ", reserved";
-						   fail("reserved 3D_Detail_X value 0x%02x\n",
+						   fail("reserved 3D_Detail_X value 0x%02x.\n",
 							x[b + 1] >> 4);
 						   break;
 					}
@@ -708,7 +714,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 				default:
 					s = "unknown (";
 					s += utohex(x[b] & 0x0f) + ")";
-					fail("Unknown 3D_Structure_X value 0x%02x\n", x[b] & 0x0f);
+					fail("Unknown 3D_Structure_X value 0x%02x.\n", x[b] & 0x0f);
 					break;
 				}
 				print_vic_index("        ", idx, s.c_str());
@@ -717,7 +723,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 				b++;
 			}
 			if (max_idx >= (int)preparsed_svds[0].size())
-				fail("HDMI 2D VIC indices max index %d > %u (#SVDs)\n",
+				fail("HDMI 2D VIC indices max index %d > %u (#SVDs).\n",
 				     max_idx + 1, preparsed_svds[0].size());
 		}
 	}
@@ -748,7 +754,7 @@ static void cta_hf_eeodb(const unsigned char *x, unsigned length)
 {
 	printf("    EDID Extension Block Count: %u\n", x[0]);
 	if (length != 1 || x[0] == 0)
-		fail("Block is too long or reports a 0 block count\n");
+		fail("Block is too long or reports a 0 block count.\n");
 }
 
 static void cta_hf_scdb(const unsigned char *x, unsigned length)
@@ -759,7 +765,7 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 	if (rate) {
 		printf("    Maximum TMDS Character Rate: %u MHz\n", rate);
 		if ((rate && rate <= 340) || rate > 600)
-			fail("Max TMDS rate is > 0 and <= 340 or > 600\n");
+			fail("Max TMDS rate is > 0 and <= 340 or > 600.\n");
 	}
 	if (x[2] & 0x80)
 		printf("    SCDC Present\n");
@@ -783,12 +789,12 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 			printf("%s\n", max_frl_rates[max_frl_rate]);
 		} else {
 			printf("Unknown (0x%02x)\n", max_frl_rate);
-			fail("Unknown Max Fixed Rate Link (0x%02x)\n", max_frl_rate);
+			fail("Unknown Max Fixed Rate Link (0x%02x).\n", max_frl_rate);
 		}
 		if (max_frl_rate == 1 && rate < 300)
-			fail("Max Fixed Rate Link is 1, but Max TMDS rate < 300\n");
+			fail("Max Fixed Rate Link is 1, but Max TMDS rate < 300.\n");
 		else if (max_frl_rate >= 2 && rate < 600)
-			fail("Max Fixed Rate Link is >= 2, but Max TMDS rate < 600\n");
+			fail("Max Fixed Rate Link is >= 2, but Max TMDS rate < 600.\n");
 	}
 	if (x[3] & 0x08)
 		printf("    Supports UHD VIC\n");
@@ -844,7 +850,7 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 			printf("%s\n", dsc_max_slices[max_slices]);
 		} else {
 			printf("Unknown (0x%02x)\n", max_slices);
-			fail("Unknown DSC Max Slices (0x%02x)\n", max_slices);
+			fail("Unknown DSC Max Slices (0x%02x).\n", max_slices);
 		}
 	}
 	if (x[8] & 0xf0) {
@@ -855,7 +861,7 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 			printf("%s\n", max_frl_rates[max_frl_rate]);
 		} else {
 			printf("Unknown (0x%02x)\n", max_frl_rate);
-			fail("Unknown DSC Max Fixed Rate Link (0x%02x)\n", max_frl_rate);
+			fail("Unknown DSC Max Fixed Rate Link (0x%02x).\n", max_frl_rate);
 		}
 	}
 	if (x[9] & 0x3f)
@@ -917,7 +923,7 @@ static void cta_sadb(const unsigned char *x, unsigned length)
 static void cta_vesa_dtcdb(const unsigned char *x, unsigned length)
 {
 	if (length != 7 && length != 15 && length != 31) {
-		fail("Invalid length %u\n", length);
+		fail("Invalid length %u.\n", length);
 		return;
 	}
 
@@ -937,7 +943,7 @@ static void cta_vesa_dtcdb(const unsigned char *x, unsigned length)
 static void cta_vesa_vdddb(const unsigned char *x, unsigned length)
 {
 	if (length != 30) {
-		fail("Invalid length %u\n", length);
+		fail("Invalid length %u.\n", length);
 		return;
 	}
 
@@ -1012,7 +1018,7 @@ static void cta_vesa_vdddb(const unsigned char *x, unsigned length)
 	case 0x01: printf("Fast Scan is on the Major (Long) Axis and Slow Scan is on the Minor Axis\n"); break;
 	case 0x02: printf("Fast Scan is on the Minor (Short) Axis and Slow Scan is on the Major Axis\n"); break;
 	case 0x03: printf("Reserved\n");
-		   fail("Scan Direction used the reserved value 0x03\n");
+		   fail("Scan Direction used the reserved value 0x03.\n");
 		   break;
 	}
 	printf("    Subpixel Information: ");
@@ -1122,7 +1128,7 @@ static void cta_rcdb(const unsigned char *x, unsigned length)
 			printf("      %s\n", speaker_map[i]);
 	}
 	if ((x[0] & 0xa0) == 0x80)
-		fail("'Display' flag set, but not the 'SLD' flag\n");
+		fail("'Display' flag set, but not the 'SLD' flag.\n");
 	if ((x[0] & 0x20) && length >= 7) {
 		printf("    Xmax: %u dm\n", x[4]);
 		printf("    Ymax: %u dm\n", x[5]);
@@ -1283,7 +1289,7 @@ static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned lengt
 					printf("      %s\n", eotf_map[i]);
 				} else {
 					printf("      Unknown (%u)\n", i);
-					fail("Unknown EOTF (%u)\n", i);
+					fail("Unknown EOTF (%u).\n", i);
 				}
 			}
 		}
@@ -1486,7 +1492,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 		printf(" Data Block (extended tag 0x%02x, length %u)\n", x[0], length);
 		hex_block("    ", x + 1, length);
 		data_block.clear();
-		warn("Unknown Extended CTA Data Block 0x%02x\n", x[0]);
+		warn("Unknown Extended CTA Data Block 0x%02x.\n", x[0]);
 		return;
 	}
 
@@ -1502,7 +1508,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 			printf("Vendor-Specific Video Data Block, OUI 0x%06x\n", oui);
 			hex_block("    ", x + 4, length - 3);
 			data_block.clear();
-			warn("Unknown Extended Vendor-Specific Video Data Block, OUI 0x%06x\n", oui);
+			warn("Unknown Extended Vendor-Specific Video Data Block, OUI 0x%06x.\n", oui);
 			return;
 		}
 		data_block = std::string("Vendor-Specific Video Data Block (") + name + ")";
@@ -1527,13 +1533,13 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 		cta_hf_eeodb(x + 1, length);
 		// This must be the first CTA block
 		if (!first_block)
-			fail("Block starts at a wrong offset\n");
+			fail("Block starts at a wrong offset.\n");
 		return;
 	case 0x79:
 		if (!last_block_was_hdmi_vsdb)
-			fail("HDMI Forum SCDB did not immediately follow the HDMI VSDB\n");
+			fail("HDMI Forum SCDB did not immediately follow the HDMI VSDB.\n");
 		if (have_hf_scdb || have_hf_vsdb)
-			fail("Duplicate HDMI Forum VSDB/SCDB\n");
+			fail("Duplicate HDMI Forum VSDB/SCDB.\n");
 		if (x[1] || x[2])
 			printf("  Non-zero SCDB reserved fields!\n");
 		cta_hf_scdb(x + 3, length - 2);
@@ -1568,7 +1574,7 @@ void edid_state::cta_block(const unsigned char *x)
 			printf("  Vendor-Specific Data Block, OUI 0x%06x\n", oui);
 			hex_block("    ", x + 4, length - 3);
 			data_block.clear();
-			warn("Unknown Vendor-Specific Data Block, OUI 0x%06x\n", oui);
+			warn("Unknown Vendor-Specific Data Block, OUI 0x%06x.\n", oui);
 			return;
 		}
 		data_block = std::string("Vendor-Specific Data Block (") + name + ")";
@@ -1578,14 +1584,14 @@ void edid_state::cta_block(const unsigned char *x)
 			last_block_was_hdmi_vsdb = 1;
 			first_block = 0;
 			if (edid_minor != 3)
-				fail("The HDMI Specification uses EDID 1.3, not 1.%u\n", edid_minor);
+				fail("The HDMI Specification uses EDID 1.3, not 1.%u.\n", edid_minor);
 			return;
 		}
 		if (oui == 0xc45dd8) {
 			if (!last_block_was_hdmi_vsdb)
-				fail("HDMI Forum VSDB did not immediately follow the HDMI VSDB\n");
+				fail("HDMI Forum VSDB did not immediately follow the HDMI VSDB.\n");
 			if (have_hf_scdb || have_hf_vsdb)
-				fail("Duplicate HDMI Forum VSDB/SCDB\n");
+				fail("Duplicate HDMI Forum VSDB/SCDB.\n");
 			cta_hf_scdb(x + 4, length - 3);
 			have_hf_vsdb = 1;
 			break;
@@ -1613,7 +1619,7 @@ void edid_state::cta_block(const unsigned char *x)
 		printf("  Unknown CTA tag 0x%02x, length %u\n", tag, length);
 		hex_block("    ", x + 1, length);
 		data_block.clear();
-		warn("Unknown CTA Data Block %u\n", tag);
+		warn("Unknown CTA Data Block %u.\n", tag);
 		break;
 	}
 	}
@@ -1632,8 +1638,14 @@ void edid_state::preparse_cta_block(const unsigned char *x)
 
 	for (unsigned i = 4; i < offset; i += (x[i] & 0x1f) + 1) {
 		bool for_ycbcr420 = false;
+		unsigned oui;
 
 		switch ((x[i] & 0xe0) >> 5) {
+		case 0x03:
+			oui = (x[i + 3] << 16) + (x[i + 2] << 8) + x[i + 1];
+			if (oui == 0x000c03)
+				has_hdmi = true;
+			break;
 		case 0x07:
 			if (x[i + 1] != 0x0e)
 				continue;
@@ -1663,7 +1675,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 
 	if (version >= 1) do {
 		if (version == 1 && x[3] != 0)
-			fail("Non-zero byte 3\n");
+			fail("Non-zero byte 3.\n");
 
 		if (offset < 4)
 			break;
@@ -1675,7 +1687,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 			}
 		}
 
-		if (version >= 2) {    
+		if (version >= 2) {
 			if (x[3] & 0x80)
 				printf("Underscans PC formats by default\n");
 			if (x[3] & 0x40)
@@ -1684,7 +1696,11 @@ void edid_state::parse_cta_block(const unsigned char *x)
 				printf("Supports YCbCr 4:4:4\n");
 			if (x[3] & 0x10)
 				printf("Supports YCbCr 4:2:2\n");
+			if ((x[3] & 0x30) && (x[3] & 0x30) != 0x30)
+				msg(!has_hdmi, "If YCbCr support is indicated, then both 4:2:2 and 4:4:4 %s be supported.\n", has_hdmi ? "shall" : "should");
 			printf("%u native detailed modes\n", x[3] & 0x0f);
+			if (!(x[3] & 0x0f))
+				first_svd_might_be_preferred = true;
 		}
 		if (version == 3) {
 			unsigned i;
@@ -1703,17 +1719,17 @@ void edid_state::parse_cta_block(const unsigned char *x)
 		}
 		if (!memchk(detailed, x + 0x7f - detailed)) {
 			data_block = "Padding";
-			fail("CTA-861 padding contains non-zero bytes\n");
+			fail("CTA-861 padding contains non-zero bytes.\n");
 		}
 	} while (0);
 
 	data_block.clear();
 	if (has_serial_number && has_serial_string)
-		fail("Both the serial number and the serial string are set\n");
+		fail("Both the serial number and the serial string are set.\n");
 	if (!has_cta861_vic_1 && !has_640x480p60_est_timing)
 		fail("Required 640x480p60 timings are missing in the established timings"
-		     " and the SVD list (VIC 1)\n");
+		     " and the SVD list (VIC 1).\n");
 	if ((supported_hdmi_vic_vsb_codes & supported_hdmi_vic_codes) !=
 	    supported_hdmi_vic_codes)
-		fail("HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB\n");
+		fail("HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB.\n");
 }

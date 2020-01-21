@@ -18,7 +18,7 @@ void edid_state::parse_digital_interface(const unsigned char *x)
 	case 0x00:
 		printf("Analog Video Input\n");
 		if (!memchk(x + 2, 12))
-			fail("Bytes 0x02-0x0d should be 0\n");
+			fail("Bytes 0x02-0x0d should be 0.\n");
 		return;
 	case 0x01: printf("DVI\n"); break;
 	case 0x02: printf("DVI Single Link\n"); break;
@@ -32,37 +32,37 @@ void edid_state::parse_digital_interface(const unsigned char *x)
 	case 0x0a: printf("Open LDI - Consumer Electronics\n"); break;
 	default:
 		   printf("Unknown (0x%02x)\n", v);
-		   fail("Unknown Digital Interface 0x%02x\n", v);
+		   fail("Unknown Digital Interface 0x%02x.\n", v);
 		   break;
 	}
 
 	switch ((x[3]) >> 6) {
 	case 0x00:
 		if (!memchk(x + 3, 4))
-			fail("Bytes 0x03-0x06 should be 0\n");
+			fail("Bytes 0x03-0x06 should be 0.\n");
 		break;
 	case 0x01:
 		printf("  Version %u.%u Release %u.%u\n", x[3] & 0x3f, x[4], x[5], x[6]);
 		if (x[4] > 99)
-			fail("Version number > 99\n");
+			fail("Version number > 99.\n");
 		if (x[6] > 99)
-			fail("Release number > 99\n");
+			fail("Release number > 99.\n");
 		break;
 	case 0x02:
 		if (x[3] & 0x3f)
-			fail("Bits 5-0 of byte 0x03 should be 0\n");
+			fail("Bits 5-0 of byte 0x03 should be 0.\n");
 		if (x[5] || x[6])
-			fail("Bytes 0x05-0x06 should be 0\n");
+			fail("Bytes 0x05-0x06 should be 0.\n");
 		printf("  Letter Designation: %c\n", x[4]);
 		break;
 	case 0x03:
 		if (x[3] & 0x3f)
-			fail("Bits 5-0 of byte 0x03 should be 0\n");
+			fail("Bits 5-0 of byte 0x03 should be 0.\n");
 		printf("  Date Code: Year %u Week %u Day %u\n", 1990 + x[4], x[5], x[6]);
 		if (!x[5] || x[5] > 12)
-			fail("Bad month number\n");
+			fail("Bad month number.\n");
 		if (!x[6] || x[6] > 31)
-			fail("Bad day number\n");
+			fail("Bad day number.\n");
 		break;
 	}
 
@@ -73,7 +73,7 @@ void edid_state::parse_digital_interface(const unsigned char *x)
 		printf("  Data Enable Signal %s\n",
 		       (v & 0x40) ? "Low" : "High");
 	else if (v & 0x40)
-		fail("Bit 6 of byte 0x07 should be 0\n");
+		fail("Bit 6 of byte 0x07 should be 0.\n");
 	printf("  Edge of Shift Clock: ");
 	switch ((v >> 4) & 0x03) {
 	case 0: printf("Not specified\n"); break;
@@ -86,7 +86,7 @@ void edid_state::parse_digital_interface(const unsigned char *x)
 	       (v & 0x04) ? "" : "not ");
 	printf("  Packetized Digital Video is %ssupported\n", (v & 0x02) ? "" : "not ");
 	if (v & 0x01)
-		fail("Bit 0 of byte 0x07 should be 0\n");
+		fail("Bit 0 of byte 0x07 should be 0.\n");
 
 	v = x[8];
 	printf("  Data Formats: ");
@@ -98,26 +98,26 @@ void edid_state::parse_digital_interface(const unsigned char *x)
 	case 0x49: printf("48-Bit MSB-Aligned RGB (Dual Link - High Color)\n"); break;
 	default:
 		   printf("Unknown (0x%02x)\n", v);
-		   fail("Unknown Data Format 0x%02x\n", v);
+		   fail("Unknown Data Format 0x%02x.\n", v);
 		   break;
 	}
 	if (x[2] == 0x03 && v != 0x48)
-		fail("Data Format should be 0x48, not 0x%02x\n", v);
+		fail("Data Format should be 0x48, not 0x%02x.\n", v);
 	if (x[2] == 0x04 && v != 0x49)
-		fail("Data Format should be 0x49, not 0x%02x\n", v);
+		fail("Data Format should be 0x49, not 0x%02x.\n", v);
 
 	v = x[9];
 	if (v) {
 		printf("  Minimum Pixel Clock Frequency Per Link: %u MHz\n", v);
 		if (v == 0xff)
-			fail("Invalid Min-PCF 0x%02x\n", v);
+			fail("Invalid Min-PCF 0x%02x.\n", v);
 	}
 
 	v = x[10] | (x[11] << 8);
 	if (v) {
 		printf("  Maximum Pixel Clock Frequency Per Link: %u MHz\n", v);
 		if (v == 0xffff)
-			fail("Invalid Max-PCF 0x%04x\n", v);
+			fail("Invalid Max-PCF 0x%04x.\n", v);
 	}
 
 	v = x[12] | (x[13] << 8);
@@ -142,7 +142,7 @@ void edid_state::parse_display_device(const unsigned char *x)
 	case 0x04: printf("Quad Pixel - G at bottom right & top left\n"); break;
 	default:
 		   printf("Unknown (0x%02x)\n", v);
-		   fail("Unknown Sub-Pixel Layout 0x%02x\n", v);
+		   fail("Unknown Sub-Pixel Layout 0x%02x.\n", v);
 		   break;
 	}
 	printf("  Sub-Pixel Configuration: ");
@@ -155,7 +155,7 @@ void edid_state::parse_display_device(const unsigned char *x)
 	case 0x04: printf("Quad Pixel\n"); break;
 	default:
 		   printf("Unknown (0x%02x)\n", v);
-		   fail("Unknown Sub-Pixel Configuration 0x%02x\n", v);
+		   fail("Unknown Sub-Pixel Configuration 0x%02x.\n", v);
 		   break;
 	}
 	printf("  Sub-Pixel Shape: ");
@@ -169,7 +169,7 @@ void edid_state::parse_display_device(const unsigned char *x)
 	case 0x05: printf("Elliptical\n"); break;
 	default:
 		   printf("Unknown (0x%02x)\n", v);
-		   fail("Unknown Sub-Pixel Shape 0x%02x\n", v);
+		   fail("Unknown Sub-Pixel Shape 0x%02x.\n", v);
 		   break;
 	}
 	if (x[0x11])
@@ -200,7 +200,7 @@ void edid_state::parse_display_device(const unsigned char *x)
 	printf("  Monitor/display does %ssupport DDC/CI\n",
 	       (v & 0x02) ? "" : "not ");
 	if (v & 0x01)
-		fail("Bit 0 of byte 0x13 should be 0\n");
+		fail("Bit 0 of byte 0x13 should be 0.\n");
 }
 
 void edid_state::parse_display_caps(const unsigned char *x)
@@ -220,7 +220,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 	case 0x03: printf("auto-stereoscopic, line interleave\n"); break;
 	default:
 		   printf("Unknown (0x%02x)\n", (v & 0x70) >> 4);
-		   fail("Unknown Stereo Video 0x%02x\n", (v & 0x70) >> 4);
+		   fail("Unknown Stereo Video 0x%02x.\n", (v & 0x70) >> 4);
 		   break;
 	}
 	printf("  Scaler On Board: %s\n", (v & 0x08) ? "Yes" : "No");
@@ -238,14 +238,14 @@ void edid_state::parse_display_caps(const unsigned char *x)
 	case 0x03: printf("Both Vertical & Horizontal are converted to single frequencies\n"); break;
 	}
 	if (v & 0x1f)
-		fail("Bits 4-0 of byte 0x15 should be 0\n");
+		fail("Bits 4-0 of byte 0x15 should be 0.\n");
 	v = x[0x16] | (x[0x17] << 8);
 	printf("  Vertical Frequency: ");
 	if (!v) {
 		printf("Not available\n");
 	} else if (v == 0xffff) {
 		printf("Reserved\n");
-		fail("Vertical Frequency uses 0xffff (reserved value)\n");
+		fail("Vertical Frequency uses 0xffff (reserved value).\n");
 	} else {
 		printf("%.2f kHz\n", v / 100.0);
 	}
@@ -255,7 +255,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 		printf("Not available\n");
 	} else if (v == 0xffff) {
 		printf("Reserved\n");
-		fail("Horizontal Frequency uses 0xffff (reserved value)\n");
+		fail("Horizontal Frequency uses 0xffff (reserved value).\n");
 	} else {
 		printf("%.2f kHz\n", v / 100.0);
 	}
@@ -284,7 +284,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 	case 0x02: printf("Fast Scan is on the Minor (Short) Axis and Slow Scan is on the Major Axis\n"); break;
 	case 0x03:
 		   printf("Reserved\n");
-		   fail("Scan Direction used the reserved value 0x03\n");
+		   fail("Scan Direction used the reserved value 0x03.\n");
 		   break;
 	}
 	printf("  Standalone Projector: %s\n",
@@ -310,7 +310,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 	case 0x0e: printf("Monochrome\n"); break;
 	default:
 		   printf("Unknown (0x%02x)\n", v);
-		   fail("Unknown Default Color/Luminance Decoding 0x%02x\n", v);
+		   fail("Unknown Default Color/Luminance Decoding 0x%02x.\n", v);
 		   break;
 	}
 	v = x[0x1c];
@@ -323,7 +323,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 	case 0x04: printf("Monochrome\n"); break;
 	default:
 		   printf("Unknown (0x%02x)\n", v);
-		   fail("Unknown Preferred Color/Luminance Decoding 0x%02x\n", v);
+		   fail("Unknown Preferred Color/Luminance Decoding 0x%02x.\n", v);
 		   break;
 	}
 	v = x[0x1d];
@@ -348,12 +348,12 @@ void edid_state::parse_display_caps(const unsigned char *x)
 		printf("  Color/Luminance Decoding Capabilities: None\n");
 	}
 	if (v & 0x03)
-		fail("Bits 1-0 of byte 0x1e should be 0\n");
+		fail("Bits 1-0 of byte 0x1e should be 0.\n");
 
 	v = x[0x1f];
 	printf("  Dithering: %s\n", (v & 0x80) ? "Yes" : "No");
 	if (v & 0x7f)
-		fail("Bits 6-0 of byte 0x1f should be 0\n");
+		fail("Bits 6-0 of byte 0x1f should be 0.\n");
 	v = x[0x20];
 	printf("  Supported Color Bit-Depth of Sub-Channel 0 (Blue): ");
 	if (!v) {
@@ -362,7 +362,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 		printf("%u\n", v);
 	} else {
 		printf("Reserved (0x%02x)\n", v);
-		fail("Supported Color Bit-Depth of Sub-Channel Blue value is 0x%02x\n", v);
+		fail("Supported Color Bit-Depth of Sub-Channel Blue value is 0x%02x.\n", v);
 	}
 	v = x[0x21];
 	printf("  Supported Color Bit-Depth of Sub-Channel 1 (Green): ");
@@ -372,7 +372,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 		printf("%u\n", v);
 	} else {
 		printf("Reserved (0x%02x)\n", v);
-		fail("Supported Color Bit-Depth of Sub-Channel Green value is 0x%02x\n", v);
+		fail("Supported Color Bit-Depth of Sub-Channel Green value is 0x%02x.\n", v);
 	}
 	v = x[0x22];
 	printf("  Supported Color Bit-Depth of Sub-Channel 2 (Red): ");
@@ -382,7 +382,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 		printf("%u\n", v);
 	} else {
 		printf("Reserved (0x%02x)\n", v);
-		fail("Supported Color Bit-Depth of Sub-Channel Red value is 0x%02x\n", v);
+		fail("Supported Color Bit-Depth of Sub-Channel Red value is 0x%02x.\n", v);
 	}
 	v = x[0x23];
 	printf("  Supported Color Bit-Depth of Sub-Channel 0 (Cb/Pb): ");
@@ -392,7 +392,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 		printf("%u\n", v);
 	} else {
 		printf("Reserved (0x%02x)\n", v);
-		fail("Supported Color Bit-Depth of Sub-Channel Cb/Pb value is 0x%02x\n", v);
+		fail("Supported Color Bit-Depth of Sub-Channel Cb/Pb value is 0x%02x.\n", v);
 	}
 	v = x[0x24];
 	printf("  Supported Color Bit-Depth of Sub-Channel 1 (Y): ");
@@ -402,7 +402,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 		printf("%u\n", v);
 	} else {
 		printf("Reserved (0x%02x)\n", v);
-		fail("Supported Color Bit-Depth of Sub-Channel Y value is 0x%02x\n", v);
+		fail("Supported Color Bit-Depth of Sub-Channel Y value is 0x%02x.\n", v);
 	}
 	v = x[0x25];
 	printf("  Supported Color Bit-Depth of Sub-Channel 2 (Cr/Pr): ");
@@ -412,7 +412,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 		printf("%u\n", v);
 	} else {
 		printf("Reserved (0x%02x)\n", v);
-		fail("Supported Color Bit-Depth of Sub-Channel Cr/Pr value is 0x%02x\n", v);
+		fail("Supported Color Bit-Depth of Sub-Channel Cr/Pr value is 0x%02x.\n", v);
 	}
 
 	v = x[0x26];
@@ -426,7 +426,7 @@ void edid_state::parse_display_caps(const unsigned char *x)
 		printf("    Variable (Expand/Shrink) Mode: %s\n", (v & 0x10) ? "Yes" : "No");
 	}
 	if (v & 0x0f)
-		fail("Bits 3-0 of byte 0x26 should be 0\n");
+		fail("Bits 3-0 of byte 0x26 should be 0.\n");
 }
 
 void edid_state::parse_display_xfer(const unsigned char *x)
@@ -441,10 +441,10 @@ void edid_state::parse_display_xfer(const unsigned char *x)
 	case 0x00:
 		printf("  No Display Transfer Characteristics\n");
 		if (!memchk(x + 0x51, 46))
-			fail("Bytes 0x51-0x7e should be 0\n");
+			fail("Bytes 0x51-0x7e should be 0.\n");
 		return;
 	case 0x03:
-		fail("Bits 7-6 of byte 0x51 cannot be 0x03\n");
+		fail("Bits 7-6 of byte 0x51 cannot be 0x03.\n");
 		return;
 	default:
 		break;
@@ -452,30 +452,30 @@ void edid_state::parse_display_xfer(const unsigned char *x)
 
 	if (((v & 0xc0) >> 6) == 0x01) {
 		if (!num_entries || num_entries > 45)
-			fail("White Curve with %u entries\n", num_entries);
+			fail("White Curve with %u entries.\n", num_entries);
 		if (num_entries > 45)
 			num_entries = 45;
 		if (!memchk(x + 0x52 + num_entries, 45 - num_entries))
-			fail("Bytes 0x%02x-0x7e should be 0\n", 0x52 + num_entries);
+			fail("Bytes 0x%02x-0x7e should be 0.\n", 0x52 + num_entries);
 		printf("  White Curve (%u entries):\n", num_entries);
 		hex_block("    ", x + 0x52, num_entries, false, 15);
 	} else {
 		if (!num_entries || num_entries > 15)
-			fail("Sub-Channel Curve with %u entries\n", num_entries);
+			fail("Sub-Channel Curve with %u entries.\n", num_entries);
 		if (num_entries > 15)
 			num_entries = 15;
 		printf("  Sub-Channel 0 (Blue) Curve with %u entries:\n", num_entries);
 		hex_block("    ", x + 0x52, num_entries, false);
 		if (!memchk(x + 0x52 + num_entries, 15 - num_entries))
-			fail("Bytes 0x%02x-0x7e should be 0\n", 0x52 + num_entries);
+			fail("Bytes 0x%02x-0x7e should be 0.\n", 0x52 + num_entries);
 		printf("  Sub-Channel 1 (Green) Curve with %u entries:\n", num_entries);
 		hex_block("    ", x + 0x52 + 15, num_entries, false);
 		if (!memchk(x + 0x52 + 15 + num_entries, 15 - num_entries))
-			fail("Bytes 0x%02x-0x7e should be 0\n", 0x52 + 15 + num_entries);
+			fail("Bytes 0x%02x-0x7e should be 0.\n", 0x52 + 15 + num_entries);
 		printf("  Sub-Channel 2 (Red) Curve with %u entries:\n", num_entries);
 		hex_block("    ", x + 0x52 + 30, num_entries, false);
 		if (!memchk(x + 0x52 + 30 + num_entries, 15 - num_entries))
-			fail("Bytes 0x%02x-0x7e should be 0\n", 0x52 + 30 + num_entries);
+			fail("Bytes 0x%02x-0x7e should be 0.\n", 0x52 + 30 + num_entries);
 	}
 }
 
@@ -483,15 +483,15 @@ void edid_state::parse_di_ext_block(const unsigned char *x)
 {
 	printf("%s Version %u\n", block.c_str(), x[1]);
 	if (!x[1])
-		fail("Invalid version 0\n");
+		fail("Invalid version 0.\n");
 
 	parse_digital_interface(x);
 	parse_display_device(x);
 	parse_display_caps(x);
 	if (!memchk(x + 0x27, 16))
-		fail("Bytes 0x27-0x36 should be 0\n");
+		fail("Bytes 0x27-0x36 should be 0.\n");
 	if (!memchk(x + 0x37, 17))
-		fail("Bytes 0x37-0x47 should be 0\n");
+		fail("Bytes 0x37-0x47 should be 0.\n");
 	if (!memchk(x + 0x48, 9))
 		fail("Bytes 0x48-0x50 should be 0\n");
 	parse_display_xfer(x);

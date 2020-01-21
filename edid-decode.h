@@ -79,6 +79,8 @@ struct edid_state {
 	// CTA-861 block state
 	bool has_640x480p60_est_timing;
 	bool has_cta861_vic_1;
+	bool first_svd_might_be_preferred;
+	bool has_hdmi;
 	unsigned supported_hdmi_vic_codes;
 	unsigned supported_hdmi_vic_vsb_codes;
 	bool preparsed_has_vic[2][256];
@@ -94,6 +96,7 @@ struct edid_state {
 	unsigned block_nr;
 	std::string block;
 	std::string data_block;
+	timings preferred_timings;
 
 	unsigned min_hor_freq_hz;
 	unsigned max_hor_freq_hz;
@@ -107,6 +110,7 @@ struct edid_state {
 	void print_timings(const char *prefix, const struct timings *t,
 			   const char *suffix);
 	bool print_detailed_timings(const char *prefix, const struct timings &t, const char *flags);
+	bool match_timings(const timings &t1, const timings &t2);
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
 	void edid_cvt_mode(unsigned refresh, struct timings &t);
 	void detailed_cvt_descriptor(const char *prefix, const unsigned char *x, bool first);
@@ -114,7 +118,7 @@ struct edid_state {
 				   bool gtf_only = false, unsigned vrefresh_offset = 60);
 	void detailed_display_range_limits(const unsigned char *x);
 	void detailed_epi(const unsigned char *x);
-	void detailed_timings(const char *prefix, const unsigned char *x);
+	timings detailed_timings(const char *prefix, const unsigned char *x);
 	void detailed_block(const unsigned char *x);
 	void parse_base_block(const unsigned char *x);
 
