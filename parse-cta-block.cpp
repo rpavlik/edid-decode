@@ -1696,8 +1696,12 @@ void edid_state::parse_cta_block(const unsigned char *x)
 				printf("Supports YCbCr 4:4:4\n");
 			if (x[3] & 0x10)
 				printf("Supports YCbCr 4:2:2\n");
-			if ((x[3] & 0x30) && (x[3] & 0x30) != 0x30)
-				msg(!has_hdmi, "If YCbCr support is indicated, then both 4:2:2 and 4:4:4 %s be supported.\n", has_hdmi ? "shall" : "should");
+			// Disable this test: this fails a lot of EDIDs, and there are
+			// also some corner cases where you only want to receive 4:4:4
+			// and refuse a fallback to 4:2:2.
+//			if ((x[3] & 0x30) && (x[3] & 0x30) != 0x30)
+//				msg(!has_hdmi, "If YCbCr support is indicated, then both 4:2:2 and 4:4:4 %s be supported.\n",
+//				    has_hdmi ? "shall" : "should");
 			printf("%u native detailed modes\n", x[3] & 0x0f);
 			if (!(x[3] & 0x0f))
 				first_svd_might_be_preferred = true;
