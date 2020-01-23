@@ -343,15 +343,17 @@ void hex_block(const char *prefix, const unsigned char *x,
 		return;
 
 	for (i = 0; i < length; i += step) {
+		unsigned len = min(step, length - i);
+
 		printf("%s", prefix);
-		for (j = 0; j < step; j++)
-			if (i + j < length)
-				printf("%02x ", x[i + j]);
-			else if (length > step)
-				printf("   ");
+		for (j = 0; j < len; j++)
+			printf("%s%02x", j ? " " : "", x[i + j]);
+
 		if (show_ascii) {
-			printf(" ");
-			for (j = 0; j < step && i + j < length; j++)
+			for (j = len; j < step; j++)
+				printf("   ");
+			printf("  ");
+			for (j = 0; j < len; j++)
 				printf("%c", x[i + j] >= ' ' && x[i + j] <= '~' ? x[i + j] : '.');
 		}
 		printf("\n");
