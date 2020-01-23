@@ -352,9 +352,10 @@ void hex_block(const char *prefix, const unsigned char *x,
 		if (show_ascii) {
 			for (j = len; j < step; j++)
 				printf("   ");
-			printf("  ");
+			printf(" '");
 			for (j = 0; j < len; j++)
 				printf("%c", x[i + j] >= ' ' && x[i + j] <= '~' ? x[i + j] : '.');
+			printf("'");
 		}
 		printf("\n");
 	}
