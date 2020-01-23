@@ -1016,12 +1016,12 @@ void edid_state::detailed_display_range_limits(const unsigned char *x)
 		if (max_h_pixels)
 			printf("  Max active pixels per line: %d\n", max_h_pixels);
 
-		printf("  Supported aspect ratios: %s %s %s %s %s\n",
-		       x[14] & 0x80 ? "4:3" : "",
-		       x[14] & 0x40 ? "16:9" : "",
-		       x[14] & 0x20 ? "16:10" : "",
-		       x[14] & 0x10 ? "5:4" : "",
-		       x[14] & 0x08 ? "15:9" : "");
+		printf("  Supported aspect ratios:%s%s%s%s%s\n",
+		       x[14] & 0x80 ? " 4:3" : "",
+		       x[14] & 0x40 ? " 16:9" : "",
+		       x[14] & 0x20 ? " 16:10" : "",
+		       x[14] & 0x10 ? " 5:4" : "",
+		       x[14] & 0x08 ? " 15:9" : "");
 		if (x[14] & 0x07)
 			fail("Reserved bits of byte 14 are non-zero.\n");
 
