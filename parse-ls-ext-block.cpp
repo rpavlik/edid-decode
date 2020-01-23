@@ -39,7 +39,7 @@ static void parse_string_table(const unsigned char *x)
 		if (name[0] == '@') name[0] = ' ';
 		if (name[1] == '@') name[1] = ' ';
 		if (name[2] == '@') name[2] = ' ';
-		printf("  Language ID: %s\n", name);
+		printf("  Language ID: '%s'\n", name);
 	}
 	x += 5;
 	parse_string("Manufacturer Name", x);
