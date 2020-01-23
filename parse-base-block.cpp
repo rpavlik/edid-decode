@@ -1620,10 +1620,11 @@ void edid_state::parse_base_block(const unsigned char *x)
 			printf("Configurable signal levels\n");
 		}
 
-		printf("Sync: %s%s%s%s\n", sync & 0x08 ? "Separate " : "",
-		       sync & 0x04 ? "Composite " : "",
-		       sync & 0x02 ? "SyncOnGreen " : "",
-		       sync & 0x01 ? "Serration " : "");
+		printf("Sync:%s%s%s%s\n",
+		       sync & 0x08 ? " Separate" : "",
+		       sync & 0x04 ? " Composite" : "",
+		       sync & 0x02 ? " SyncOnGreen" : "",
+		       sync & 0x01 ? " Serration" : "");
 	}
 
 	if (x[0x15] && x[0x16]) {
