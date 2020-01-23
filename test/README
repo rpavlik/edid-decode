@@ -15,3 +15,7 @@ cta-vesa.test: has VESA Display Transfer Characteristics Data Block and
 	VESA Video Display Device Data Block in the CTA block.
 
 ls-ext.test: has a Localized String Extension Block.
+
+Examples of old EDID versions:
+
+edid-1.X.test: EDIDs with version 1.0, 1.1 and 1.2.
