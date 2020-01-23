@@ -473,7 +473,7 @@ static void parse_displayid_string(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 	if (check_displayid_datablock_length(x))
-		printf("    %s\n", extract_string(x + 3, x[2]));
+		printf("    '%s'\n", extract_string(x + 3, x[2]));
 }
 
 // tag 0x0c

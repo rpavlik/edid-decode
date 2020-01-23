@@ -1456,7 +1456,7 @@ void edid_state::detailed_block(const unsigned char *x)
 	case 0xfc:
 		data_block = "Display Product Name";
 		has_name_descriptor = 1;
-		printf("%s: %s\n", data_block.c_str(), extract_string(x + 5, 13));
+		printf("%s: '%s'\n", data_block.c_str(), extract_string(x + 5, 13));
 		return;
 	case 0xfd:
 		detailed_display_range_limits(x);
@@ -1464,7 +1464,7 @@ void edid_state::detailed_block(const unsigned char *x)
 	case 0xfe:
 		if (!has_spwg || timing_descr_cnt < 3) {
 			data_block = "Alphanumeric Data String";
-			printf("%s: %s\n", data_block.c_str(),
+			printf("%s: '%s'\n", data_block.c_str(),
 			       extract_string(x + 5, 13));
 			return;
 		}
@@ -1475,9 +1475,9 @@ void edid_state::detailed_block(const unsigned char *x)
 			memcpy(buf, x + 5, 5);
 			if (strlen(buf) != 5)
 				fail("Invalid PC Maker P/N length.\n");
-			printf("SPWG PC Maker P/N: %s\n", buf);
+			printf("SPWG PC Maker P/N: '%s'\n", buf);
 			printf("SPWG LCD Supplier EEDID Revision: %hhu\n", x[10]);
-			printf("SPWG Manufacturer P/N: %s\n", extract_string(x + 11, 7));
+			printf("SPWG Manufacturer P/N: '%s'\n", extract_string(x + 11, 7));
 		} else {
 			data_block = "SPWG Descriptor #4";
 			printf("SMBUS Values: 0x%02hhx 0x%02hhx 0x%02hhx 0x%02hhx"
@@ -1491,7 +1491,7 @@ void edid_state::detailed_block(const unsigned char *x)
 		return;
 	case 0xff:
 		data_block = "Display Product Serial Number";
-		printf("%s: %s\n", data_block.c_str(),
+		printf("%s: '%s'\n", data_block.c_str(),
 		       extract_string(x + 5, 13));
 		has_serial_string = 1;
 		return;
