@@ -1715,12 +1715,12 @@ void edid_state::parse_cta_block(const unsigned char *x)
 				cta_block(x + i);
 		}
 
-		unsigned cnt;
-		for (detailed = x + offset, cnt = 1; detailed + 18 < x + 127; detailed += 18, cnt++) {
+		seen_non_detailed_descriptor = false;
+		timing_descr_cnt = 0;
+		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18) {
 			if (memchk(detailed, 18))
 				break;
-			data_block = "Detailed Timings #" + std::to_string(cnt);
-			detailed_timings("", detailed);
+			detailed_block(detailed);
 		}
 		if (!memchk(detailed, x + 0x7f - detailed)) {
 			data_block = "Padding";

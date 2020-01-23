@@ -1333,7 +1333,6 @@ timings edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 void edid_state::detailed_block(const unsigned char *x)
 {
 	static const unsigned char zero_descr[18] = { 0 };
-	static int seen_non_detailed_descriptor;
 	unsigned cnt;
 	unsigned i;
 
@@ -1359,7 +1358,7 @@ void edid_state::detailed_block(const unsigned char *x)
 		fail("Monitor descriptor block has byte 4 nonzero (0x%02x).\n", x[4]);
 	}
 
-	seen_non_detailed_descriptor = 1;
+	seen_non_detailed_descriptor = true;
 	if (edid_minor == 0)
 		fail("Has descriptor blocks other than detailed timings.\n");
 
