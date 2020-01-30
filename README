@@ -28,6 +28,11 @@ number, e.g. dp1-tile0, dp2-tile1.
 
 All lower case.
 
+If the EDID was modified by other devices in the chain (e.g. AV Receivers),
+then name the EDID as:
+
+<TV vendor>-<TV model>-<TV port>-<AV vendor>-<AV model>-<AV port>
+
 The test directory contains some special input files to verify the
 edid-decode parser and hand-crafted EDIDs to test rarely seen
 EDID features.
