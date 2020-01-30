@@ -1548,7 +1548,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 		return;
 	}
 
-	hex_block("  ", x + 1, length);
+	hex_block("    ", x + 1, length);
 }
 
 void edid_state::cta_block(const unsigned char *x)
