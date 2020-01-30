@@ -120,7 +120,7 @@ struct edid_state {
 	void detailed_display_range_limits(const unsigned char *x);
 	void detailed_epi(const unsigned char *x);
 	timings detailed_timings(const char *prefix, const unsigned char *x);
-	void detailed_block(const unsigned char *x);
+	void detailed_block(const unsigned char *x, bool is_base_block = true);
 	void parse_base_block(const unsigned char *x);
 
 	void print_vic_index(const char *prefix, unsigned idx, const char *suffix);

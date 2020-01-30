@@ -1330,7 +1330,7 @@ timings edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	return t;
 }
 
-void edid_state::detailed_block(const unsigned char *x)
+void edid_state::detailed_block(const unsigned char *x, bool is_base_block)
 {
 	static const unsigned char zero_descr[18] = { 0 };
 	unsigned cnt;
@@ -1340,7 +1340,7 @@ void edid_state::detailed_block(const unsigned char *x)
 	if (x[0] || x[1]) {
 		data_block = "Detailed Timings #" + std::to_string(timing_descr_cnt);
 		timings t = detailed_timings("", x);
-		if (timing_descr_cnt == 1)
+		if (is_base_block && timing_descr_cnt == 1)
 			preferred_timings = t;
 		if (seen_non_detailed_descriptor)
 			fail("Invalid detailed timing descriptor ordering.\n");

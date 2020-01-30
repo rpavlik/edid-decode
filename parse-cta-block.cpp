@@ -1720,7 +1720,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18) {
 			if (memchk(detailed, 18))
 				break;
-			detailed_block(detailed);
+			detailed_block(detailed, false);
 		}
 		if (!memchk(detailed, x + 0x7f - detailed)) {
 			data_block = "Padding";
