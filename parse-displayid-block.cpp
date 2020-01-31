@@ -1276,25 +1276,31 @@ static void parse_displayid_vesa(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 
-	if (check_displayid_datablock_length(x, 5, 5)) {
-		x += 6;
-		printf("    Data Structure Type: ");
-		switch (x[0] & 0x07) {
-		case 0x00: printf("eDP\n"); break;
-		case 0x01: printf("DP\n"); break;
-		default: printf("Reserved\n"); break;
-		}
-		printf("    Default Colorspace and EOTF Handling: %s\n",
-		       (x[0] & 0x80) ? "Native as specified in the Display Parameters DB" : "sRGB");
-		printf("    Number of Pixels in Hor Pix Cnt Overlapping an Adjacent Panel: %u\n",
-		       x[1] & 0xf);
-		printf("    Multi-SST Operation: ");
-		switch ((x[1] >> 5) & 0x03) {
-		case 0x00: printf("Not Supported\n"); break;
-		case 0x01: printf("Two Streams (number of links shall be 2 or 4)\n"); break;
-		case 0x02: printf("Four Streams (number of links shall be 4)\n"); break;
-		case 0x03: printf("Reserved\n"); break;
-		}
+	if (!check_displayid_datablock_length(x, 5, 7))
+		return;
+
+	unsigned len = x[2];
+	x += 6;
+	printf("    Data Structure Type: ");
+	switch (x[0] & 0x07) {
+	case 0x00: printf("eDP\n"); break;
+	case 0x01: printf("DP\n"); break;
+	default: printf("Reserved\n"); break;
+	}
+	printf("    Default Colorspace and EOTF Handling: %s\n",
+	       (x[0] & 0x80) ? "Native as specified in the Display Parameters DB" : "sRGB");
+	printf("    Number of Pixels in Hor Pix Cnt Overlapping an Adjacent Panel: %u\n",
+	       x[1] & 0xf);
+	printf("    Multi-SST Operation: ");
+	switch ((x[1] >> 5) & 0x03) {
+	case 0x00: printf("Not Supported\n"); break;
+	case 0x01: printf("Two Streams (number of links shall be 2 or 4)\n"); break;
+	case 0x02: printf("Four Streams (number of links shall be 4)\n"); break;
+	case 0x03: printf("Reserved\n"); break;
+	}
+	if (len >= 7) {
+		double bpp = (x[2] & 0x3f) + (x[3] & 0x0f) / 16.0;
+		printf("    Pass through timing's target DSC bits per pixel: %.4f\n", bpp);
 	}
 }
 
@@ -1539,6 +1545,8 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x20: parse_displayid_product_id(x + offset, true); break;
 		case 0x21: parse_displayid_parameters_v2(x + offset); break;
 		case 0x22:
+			   if ((x[offset + 1] & 0x07) >= 1 && (x[offset + 1] & 0x08))
+				   printf("    These timings support DSC pass-through\n");
 			   for (i = 0; i < len / 20; i++)
 				   parse_displayid_type_1_7_timing(&x[offset + 3 + i * 20], true);
 			   break;
