@@ -76,10 +76,12 @@ static void parse_displayid_product_id(const unsigned char *x, bool is_v2)
 {
 	check_displayid_datablock_revision(x);
 
-	if (is_v2)
-		printf("    Vendor IEEE OUI: %02X-%02X-%02X\n", x[3], x[4], x[5]);
-	else
+	if (is_v2) {
+		unsigned oui = (x[3] << 16) | (x[4] << 8) | x[5];
+		printf("    Vendor IEEE OUI %s\n", ouitohex(oui).c_str());
+	} else {
 		printf("    Vendor ID: %c%c%c\n", x[3], x[4], x[5]);
+	}
 	printf("    Product Code: %u\n", x[6] | (x[7] << 8));
 	unsigned sn = x[8] | (x[9] << 8) | (x[10] << 16) | (x[11] << 24);
 	if (sn)
@@ -1268,6 +1270,34 @@ static void parse_displayid_ContainerID(const unsigned char *x)
 	}
 }
 
+// tag 0x7e, OUI 3A-02-92 (VESA)
+
+static void parse_displayid_vesa(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	if (check_displayid_datablock_length(x, 5, 5)) {
+		x += 6;
+		printf("    Data Structure Type: ");
+		switch (x[0] & 0x07) {
+		case 0x00: printf("eDP\n"); break;
+		case 0x01: printf("DP\n"); break;
+		default: printf("Reserved\n"); break;
+		}
+		printf("    Default Colorspace and EOTF Handling: %s\n",
+		       (x[0] & 0x80) ? "Native as specified in the Display Parameters DB" : "sRGB");
+		printf("    Number of Pixels in Hor Pix Cnt Overlapping an Adjacent Panel: %u\n",
+		       x[1] & 0xf);
+		printf("    Multi-SST Operation: ");
+		switch ((x[1] >> 5) & 0x03) {
+		case 0x00: printf("Not Supported\n"); break;
+		case 0x01: printf("Two Streams (number of links shall be 2 or 4)\n"); break;
+		case 0x02: printf("Four Streams (number of links shall be 4)\n"); break;
+		case 0x03: printf("Reserved\n"); break;
+		}
+	}
+}
+
 // DisplayID main
 
 static std::string product_type(unsigned version, unsigned char x, bool heading)
@@ -1372,9 +1402,10 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 	unsigned offset = 5;
 	while (length > 0) {
 		unsigned tag = x[offset];
+		unsigned oui = 0;
 
 		switch (tag) {
-			// DisplayID 1.3:
+		// DisplayID 1.3:
 		case 0x00: data_block = "Product Identification Data Block (" + utohex(tag) + ")"; break;
 		case 0x01: data_block = "Display Parameters Data Block (" + utohex(tag) + ")"; break;
 		case 0x02: data_block = "Color Characteristics Data Block"; break;
@@ -1395,8 +1426,8 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x11: data_block = "Video Timing Modes Type 5 - Short Timings Data Block"; break;
 		case 0x12: data_block = "Tiled Display Topology Data Block (" + utohex(tag) + ")"; break;
 		case 0x13: data_block = "Video Timing Modes Type 6 - Detailed Timings Data Block"; break;
-			   // 0x14 .. 0x7e RESERVED for Additional VESA-defined Data Blocks
-			   // DisplayID 2.0
+		// 0x14 .. 0x7e RESERVED for Additional VESA-defined Data Blocks
+		// DisplayID 2.0
 		case 0x20: data_block = "Product Identification Data Block (" + utohex(tag) + ")"; break;
 		case 0x21: data_block = "Display Parameters Data Block (" + utohex(tag) + ")"; break;
 		case 0x22: data_block = "Video Timing Modes Type 7 - Detailed Timings Data Block"; break;
@@ -1407,12 +1438,25 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x27: data_block = "Stereo Display Interface Data Block (" + utohex(tag) + ")"; break;
 		case 0x28: data_block = "Tiled Display Topology Data Block (" + utohex(tag) + ")"; break;
 		case 0x29: data_block = "ContainerID Data Block"; break;
-			   // 0x2a .. 0x7d RESERVED for Additional VESA-defined Data Blocks
+		// 0x2a .. 0x7d RESERVED for Additional VESA-defined Data Blocks
 		case 0x7e: // DisplayID 2.0
-		case 0x7f: data_block = "Vendor-specific Data Block (" + utohex(tag) + ")"; break; // DisplayID 1.3
-			   // 0x7f .. 0x80 RESERVED
+		case 0x7f: // DisplayID 1.3
+			if ((tag == 0x7e && version >= 0x20) ||
+			    (tag == 0x7f && version < 0x20)) {
+				oui = (x[offset + 3] << 16) + (x[offset + 4] << 8) + x[offset + 5];
+				const char *name = oui_name(oui);
+
+				if (name)
+					data_block = std::string("Vendor-Specific Data Block (") + name + ")";
+				else
+					data_block = "Vendor-Specific Data Block (OUI " + ouitohex(oui) + ")";
+			} else {
+				data_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")";
+			}
+			break;
+			   // 0x80 RESERVED
 		case 0x81: data_block = "CTA DisplayID Data Block (" + utohex(tag) + ")"; break;
-			   // 0x82 .. 0xff RESERVED
+		// 0x82 .. 0xff RESERVED
 		default:   data_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")"; break;
 		}
 
@@ -1519,6 +1563,12 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x27: parse_displayid_stereo_display_intf(x + offset); break;
 		case 0x28: parse_displayid_tiled_display_topology(x + offset, true); break;
 		case 0x29: parse_displayid_ContainerID(x + offset); break;
+		case 0x7e:
+			if (oui == 0x3a0292) {
+				parse_displayid_vesa(x + offset);
+				break;
+			}
+			// fall-through
 		default: hex_block("    ", x + offset + 3, len); break;
 		}
 		length -= len + 3;

@@ -326,6 +326,33 @@ std::string utohex(unsigned char x)
 	return buf;
 }
 
+const char *oui_name(unsigned oui)
+{
+	switch (oui) {
+	case 0x00001a: return "AMD";
+	case 0x000c03: return "HDMI";
+	case 0x00044b: return "NVIDIA";
+	case 0x000c6e: return "ASUS";
+	case 0x0010fa: return "Apple";
+	case 0x0014b9: return "MSTAR";
+	case 0x00d046: return "Dolby Vision";
+	case 0x00e047: return "InFocus";
+	case 0x3a0292: return "VESA";
+	case 0x90848b: return "HDR10+";
+	case 0xc45dd8: return "HDMI Forum";
+	case 0xca125c: return "Microsoft";
+	default: return NULL;
+	}
+}
+
+std::string ouitohex(unsigned oui)
+{
+	char buf[32];
+
+	sprintf(buf, "%02X-%02X-%02X", (oui >> 16) & 0xff, (oui >> 8) & 0xff, oui & 0xff);
+	return buf;
+}
+
 bool memchk(const unsigned char *x, unsigned len, unsigned char v)
 {
 	for (unsigned i = 0; i < len; i++)

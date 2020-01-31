@@ -170,12 +170,14 @@ void msg(bool is_warn, const char *fmt, ...);
 
 void do_checksum(const char *prefix, const unsigned char *x, size_t len);
 std::string utohex(unsigned char x);
+std::string ouitohex(unsigned oui);
 bool memchk(const unsigned char *x, unsigned len, unsigned char v = 0);
 void hex_block(const char *prefix, const unsigned char *x, unsigned length,
 	       bool show_ascii = true, unsigned step = 16);
 std::string block_name(unsigned char block);
 void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
 void calc_ratio(struct timings *t);
+const char *oui_name(unsigned oui);
 
 const struct timings *find_dmt_id(unsigned char dmt_id);
 const struct timings *find_vic_id(unsigned char vic);
