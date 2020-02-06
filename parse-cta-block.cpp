@@ -879,6 +879,127 @@ static void cta_hdr10plus(const unsigned char *x, unsigned length)
 		printf("\n");
 }
 
+static void cta_dolby_vision(const unsigned char *x, unsigned length)
+{
+	unsigned char version = (x[0] >> 5) & 0x07;
+
+	printf("    Version %u, %u bytes\n", version, length + 5);
+	if (x[0] & 0x01)
+		printf("    Supports YUV422 12 bit\n");
+
+	if (version == 0) {
+		if (x[0] & 0x02)
+			printf("    Supports 2160p60\n");
+		if (x[0] & 0x02)
+			printf("    Supports global dimming\n");
+		unsigned char dm_version = x[16];
+		printf("    DM Version: %u.%u\n", dm_version >> 4, dm_version & 0xf);
+		printf("    Target Min PQ: %u\n", (x[14] << 4) | (x[13] >> 4));
+		printf("    Target Max PQ: %u\n", (x[15] << 4) | (x[13] & 0xf));
+		printf("    Rx, Ry: %.8f, %.8f\n",
+		       ((x[1] >> 4) | (x[2] << 4)) / 4096.0,
+		       ((x[1] & 0xf) | (x[3] << 4)) / 4096.0);
+		printf("    Gx, Gy: %.8f, %.8f\n",
+		       ((x[4] >> 4) | (x[5] << 4)) / 4096.0,
+		       ((x[4] & 0xf) | (x[6] << 4)) / 4096.0);
+		printf("    Bx, By: %.8f, %.8f\n",
+		       ((x[7] >> 4) | (x[8] << 4)) / 4096.0,
+		       ((x[7] & 0xf) | (x[9] << 4)) / 4096.0);
+		printf("    Wx, Wy: %.8f, %.8f\n",
+		       ((x[10] >> 4) | (x[11] << 4)) / 4096.0,
+		       ((x[10] & 0xf) | (x[12] << 4)) / 4096.0);
+		return;
+	}
+
+	if (version == 1) {
+		if (x[0] & 0x02)
+			printf("    Supports 2160p60\n");
+		if (x[1] & 0x01)
+			printf("    Supports global dimming\n");
+		unsigned char dm_version = (x[0] >> 2) & 0x07;
+		printf("    DM Version: %u.x\n", dm_version + 2);
+		printf("    Colorimetry: %s\n", (x[2] & 0x01) ? "P3-D65" : "ITU-R BT.709");
+		printf("    Low Latency: %s\n", (x[3] & 0x01) ? "Only Standard" : "Standard + Low Latency");
+		printf("    Target Max Luminance: %u cd/m^2\n", 100 + (x[1] >> 1) * 50);
+		// Unclear what the mapping to cd/m^2 is
+		printf("    Target Min Luminance: %u\n", (x[2] >> 1));
+		if (length == 10) {
+			printf("    Rx, Ry: %.8f, %.8f\n", x[4] / 256.0, x[5] / 256.0);
+			printf("    Gx, Gy: %.8f, %.8f\n", x[6] / 256.0, x[7] / 256.0);
+			printf("    Bx, By: %.8f, %.8f\n", x[8] / 256.0, x[9] / 256.0);
+		} else {
+			double xmin = 0.625;
+			double xstep = (0.74609375 - xmin) / 31.0;
+			double ymin = 0.25;
+			double ystep = (0.37109375 - ymin) / 31.0;
+
+			printf("    Unique Rx, Ry: %.8f, %.8f\n",
+			       xmin + xstep * (x[6] >> 3),
+			       ymin + ystep * (((x[6] & 0x7) << 2) | (x[4] & 0x01) | ((x[5] & 0x01) << 1)));
+			xstep = 0.49609375 / 127.0;
+			ymin = 0.5;
+			ystep = (0.99609375 - ymin) / 127.0;
+			printf("    Unique Gx, Gy: %.8f, %.8f\n",
+			       xstep * (x[4] >> 1), ymin + ystep * (x[5] >> 1));
+			xmin = 0.125;
+			xstep = (0.15234375 - xmin) / 7.0;
+			ymin = 0.03125;
+			ystep = (0.05859375 - ymin) / 7.0;
+			printf("    Unique Bx, By: %.8f, %.8f\n",
+			       xmin + xstep * (x[3] >> 5),
+			       ymin + ystep * ((x[3] >> 2) & 0x07));
+		}
+		return;
+	}
+
+	if (version == 2) {
+		if (x[0] & 0x02)
+			printf("    Supports Backlight Control\n");
+		if (x[1] & 0x04)
+			printf("    Supports global dimming\n");
+		unsigned char dm_version = (x[0] >> 2) & 0x07;
+		printf("    DM Version: %u.x\n", dm_version + 2);
+		printf("    Backlt Min Luma: %u cd/m^2\n", 25 + (x[1] & 0x03) * 25);
+		printf("    Interface: ");
+		switch (x[2] & 0x03) {
+		case 0: printf("Low-Latency\n"); break;
+		case 1: printf("Low-Latency + Low-Latency-HDMI\n"); break;
+		case 2: printf("Standard + Low-Latency\n"); break;
+		case 3: printf("Standard + Low-Latency + Low-Latency-HDMI\n"); break;
+		}
+		printf("    Supports 10b 12b 444: ");
+		switch ((x[3] & 0x01) << 1 | (x[4] & 0x01)) {
+		case 0: printf("Not supported\n"); break;
+		case 1: printf("10 bit\n"); break;
+		case 2: printf("12 bit\n"); break;
+		case 3: printf("Reserved\n"); break;
+		}
+		printf("    Target Min PQ v2: %u\n", 20 * (x[1] >> 3));
+		printf("    Target Max PQ v2: %u\n", 2055 + 65 * (x[2] >> 3));
+
+		double xmin = 0.625;
+		double xstep = (0.74609375 - xmin) / 31.0;
+		double ymin = 0.25;
+		double ystep = (0.37109375 - ymin) / 31.0;
+
+		printf("    Unique Rx, Ry: %.8f, %.8f\n",
+		       xmin + xstep * (x[5] >> 3),
+		       ymin + ystep * (x[6] >> 3));
+		xstep = 0.49609375 / 127.0;
+		ymin = 0.5;
+		ystep = (0.99609375 - ymin) / 127.0;
+		printf("    Unique Gx, Gy: %.8f, %.8f\n",
+		       xstep * (x[3] >> 1), ymin + ystep * (x[4] >> 1));
+		xmin = 0.125;
+		xstep = (0.15234375 - xmin) / 7.0;
+		ymin = 0.03125;
+		ystep = (0.05859375 - ymin) / 7.0;
+		printf("    Unique Bx, By: %.8f, %.8f\n",
+		       xmin + xstep * (x[5] & 0x07),
+		       ymin + ystep * (x[6] & 0x07));
+	}
+}
+
 static const char *speaker_map[] = {
 	"FL/FR - Front Left/Right",
 	"LFE1 - Low Frequency Effects 1",
@@ -1502,6 +1623,8 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 		printf("%s: OUI %s\n", data_block.c_str(), ouitohex(oui).c_str());
 		if (oui == 0x90848b)
 			cta_hdr10plus(x + 4, length - 3);
+		else if (oui == 0x00d046)
+			cta_dolby_vision(x + 4, length - 3);
 		else
 			hex_block("    ", x + 4, length - 3);
 		return;
