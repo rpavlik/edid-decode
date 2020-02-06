@@ -388,14 +388,14 @@ void hex_block(const char *prefix, const unsigned char *x,
 	}
 }
 
-static bool edid_add_byte(const char *s)
+static bool edid_add_byte(const char *s, bool two_digits = true)
 {
 	char buf[3];
 
 	if (state.edid_size == sizeof(edid))
 		return false;
 	buf[0] = s[0];
-	buf[1] = s[1];
+	buf[1] = two_digits ? s[1] : 0;
 	buf[2] = 0;
 	edid[state.edid_size++] = strtoul(buf, NULL, 16);
 	return true;
@@ -430,15 +430,16 @@ static bool extract_edid_hex(const char *s)
 			continue;
 		}
 
-		/* Read a %02x from the log */
-		if (!isxdigit(s[0]) || !isxdigit(s[1])) {
+		/* Read one or two hex digits from the log */
+		if (!isxdigit(s[0])) {
 			if (state.edid_size && state.edid_size % 128 == 0)
 				break;
 			return false;
 		}
-		if (!edid_add_byte(s))
+		if (!edid_add_byte(s, isxdigit(s[1])))
 			return false;
-		s++;
+		if (isxdigit(s[1]))
+			s++;
 	}
 	return state.edid_size && !(state.edid_size % EDID_PAGE_SIZE);
 }
