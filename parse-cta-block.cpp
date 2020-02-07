@@ -1839,8 +1839,10 @@ void edid_state::parse_cta_block(const unsigned char *x)
 			printf("%u bytes of CTA data blocks\n", offset - 4);
 			for (i = 4; i < offset; i += (x[i] & 0x1f) + 1)
 				cta_block(x + i);
+
+			data_block.clear();
 			if (i != offset)
-				fail("offset is %u, but should be %u\n", offset, i);
+				fail("Offset is %u, but should be %u\n", offset, i);
 		}
 
 		seen_non_detailed_descriptor = false;
