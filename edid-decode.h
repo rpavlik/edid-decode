@@ -151,6 +151,7 @@ struct edid_state {
 	void parse_displayid_type_9_timing(const unsigned char *x);
 	void preparse_displayid_block(const unsigned char *x);
 	void parse_displayid_block(const unsigned char *x);
+	void parse_displayid_cta_data_block(const unsigned char *x);
 
 	void parse_vtb_ext_block(const unsigned char *x);
 
@@ -177,7 +178,7 @@ void hex_block(const char *prefix, const unsigned char *x, unsigned length,
 std::string block_name(unsigned char block);
 void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
 void calc_ratio(struct timings *t);
-const char *oui_name(unsigned oui);
+const char *oui_name(unsigned oui, bool reverse = false);
 
 const struct timings *find_dmt_id(unsigned char dmt_id);
 const struct timings *find_vic_id(unsigned char vic);

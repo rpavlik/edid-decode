@@ -1562,6 +1562,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 {
 	const char *name;
 	unsigned oui;
+	bool reverse = false;
 
 	switch (x[0]) {
 	case 0x00: data_block = "Video Capability Data Block"; break;
@@ -1611,6 +1612,11 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
 		name = oui_name(oui);
 		if (!name) {
+			name = oui_name(oui, true);
+			if (name)
+				reverse = true;
+		}
+		if (!name) {
 			printf("Vendor-Specific Video Data Block, OUI %s\n",
 			       ouitohex(oui).c_str());
 			hex_block("    ", x + 4, length - 3);
@@ -1620,6 +1626,8 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 			return;
 		}
 		data_block = std::string("Vendor-Specific Video Data Block (") + name + ")";
+		if (reverse)
+			fail((std::string("OUI ") + ouitohex(oui) + " is in the wrong byte order\n").c_str());
 		printf("%s: OUI %s\n", data_block.c_str(), ouitohex(oui).c_str());
 		if (oui == 0x90848b)
 			cta_hdr10plus(x + 4, length - 3);
@@ -1665,6 +1673,7 @@ void edid_state::cta_block(const unsigned char *x)
 	unsigned length = x[0] & 0x1f;
 	const char *name;
 	unsigned oui;
+	bool reverse = false;
 
 	switch ((x[0] & 0xe0) >> 5) {
 	case 0x01:
@@ -1681,6 +1690,11 @@ void edid_state::cta_block(const unsigned char *x)
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
 		name = oui_name(oui);
 		if (!name) {
+			name = oui_name(oui, true);
+			if (name)
+				reverse = true;
+		}
+		if (!name) {
 			printf("  Vendor-Specific Data Block, OUI %s\n", ouitohex(oui).c_str());
 			hex_block("    ", x + 4, length - 3);
 			data_block.clear();
@@ -1689,6 +1703,8 @@ void edid_state::cta_block(const unsigned char *x)
 			return;
 		}
 		data_block = std::string("Vendor-Specific Data Block (") + name + ")";
+		if (reverse)
+			fail((std::string("OUI ") + ouitohex(oui) + " is in the wrong byte order\n").c_str());
 		printf("  %s: OUI %s\n", data_block.c_str(), ouitohex(oui).c_str());
 		if (oui == 0x000c03) {
 			cta_hdmi_block(x + 1, length);

@@ -1304,6 +1304,28 @@ static void parse_displayid_vesa(const unsigned char *x)
 	}
 }
 
+// tag 0x81
+
+void edid_state::parse_displayid_cta_data_block(const unsigned char *x)
+{
+	check_displayid_datablock_revision(x);
+
+	unsigned len = x[2];
+	unsigned i;
+
+	if (len > 248) {
+		fail("Length is > 248\n");
+		len = 248;
+	}
+	x += 3;
+
+	for (i = 0; i < len; i += (x[i] & 0x1f) + 1)
+		cta_block(x + i);
+
+	if (i != len)
+		fail("Length is %u instead of %u\n", len, i);
+}
+
 // DisplayID main
 
 static std::string product_type(unsigned version, unsigned char x, bool heading)
@@ -1451,11 +1473,19 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			    (tag == 0x7f && version < 0x20)) {
 				oui = (x[offset + 3] << 16) + (x[offset + 4] << 8) + x[offset + 5];
 				const char *name = oui_name(oui);
+				bool reversed = false;
 
+				if (!name) {
+					name = oui_name(oui, true);
+					if (name)
+						reversed = true;
+				}
 				if (name)
 					data_block = std::string("Vendor-Specific Data Block (") + name + ")";
 				else
 					data_block = "Vendor-Specific Data Block (OUI " + ouitohex(oui) + ")";
+				if (reversed)
+					fail((std::string("OUI ") + ouitohex(oui) + " is in the wrong byte order\n").c_str());
 			} else {
 				data_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")";
 			}
@@ -1571,6 +1601,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x27: parse_displayid_stereo_display_intf(x + offset); break;
 		case 0x28: parse_displayid_tiled_display_topology(x + offset, true); break;
 		case 0x29: parse_displayid_ContainerID(x + offset); break;
+		case 0x81: parse_displayid_cta_data_block(x + offset); break;
 		case 0x7e:
 			if (oui == 0x3a0292) {
 				parse_displayid_vesa(x + offset);

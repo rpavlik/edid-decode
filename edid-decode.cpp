@@ -330,8 +330,11 @@ std::string utohex(unsigned char x)
 	return buf;
 }
 
-const char *oui_name(unsigned oui)
+const char *oui_name(unsigned oui, bool reverse)
 {
+	if (reverse)
+		oui = (oui >> 16) | (oui & 0xff00) | ((oui & 0xff) << 16);
+
 	switch (oui) {
 	case 0x00001a: return "AMD";
 	case 0x000c03: return "HDMI";
