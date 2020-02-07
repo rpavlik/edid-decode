@@ -9,6 +9,7 @@ xorg.test: an EDID as logged by xorg in /var/log/Xorg.0.log.
 
 xrandr.test: an EDID as reported by 'xrandr --props'.
 
+
 Two hand-crafted EDIDs to test rarely seen EDID extensions or data blocks:
 
 cta-vesa.test: has VESA Display Transfer Characteristics Data Block and
@@ -16,6 +17,18 @@ cta-vesa.test: has VESA Display Transfer Characteristics Data Block and
 
 ls-ext.test: has a Localized String Extension Block.
 
+
 Examples of old EDID versions:
 
 edid-1.X.test: EDIDs with version 1.0, 1.1 and 1.2.
+
+
+Test EDIDs from several standards:
+
+cta-annex-a.test
+cta-annex-d.test
+vesa-edid-1.1.test
+vesa-edid-1.3.test
+vesa-edid-1.4-1.test
+vesa-edid-1.4-2.test
+vesa-edid-1.4-3.test
