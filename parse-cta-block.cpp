@@ -1807,11 +1807,9 @@ void edid_state::parse_cta_block(const unsigned char *x)
 		if (offset < 4)
 			break;
 
-		if (version < 3) {
+		if (version < 3 && ((offset - 4) / 8)) {
 			printf("%u 8-byte timing descriptors\n", (offset - 4) / 8);
-			if (offset - 4 > 0) {
-				/* do stuff */
-			}
+			fail("8-byte descriptors are no longer used\n");
 		}
 
 		if (version >= 2) {
