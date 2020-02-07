@@ -162,6 +162,10 @@ void calc_ratio(struct timings *t)
 {
 	unsigned d = gcd(t->hact, t->vact);
 
+	if (d == 0) {
+		t->hratio = t->vratio = 0;
+		return;
+	}
 	t->hratio = t->hact / d;
 	t->vratio = t->vact / d;
 }
