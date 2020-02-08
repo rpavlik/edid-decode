@@ -1313,7 +1313,7 @@ timings edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	calc_ratio(&t);
 
-	bool ok = print_detailed_timings(prefix, t, s_flags.c_str());
+	bool ok = print_timings(prefix, &t, "", s_flags.c_str());
 
 	if ((max_display_width_mm && !t.hsize_mm) ||
 	    (max_display_height_mm && !t.vsize_mm)) {

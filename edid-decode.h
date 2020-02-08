@@ -108,9 +108,8 @@ struct edid_state {
 	unsigned warnings;
 	unsigned failures;
 
-	void print_timings(const char *prefix, const struct timings *t,
-			   const char *suffix);
-	bool print_detailed_timings(const char *prefix, const struct timings &t, const char *flags);
+	bool print_timings(const char *prefix, const struct timings *t,
+			   const char *suffix, const char *flags = 0);
 	bool match_timings(const timings &t1, const timings &t2);
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
 	void edid_cvt_mode(unsigned refresh, struct timings &t);
