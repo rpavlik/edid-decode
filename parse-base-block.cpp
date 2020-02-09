@@ -517,7 +517,11 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings &t)
 	 *  [H FRONT PORCH (PIXELS)] = ([H BLANK (PIXELS)]/2)-[H SYNC (PIXELS)]
 	 */
 	t.hfp = (h_blank / 2.0) - t.hsync;
-	t.hbp = h_blank - t.hfp - t.hsync;
+	/*  19. Find the number of pixels in the horizontal back porch period:
+	 *
+	 *  [H BACK PORCH (PIXELS)] = [H FRONT PORCH (PIXELS)]+[H SYNC (PIXELS)]
+	 */
+	t.hbp = t.hfp + t.hsync;
 	t.pos_pol_hsync = false;
 	t.pos_pol_vsync = true;
 	t.interlaced = false;
