@@ -52,6 +52,7 @@ struct edid_state {
 	{
 		min_hor_freq_hz = 0xffffff;
 		min_vert_freq_hz = 0xffffffff;
+		first_block = 1;
 	}
 
 	// Base block state
@@ -82,14 +83,21 @@ struct edid_state {
 	bool has_cta861_vic_1;
 	bool first_svd_might_be_preferred;
 	bool has_hdmi;
+	int last_block_was_hdmi_vsdb;
+	int have_hf_vsdb, have_hf_scdb;
+	int first_block;
 	unsigned supported_hdmi_vic_codes;
 	unsigned supported_hdmi_vic_vsb_codes;
+	unsigned short vics[256][2];
 	bool preparsed_has_vic[2][256];
 	std::vector<unsigned char> preparsed_svds[2];
 
 	// DisplayID block state
 	unsigned short preparse_color_ids;
 	unsigned short preparse_xfer_ids;
+
+	// Block Map block state
+	bool saw_block_1;
 
 	// Global state
 	unsigned edid_size;

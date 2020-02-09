@@ -335,7 +335,6 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 
 void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 {
-	static unsigned short vics[256][2];
 	unsigned i;
 
 	for (i = 0; i < n; i++)  {
@@ -1553,10 +1552,6 @@ static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 		x += 4;
 	}
 }
-
-static int last_block_was_hdmi_vsdb;
-static int have_hf_vsdb, have_hf_scdb;
-static int first_block = 1;
 
 void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 {

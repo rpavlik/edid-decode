@@ -767,7 +767,6 @@ std::string block_name(unsigned char block)
 
 void edid_state::parse_block_map(const unsigned char *x)
 {
-	static bool saw_block_1;
 	unsigned last_valid_block_tag = 0;
 	bool fail_once = false;
 	unsigned offset = 1;
