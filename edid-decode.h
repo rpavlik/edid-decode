@@ -33,9 +33,12 @@ struct timings {
 	unsigned pixclk_khz;
 	unsigned rb; // 1 if CVT with reduced blanking, 2 if CVT with reduced blanking v2
 	bool interlaced;
+	// The horizontal frontporch may be negative in GTF calculations,
+	// so use int instead of unsigned for hfp. Example: 292x176@76.
+	int hfp;
+	unsigned hsync;
 	// The backporch may be negative in buggy detailed timings.
 	// So use int instead of unsigned for hbp and vbp.
-	unsigned hfp, hsync;
 	int hbp;
 	bool pos_pol_hsync;
 	unsigned vfp, vsync;

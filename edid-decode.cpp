@@ -238,7 +238,7 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		if (t->hsize_mm || t->vsize_mm)
 			printf(", %u mm x %u mm", t->hsize_mm, t->vsize_mm);
 		printf("\n");
-		printf("%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
+		printf("%s               %4u %4u %4u %4u (%3d %3u %3d)%s\n"
 		       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
 		       "%s               %chsync%s\n"
 		       "%s               VertFreq: %.3f%s Hz, HorFreq: %.3f kHz\n",
@@ -278,6 +278,8 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		       s.c_str());
 	}
 
+	if (t->hfp <= 0)
+		fail("0 or negative horizontal front porch.\n");
 	if (t->hbp <= 0)
 		fail("0 or negative horizontal back porch.\n");
 	if (t->vbp <= 0)
