@@ -303,7 +303,7 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 	if (x[3] & 0x80)
 		s += ", preferred";
 
-	print_timings("    ", &t, "", s.c_str());
+	print_timings("    ", &t, type7 ? "Type VII" : "Type I", s.c_str());
 }
 
 // tag 0x04
@@ -359,7 +359,7 @@ void edid_state::parse_displayid_type_2_timing(const unsigned char *x)
 	if (x[3] & 0x80)
 		s += ", preferred";
 
-	print_timings("    ", &t, "", s.c_str());
+	print_timings("    ", &t, "Type II", s.c_str());
 }
 
 // tag 0x05
@@ -424,7 +424,7 @@ void edid_state::parse_displayid_type_3_timing(const unsigned char *x)
 	if (x[0] & 0x80)
 		s += ", preferred";
 
-	print_timings("    ", &t, "", s.c_str());
+	print_timings("    ", &t, "CVT", s.c_str());
 }
 
 // tag 0x06 and 0x23
@@ -875,7 +875,7 @@ void edid_state::parse_displayid_type_5_timing(const unsigned char *x)
 
 	edid_cvt_mode(1 + x[6], t);
 
-	print_timings("    ", &t, "", s.c_str());
+	print_timings("    ", &t, "CVT", s.c_str());
 }
 
 // tag 0x12 and 0x28
@@ -1006,7 +1006,7 @@ void edid_state::parse_displayid_type_6_timing(const unsigned char *x)
 	if (x[2] & 0x80)
 		s += ", preferred";
 
-	print_timings("    ", &t, "", s.c_str());
+	print_timings("    ", &t, "Type VI", s.c_str());
 }
 
 static std::string ieee7542d(unsigned short fp)
@@ -1136,7 +1136,7 @@ void edid_state::parse_displayid_type_9_timing(const unsigned char *x)
 
 	edid_cvt_mode(1 + x[5], t);
 
-	print_timings("    ", &t, "", s.c_str());
+	print_timings("    ", &t, "CVT", s.c_str());
 }
 
 // tag 0x25
