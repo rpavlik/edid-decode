@@ -680,46 +680,48 @@ static void carraydumpedid(FILE *f, const unsigned char *edid, unsigned size)
 	fprintf(f, "};\n");
 }
 
-static void write_edid(FILE *f, const unsigned char *edid, unsigned size,
-		       enum output_format out_fmt)
+static int edid_to_file(const char *to_file, enum output_format out_fmt)
 {
+	FILE *out;
+
+	if (!strcmp(to_file, "-")) {
+		to_file = "stdout";
+		out = stdout;
+	} else if ((out = fopen(to_file, "w")) == NULL) {
+		perror(to_file);
+		return -1;
+	}
+	if (out_fmt == OUT_FMT_DEFAULT)
+		out_fmt = out == stdout ? OUT_FMT_HEX : OUT_FMT_RAW;
+
 	switch (out_fmt) {
 	default:
 	case OUT_FMT_HEX:
-		hexdumpedid(f, edid, size);
+		hexdumpedid(out, edid, state.edid_size);
 		break;
 	case OUT_FMT_RAW:
-		fwrite(edid, size, 1, f);
+		fwrite(edid, state.edid_size, 1, out);
 		break;
 	case OUT_FMT_CARRAY:
-		carraydumpedid(f, edid, size);
+		carraydumpedid(out, edid, state.edid_size);
 		break;
 	}
+
+	if (out != stdout)
+		fclose(out);
+	return 0;
 }
 
-static int edid_from_file(const char *from_file, const char *to_file,
-			  enum output_format out_fmt)
+static int edid_from_file(const char *from_file)
 {
-	FILE *out = NULL;
 	int fd;
 
-	if (!from_file || !strcmp(from_file, "-")) {
+	if (!strcmp(from_file, "-")) {
 		from_file = "stdin";
 		fd = 0;
 	} else if ((fd = open(from_file, O_RDONLY)) == -1) {
 		perror(from_file);
 		return -1;
-	}
-	if (to_file) {
-		if (!strcmp(to_file, "-")) {
-			to_file = "stdout";
-			out = stdout;
-		} else if ((out = fopen(to_file, "w")) == NULL) {
-			perror(to_file);
-			return -1;
-		}
-		if (out_fmt == OUT_FMT_DEFAULT)
-			out_fmt = out == stdout ? OUT_FMT_HEX : OUT_FMT_RAW;
 	}
 
 	if (!extract_edid(fd)) {
@@ -734,14 +736,6 @@ static int edid_from_file(const char *from_file, const char *to_file,
 		fprintf(stderr, "No EDID header found in '%s'\n", from_file);
 		return -1;
 	}
-
-	if (out) {
-		write_edid(out, edid, state.edid_size, out_fmt);
-		if (out != stdout)
-			fclose(out);
-		return 0;
-	}
-
 	return 0;
 }
 
@@ -997,10 +991,12 @@ int main(int argc, char **argv)
 		}
 	}
 	if (optind == argc)
-		ret = edid_from_file(NULL, NULL, out_fmt);
-	else if (optind == argc - 1)
-		ret = edid_from_file(argv[optind], NULL, out_fmt);
+		ret = edid_from_file("-");
 	else
-		return edid_from_file(argv[optind], argv[optind + 1], out_fmt);
+		ret = edid_from_file(argv[optind]);
+
+	if (optind < argc - 1)
+		return ret ? ret : edid_to_file(argv[optind + 1], out_fmt);
+
 	return ret ? ret : state.parse_edid();
 }
