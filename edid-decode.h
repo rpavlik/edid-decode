@@ -12,6 +12,7 @@
 
 #include <string>
 #include <vector>
+#include <string.h>
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -53,10 +54,60 @@ struct timings {
 struct edid_state {
 	edid_state()
 	{
+		// Global state
+		edid_size = num_blocks = block_nr = 0;
+		max_hor_freq_hz = max_vert_freq_hz = max_pixclk_khz = 0;
 		min_hor_freq_hz = 0xffffff;
 		min_vert_freq_hz = 0xffffffff;
+		warnings = failures = 0;
+		memset(&preferred_timings, 0, sizeof(preferred_timings));
+
+		// Base block state
+		edid_minor = 0;
+		has_name_descriptor = has_display_range_descriptor =
+			has_serial_number = has_serial_string =
+			supports_continuous_freq = supports_gtf =
+			supports_cvt = uses_gtf = uses_cvt = has_spwg =
+			seen_non_detailed_descriptor = false;
+		timing_descr_cnt = 0;
+
+		min_display_hor_freq_hz = max_display_hor_freq_hz =
+			min_display_vert_freq_hz = max_display_vert_freq_hz =
+			max_display_pixclk_khz = max_display_width_mm =
+			max_display_height_mm = 0;
+
+		// CTA-861 block state
+		has_640x480p60_est_timing = has_cta861_vic_1 =
+			first_svd_might_be_preferred = has_hdmi = false;
+		last_block_was_hdmi_vsdb = have_hf_vsdb = have_hf_scdb = 0;
 		first_block = 1;
+		supported_hdmi_vic_codes = supported_hdmi_vic_vsb_codes = 0;
+		memset(vics, 0, sizeof(vics));
+		memset(preparsed_has_vic, 0, sizeof(preparsed_has_vic));
+
+		// DisplayID block state
+		preparse_color_ids = preparse_xfer_ids = 0;
+
+		// Block Map block state
+		saw_block_1 = false;
 	}
+
+	// Global state
+	unsigned edid_size;
+	unsigned num_blocks;
+	unsigned block_nr;
+	std::string block;
+	std::string data_block;
+	timings preferred_timings;
+
+	unsigned min_hor_freq_hz;
+	unsigned max_hor_freq_hz;
+	unsigned min_vert_freq_hz;
+	unsigned max_vert_freq_hz;
+	unsigned max_pixclk_khz;
+
+	unsigned warnings;
+	unsigned failures;
 
 	// Base block state
 	unsigned edid_minor;
@@ -101,23 +152,6 @@ struct edid_state {
 
 	// Block Map block state
 	bool saw_block_1;
-
-	// Global state
-	unsigned edid_size;
-	unsigned num_blocks;
-	unsigned block_nr;
-	std::string block;
-	std::string data_block;
-	timings preferred_timings;
-
-	unsigned min_hor_freq_hz;
-	unsigned max_hor_freq_hz;
-	unsigned min_vert_freq_hz;
-	unsigned max_vert_freq_hz;
-	unsigned max_pixclk_khz;
-
-	unsigned warnings;
-	unsigned failures;
 
 	bool print_timings(const char *prefix, const struct timings *t,
 			   const char *suffix, const char *flags = 0);

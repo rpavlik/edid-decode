@@ -7,7 +7,6 @@
  * Maintainer: Hans Verkuil <hverkuil-cisco@xs4all.nl>
  */
 
-#include <string.h>
 #include <math.h>
 
 #include "edid-decode.h"
