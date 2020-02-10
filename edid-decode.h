@@ -61,6 +61,7 @@ struct edid_state {
 		min_vert_freq_hz = 0xffffffff;
 		warnings = failures = 0;
 		memset(&preferred_timings, 0, sizeof(preferred_timings));
+		preparse_total_dtds = 0;
 
 		// Base block state
 		edid_minor = 0;
@@ -69,7 +70,7 @@ struct edid_state {
 			supports_continuous_freq = supports_gtf =
 			supports_cvt = uses_gtf = uses_cvt = has_spwg =
 			seen_non_detailed_descriptor = false;
-		timing_descr_cnt = 0;
+		detailed_block_cnt = dtd_cnt = 0;
 
 		min_display_hor_freq_hz = max_display_hor_freq_hz =
 			min_display_vert_freq_hz = max_display_vert_freq_hz =
@@ -99,6 +100,9 @@ struct edid_state {
 	std::string block;
 	std::string data_block;
 	timings preferred_timings;
+	std::string preferred_type;
+	std::string preferred_flags;
+	unsigned preparse_total_dtds;
 
 	unsigned min_hor_freq_hz;
 	unsigned max_hor_freq_hz;
@@ -121,7 +125,8 @@ struct edid_state {
 	bool uses_gtf;
 	bool uses_cvt;
 	bool has_spwg;
-	int timing_descr_cnt;
+	unsigned detailed_block_cnt;
+	unsigned dtd_cnt;
 	bool seen_non_detailed_descriptor;
 
 	unsigned min_display_hor_freq_hz;
@@ -153,8 +158,10 @@ struct edid_state {
 	// Block Map block state
 	bool saw_block_1;
 
+	std::string dtd_name();
 	bool print_timings(const char *prefix, const struct timings *t,
-			   const char *suffix, const char *flags = 0);
+			   const char *type, const char *flags = 0,
+			   bool detailed = false);
 	bool match_timings(const timings &t1, const timings &t2);
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
 	void edid_cvt_mode(unsigned refresh, struct timings &t);
@@ -164,7 +171,7 @@ struct edid_state {
 	void detailed_display_range_limits(const unsigned char *x);
 	void detailed_epi(const unsigned char *x);
 	timings detailed_timings(const char *prefix, const unsigned char *x);
-	void detailed_block(const unsigned char *x, bool is_base_block = true);
+	void detailed_block(const unsigned char *x);
 	void parse_base_block(const unsigned char *x);
 
 	void print_vic_index(const char *prefix, unsigned idx, const char *suffix);

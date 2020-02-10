@@ -369,15 +369,19 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 				supported_hdmi_vic_vsb_codes |= 1 << 3;
 				break;
 			}
-			char suffix[16];
 			bool override_pref = i == 0 && !for_ycbcr420 &&
 				first_svd_might_be_preferred &&
 				!match_timings(*t, preferred_timings);
 
-			sprintf(suffix, "VIC %3u%s", vic, native ? ", native" : "");
-			print_timings("    ", t, suffix);
+			char type[16];
+			sprintf(type, "VIC %3u", vic);
+			const char *flags = native ? "native" : "";
+
+			print_timings("    ", t, type, flags);
 			if (override_pref) {
 				preferred_timings = *t;
+				preferred_type = type;
+				preferred_flags = flags;
 				warn("VIC %u is the preferred timing, overriding the first detailed timings. Is this intended?\n", vic);
 			}
 		} else {
@@ -401,14 +405,15 @@ void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *s
 	if (idx < preparsed_svds[0].size()) {
 		unsigned char vic = preparsed_svds[0][idx];
 		const struct timings *t = find_vic_id(vic);
-		char buf[256];
+		char buf[16];
 
-		sprintf(buf, "VIC %3u%s%s", vic, *suffix ? ", " : "", suffix);
+		sprintf(buf, "VIC %3u", vic);
 
 		if (t)
-			print_timings(prefix, t, buf);
+			print_timings(prefix, t, buf, suffix);
 		else
-			printf("%sUnknown (%s)\n", prefix, buf);
+			printf("%sUnknown (%s%s%s)\n", prefix, buf,
+			       *suffix ? ", " : "", suffix);
 	} else {
 		// Should not happen!
 		printf("%sSVD Index %u is out of range", prefix, idx + 1);
@@ -479,7 +484,7 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 			}
 
 		} else if (svr > 128 && svr < 145) {
-			printf("    DTD number %02u\n", svr - 128);
+			printf("    DTD %u\n", svr - 128);
 		}
 	}
 }
@@ -1754,6 +1759,17 @@ void edid_state::preparse_cta_block(const unsigned char *x)
 	unsigned version = x[1];
 	unsigned offset = x[2];
 
+	if (offset >= 4) {
+		const unsigned char *detailed;
+
+		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18) {
+			if (memchk(detailed, 18))
+				break;
+			if (detailed[0] || detailed[1])
+				preparse_total_dtds++;
+		}
+	}
+
 	if (version < 3)
 		return;
 
@@ -1793,6 +1809,10 @@ void edid_state::parse_cta_block(const unsigned char *x)
 	const unsigned char *detailed;
 
 	printf("%s Revision %u\n", block.c_str(), version);
+	if (version == 0)
+		fail("Invalid CTA Extension revision 0\n");
+	if (version > 3)
+		warn("Unknown CTA Extension revision %u\n", version);
 
 	if (version >= 1) do {
 		if (version == 1 && x[3] != 0)
@@ -1825,7 +1845,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 			if (!(x[3] & 0x0f))
 				first_svd_might_be_preferred = true;
 		}
-		if (version == 3) {
+		if (version >= 3) {
 			unsigned i;
 
 			printf("%u bytes of CTA data blocks\n", offset - 4);
@@ -1838,11 +1858,10 @@ void edid_state::parse_cta_block(const unsigned char *x)
 		}
 
 		seen_non_detailed_descriptor = false;
-		timing_descr_cnt = 0;
 		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18) {
 			if (memchk(detailed, 18))
 				break;
-			detailed_block(detailed, false);
+			detailed_block(detailed);
 		}
 		if (!memchk(detailed, x + 0x7f - detailed)) {
 			data_block = "Padding";

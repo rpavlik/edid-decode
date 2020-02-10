@@ -302,7 +302,8 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 	if (x[3] & 0x80)
 		s += ", preferred";
 
-	print_timings("    ", &t, type7 ? "Type VII" : "Type I", s.c_str());
+	dtd_cnt++;
+	print_timings("    ", &t, dtd_name().c_str(), s.c_str(), true);
 }
 
 // tag 0x04
@@ -358,7 +359,8 @@ void edid_state::parse_displayid_type_2_timing(const unsigned char *x)
 	if (x[3] & 0x80)
 		s += ", preferred";
 
-	print_timings("    ", &t, "Type II", s.c_str());
+	dtd_cnt++;
+	print_timings("    ", &t, dtd_name().c_str(), s.c_str(), true);
 }
 
 // tag 0x05
@@ -1005,7 +1007,8 @@ void edid_state::parse_displayid_type_6_timing(const unsigned char *x)
 	if (x[2] & 0x80)
 		s += ", preferred";
 
-	print_timings("    ", &t, "Type VI", s.c_str());
+	dtd_cnt++;
+	print_timings("    ", &t, dtd_name().c_str(), s.c_str(), true);
 }
 
 static std::string ieee7542d(unsigned short fp)
@@ -1375,6 +1378,7 @@ void edid_state::preparse_displayid_block(const unsigned char *x)
 
 	while (length > 0) {
 		unsigned tag = x[offset];
+		unsigned len = x[offset + 2];
 
 		switch (tag) {
 		case 0x02:
@@ -1383,14 +1387,25 @@ void edid_state::preparse_displayid_block(const unsigned char *x)
 		case 0x0e:
 			preparse_xfer_ids |= 1 << ((x[offset + 1] >> 4) & 0x0f);
 			break;
+		case 0x03:
+			preparse_total_dtds += len / 20;
+			break;
+		case 0x04:
+			preparse_total_dtds += len / 11;
+			break;
+		case 0x13:
+			for (unsigned i = 0; i < len; i += (x[offset + 3 + i + 2] & 0x40) ? 17 : 14)
+				preparse_total_dtds++;
+			break;
+		case 0x22:
+			preparse_total_dtds += len / 20;
+			break;
 		default:
 			break;
 		}
 
 		if (length < 3)
 			break;
-
-		unsigned len = x[offset + 2];
 
 		if (length < len + 3)
 			break;

@@ -257,7 +257,7 @@ static const struct {
 	          18, 108, 54, false, 12, 2, 35, true }, "IBM" },
 	{ 0x04 },
 	{ 0x00, { 640, 480, 4, 3, 30240, 0, false,
-	          64, 64, 96, false, 3, 3, 39, false }, "Apple" },
+	          64, 64, 96, false, 3, 3, 39, false }, "Mac" },
 	{ 0x05 },
 	{ 0x06 },
 	{ 0x08 },
@@ -266,7 +266,7 @@ static const struct {
 	{ 0x0a },
 	{ 0x0b },
 	{ 0x00, { 832, 624, 4, 3, 57284, 0, false,
-	          32, 64, 224, false, 1, 3, 39, false }, "Apple" },
+	          32, 64, 224, false, 1, 3, 39, false }, "Mac" },
 	{ 0x0f },
 	{ 0x10 },
 	{ 0x11 },
@@ -274,7 +274,7 @@ static const struct {
 	{ 0x24 },
 	/* 0x25 bit 7 */
 	{ 0x00, { 1152, 870, 192, 145, 100000, 0, false,
-	          48, 128, 128, true, 3, 3, 39, true }, "Apple" },
+	          48, 128, 128, true, 3, 3, 39, true }, "Mac" },
 };
 
 // The bits in the Established Timings III map to DMT timings,
@@ -752,28 +752,28 @@ void edid_state::detailed_cvt_descriptor(const char *prefix, const unsigned char
 	if (!(x[2] & (1 << (4 - preferred))))
 		fail("The preferred CVT Vertical Rate is not supported.\n");
 
-	static const char *s_pref = "CVT, preferred vertical rate";
+	static const char *s_pref = "preferred vertical rate";
 
 	if (x[2] & 0x10) {
 		edid_cvt_mode(50, cvt_t);
-		print_timings(prefix, &cvt_t, preferred == 0 ? s_pref : "CVT");
+		print_timings(prefix, &cvt_t, "CVT", preferred == 0 ? s_pref : "");
 	}
 	if (x[2] & 0x08) {
 		edid_cvt_mode(60, cvt_t);
-		print_timings(prefix, &cvt_t, preferred == 1 ? s_pref : "CVT");
+		print_timings(prefix, &cvt_t, "CVT", preferred == 1 ? s_pref : "");
 	}
 	if (x[2] & 0x04) {
 		edid_cvt_mode(75, cvt_t);
-		print_timings(prefix, &cvt_t, preferred == 2 ? s_pref : "CVT");
+		print_timings(prefix, &cvt_t, "CVT", preferred == 2 ? s_pref : "");
 	}
 	if (x[2] & 0x02) {
 		edid_cvt_mode(85, cvt_t);
-		print_timings(prefix, &cvt_t, preferred == 3 ? s_pref : "CVT");
+		print_timings(prefix, &cvt_t, "CVT", preferred == 3 ? s_pref : "");
 	}
 	if (x[2] & 0x01) {
 		cvt_t.rb = true;
 		edid_cvt_mode(60, cvt_t);
-		print_timings(prefix, &cvt_t, preferred == 4 ? s_pref : "CVT");
+		print_timings(prefix, &cvt_t, "CVT", preferred == 4 ? s_pref : "");
 	}
 }
 
@@ -874,14 +874,14 @@ void edid_state::print_standard_timing(const char *prefix, unsigned char b1, uns
 	if (!gtf_only && edid_minor >= 4) {
 		uses_cvt = true;
 		edid_cvt_mode(refresh, formula);
-		print_timings(prefix, &formula, "EDID 1.4 source: CVT");
+		print_timings(prefix, &formula, "CVT", "EDID 1.4 source");
 		/*
 		 * A EDID 1.3 source will assume GTF, so both GTF and CVT
 		 * have to be supported.
 		 */
 		uses_gtf = true;
 		edid_gtf_mode(refresh, formula);
-		print_timings(prefix, &formula, "EDID 1.3 source: GTF");
+		print_timings(prefix, &formula, "GTF", "EDID 1.3 source");
 	} else if (gtf_only || edid_minor >= 2) {
 		uses_gtf = true;
 		edid_gtf_mode(refresh, formula);
@@ -1233,7 +1233,7 @@ timings edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	unsigned char flags = x[17];
 
-	if (has_spwg && timing_descr_cnt == 2)
+	if (has_spwg && detailed_block_cnt == 2)
 		flags = *(x - 1);
 
 	switch ((flags & 0x18) >> 3) {
@@ -1317,13 +1317,20 @@ timings edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	calc_ratio(&t);
 
-	bool ok = print_timings(prefix, &t, "DTD", s_flags.c_str());
+	dtd_cnt++;
+	bool ok = print_timings(prefix, &t, dtd_name().c_str(), s_flags.c_str(), true);
+
+	if (block_nr == 0 && dtd_cnt == 1) {
+		preferred_timings = t;
+		preferred_type = dtd_name();
+		preferred_flags = s_flags;
+	}
 
 	if ((max_display_width_mm && !t.hsize_mm) ||
 	    (max_display_height_mm && !t.vsize_mm)) {
 		fail("Mismatch of image size vs display size: image size is not set, but display size is.\n");
 	}
-	if (has_spwg && timing_descr_cnt == 2)
+	if (has_spwg && detailed_block_cnt == 2)
 		printf("SPWG Module Revision: %hhu\n", x[17]);
 	if (!ok) {
 		std::string s = prefix;
@@ -1334,24 +1341,22 @@ timings edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 	return t;
 }
 
-void edid_state::detailed_block(const unsigned char *x, bool is_base_block)
+void edid_state::detailed_block(const unsigned char *x)
 {
 	static const unsigned char zero_descr[18] = { 0 };
 	unsigned cnt;
 	unsigned i;
 
-	timing_descr_cnt++;
+	detailed_block_cnt++;
 	if (x[0] || x[1]) {
-		data_block = "Detailed Timings #" + std::to_string(timing_descr_cnt);
-		timings t = detailed_timings("", x);
-		if (is_base_block && timing_descr_cnt == 1)
-			preferred_timings = t;
+		data_block = "Detailed Timings #" + std::to_string(dtd_cnt);
+		detailed_timings("", x);
 		if (seen_non_detailed_descriptor)
 			fail("Invalid detailed timing descriptor ordering.\n");
 		return;
 	}
 
-	data_block = "Display Descriptor #" + std::to_string(timing_descr_cnt);
+	data_block = "Display Descriptor #" + std::to_string(detailed_block_cnt);
 	/* Monitor descriptor block, not detailed timing descriptor. */
 	if (x[2] != 0) {
 		/* 1.3, 3.10.3 */
@@ -1465,13 +1470,13 @@ void edid_state::detailed_block(const unsigned char *x, bool is_base_block)
 		detailed_display_range_limits(x);
 		return;
 	case 0xfe:
-		if (!has_spwg || timing_descr_cnt < 3) {
+		if (!has_spwg || detailed_block_cnt < 3) {
 			data_block = "Alphanumeric Data String";
 			printf("%s: '%s'\n", data_block.c_str(),
 			       extract_string(x + 5, 13));
 			return;
 		}
-		if (timing_descr_cnt == 3) {
+		if (detailed_block_cnt == 3) {
 			char buf[6] = { 0 };
 
 			data_block = "SPWG Descriptor #3";
@@ -1787,6 +1792,10 @@ void edid_state::parse_base_block(const unsigned char *x)
 	    !x[0x6c] && !x[0x6d] && x[0x6f] == 0xfe &&
 	    (x[0x79] == 1 || x[0x79] == 2) && x[0x7a] <= 1)
 		has_spwg = true;
+
+	for (unsigned i = 0; i < (has_spwg ? 2 : 4); i++)
+		if (x[0x36 + i * 18] || x[0x37 + i * 18])
+			preparse_total_dtds++;
 
 	detailed_block(x + 0x36);
 	detailed_block(x + 0x48);

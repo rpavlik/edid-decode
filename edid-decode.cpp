@@ -169,6 +169,14 @@ void calc_ratio(struct timings *t)
 	t->vratio = t->vact / d;
 }
 
+std::string edid_state::dtd_name()
+{
+	unsigned len = std::to_string(preparse_total_dtds).length();
+	char buf[16];
+	sprintf(buf, "DTD %*u", len, dtd_cnt);
+	return buf;
+}
+
 bool edid_state::match_timings(const timings &t1, const timings &t2)
 {
 	if (t1.hact != t2.hact ||
@@ -191,13 +199,16 @@ bool edid_state::match_timings(const timings &t1, const timings &t2)
 }
 
 bool edid_state::print_timings(const char *prefix, const struct timings *t,
-			       const char *suffix, const char *flags)
+			       const char *type, const char *flags,
+			       bool detailed)
 {
 	if (!t) {
 		// Should not happen
 		fail("Unknown video timings.\n");
 		return false;
 	}
+	if (!type)
+		type = "";
 
 	unsigned vact = t->vact;
 	unsigned hbl = t->hfp + t->hsync + t->hbp;
@@ -230,45 +241,54 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 
 	double refresh = (double)t->pixclk_khz * 1000.0 / (htotal * vtotal);
 
-	if (flags) {
-		printf("%sDetailed mode: Clock %.3f MHz", prefix, t->pixclk_khz / 1000.0);
+	std::string s;
+	if (t->rb) {
+		s = "RB";
+		if (t->rb == 2)
+			s += "v2";
+	}
+	if (flags && *flags) {
+		if (!s.empty())
+			s += ", ";
+		s += flags;
+	}
+	if (t->hsize_mm || t->vsize_mm) {
+		if (!s.empty())
+			s += ", ";
+		s += std::to_string(t->hsize_mm) + " mm x " + std::to_string(t->vsize_mm) + " mm";
+	}
+	if (!s.empty())
+		s = " (" + s + ")";
+
+	if (detailed) {
+		unsigned len = strlen(type) + 2;
+
+		printf("%s%s: Clock %.3f MHz", prefix, type, t->pixclk_khz / 1000.0);
 		if (flags && *flags)
 			printf(", %s", flags);
 		if (t->hsize_mm || t->vsize_mm)
 			printf(", %u mm x %u mm", t->hsize_mm, t->vsize_mm);
 		printf("\n");
-		printf("%s               %4u %4u %4u %4u (%3d %3u %3d)%s\n"
-		       "%s               %4u %4u %4u %4u (%3u %3u %3d)%s\n"
-		       "%s               %chsync%s\n"
-		       "%s               VertFreq: %.3f%s Hz, HorFreq: %.3f kHz\n",
-		       prefix,
+		printf("%s%*s%4u %4u %4u %4u (%3d %3u %3d)%s\n"
+		       "%s%*s%4u %4u %4u %4u (%3u %3u %3d)%s\n"
+		       "%s%*s%chsync%s\n"
+		       "%s%*sVertFreq: %.3f%s Hz, HorFreq: %.3f kHz\n",
+		       prefix, len, "",
 		       t->hact, t->hact + t->hfp, t->hact + t->hfp + t->hsync,
 		       htotal, t->hfp, t->hsync, t->hbp,
 		       t->hborder ? (std::string(" hborder ") + std::to_string(t->hborder)).c_str() : "",
-		       prefix,
+		       prefix, len, "",
 		       vact, vact + t->vfp, vact + t->vfp + t->vsync, vact + vbl, t->vfp, t->vsync, t->vbp,
 		       t->vborder ? (std::string(" vborder ") + std::to_string(t->vborder)).c_str() : "",
-		       prefix,
+		       prefix, len, "",
 		       t->pos_pol_hsync ? '+' : '-', t->no_pol_vsync ? "" : (t->pos_pol_vsync ? " +vsync" : " -vsync"),
-		       prefix,
+		       prefix, len, "",
 		       refresh, t->interlaced ? "i" : "", hor_freq_khz);
 	} else {
-		std::string s(suffix);
-		if (t->rb) {
-			if (s.empty())
-				s = "RB";
-			else
-				s += ", RB";
-			if (t->rb == 2)
-				s += "v2";
-		}
-		if (!s.empty())
-			s = " (" + s + ")";
-
 		char buf[10];
 		sprintf(buf, "%u%s", t->vact, t->interlaced ? "i" : "");
-		printf("%s%5ux%-5s %7.3f Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
-		       prefix,
+		printf("%s%s: %5ux%-5s %7.3f Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
+		       prefix, type,
 		       t->hact, buf,
 		       refresh,
 		       t->hratio, t->vratio,
@@ -863,11 +883,11 @@ int edid_state::parse_edid()
 	if (options[OptExtract])
 		dump_breakdown(edid);
 
-	block = block_name(0x00);
-	parse_base_block(edid);
-
 	for (unsigned i = 1; i < num_blocks; i++)
 		preparse_extension(edid + i * EDID_PAGE_SIZE);
+
+	block = block_name(0x00);
+	parse_base_block(edid);
 
 	for (unsigned i = 1; i < num_blocks; i++) {
 		block_nr++;
@@ -909,7 +929,9 @@ int edid_state::parse_edid()
 	if (options[OptPreferredTiming]) {
 		printf("\n----------------\n");
 		printf("\nPreferred Video Timings:\n");
-		print_timings("", &preferred_timings, "", "");
+		print_timings("", &preferred_timings,
+			      preferred_type.c_str(),
+			      preferred_flags.c_str(), true);
 	}
 
 	if (!options[OptCheck] && !options[OptCheckInline])
