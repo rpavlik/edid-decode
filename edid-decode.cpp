@@ -820,6 +820,9 @@ void edid_state::preparse_extension(const unsigned char *x)
 	case 0x02:
 		preparse_cta_block(x);
 		break;
+	case 0x10:
+		preparse_vtb_ext_block(x);
+		break;
 	case 0x70:
 		preparse_displayid_block(x);
 		break;
@@ -928,7 +931,7 @@ int edid_state::parse_edid()
 
 	if (options[OptPreferredTiming]) {
 		printf("\n----------------\n");
-		printf("\nPreferred Video Timings:\n");
+		printf("\nPreferred Video Timing:\n");
 		print_timings("", &preferred_timings,
 			      preferred_type.c_str(),
 			      preferred_flags.c_str(), true);

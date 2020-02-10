@@ -1200,12 +1200,14 @@ static void add_str(std::string &s, const std::string &add)
 		s = s + ", " + add;
 }
 
-timings edid_state::detailed_timings(const char *prefix, const unsigned char *x)
+void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 {
 	struct timings t = {};
 	unsigned hbl, vbl;
 	std::string s_sync, s_flags;
 
+	dtd_cnt++;
+	data_block = "Detailed Timing Descriptor #" + std::to_string(dtd_cnt);
 	t.pixclk_khz = (x[0] + (x[1] << 8)) * 10;
 	if (t.pixclk_khz < 10000) {
 		printf("%sDetailed mode: ", prefix);
@@ -1215,7 +1217,7 @@ timings edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 		else
 			fail("Pixelclock < 10 MHz, assuming invalid data 0x%02x 0x%02x.\n",
 			     x[0], x[1]);
-		return t;
+		return;
 	}
 
 	t.hact = (x[2] + ((x[4] & 0xf0) << 4));
@@ -1317,7 +1319,6 @@ timings edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	calc_ratio(&t);
 
-	dtd_cnt++;
 	bool ok = print_timings(prefix, &t, dtd_name().c_str(), s_flags.c_str(), true);
 
 	if (block_nr == 0 && dtd_cnt == 1) {
@@ -1338,7 +1339,6 @@ timings edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 		s += "               ";
 		hex_block(s.c_str(), x, 18, true, 18);
 	}
-	return t;
 }
 
 void edid_state::detailed_block(const unsigned char *x)
@@ -1349,7 +1349,6 @@ void edid_state::detailed_block(const unsigned char *x)
 
 	detailed_block_cnt++;
 	if (x[0] || x[1]) {
-		data_block = "Detailed Timings #" + std::to_string(dtd_cnt);
 		detailed_timings("", x);
 		if (seen_non_detailed_descriptor)
 			fail("Invalid detailed timing descriptor ordering.\n");

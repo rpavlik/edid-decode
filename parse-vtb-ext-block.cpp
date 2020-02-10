@@ -7,6 +7,11 @@
 
 #include "edid-decode.h"
 
+void edid_state::preparse_vtb_ext_block(const unsigned char *x)
+{
+	preparse_total_dtds += x[2];
+}
+
 void edid_state::parse_vtb_ext_block(const unsigned char *x)
 {
 	printf("%s Version %u\n", block.c_str(), x[1]);
