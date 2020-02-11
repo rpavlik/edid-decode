@@ -190,6 +190,13 @@ static const struct timings edid_cta_modes2[] = {
 
 static const unsigned char edid_hdmi_mode_map[] = { 95, 94, 93, 98 };
 
+unsigned char hdmi_vic_to_vic(unsigned char hdmi_vic)
+{
+	if (hdmi_vic > 0 && hdmi_vic <= ARRAY_SIZE(edid_hdmi_mode_map))
+		return edid_hdmi_mode_map[hdmi_vic];
+	return 0;
+}
+
 const struct timings *find_vic_id(unsigned char vic)
 {
 	if (vic > 0 && vic <= ARRAY_SIZE(edid_cta_modes1))

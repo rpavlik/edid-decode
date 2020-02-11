@@ -43,6 +43,9 @@ enum Option {
 	OptPreferredTiming = 'p',
 	OptLongTimings = 'L',
 	OptShortTimings = 'S',
+	OptFBModeTimings = 'F',
+	OptXModeLineTimings = 'X',
+	OptV4L2Timings = 'V',
 	OptSkipHexDump = 's',
 	OptSkipSHA = 128,
 	OptLast = 256
@@ -61,6 +64,9 @@ static struct option long_options[] = {
 	{ "check", no_argument, 0, OptCheck },
 	{ "short-timings", no_argument, 0, OptShortTimings },
 	{ "long-timings", no_argument, 0, OptLongTimings },
+	{ "xmodeline", no_argument, 0, OptXModeLineTimings },
+	{ "fbmode", no_argument, 0, OptFBModeTimings },
+	{ "v4l2-timings", no_argument, 0, OptV4L2Timings },
 	{ 0, 0, 0, 0 }
 };
 
@@ -83,8 +89,11 @@ static void usage(void)
 	       "  -C, --check-inline    check if the EDID conforms to the standards, failures and\n"
 	       "                        warnings are reported inline.\n"
 	       "  -p, --preferred-timing report the preferred timing\n"
-	       "  -L, --long-timings    report all video timings in a long format\n"
 	       "  -S, --short-timings   report all video timings in a short format\n"
+	       "  -L, --long-timings    report all video timings in a long format\n"
+	       "  -X, --xmodeline       report all long video timings in Xorg.conf format\n"
+	       "  -F, --fbmode          report all long video timings in fb.modes format\n"
+	       "  -V, --v4l2-timings    report all long video timings in v4l2-dv-timings.h format\n"
 	       "  -s, --skip-hex-dump   skip the initial hex dump of the EDID\n"
 	       "  --skip-sha            skip the SHA report\n"
 	       "  -e, --extract         extract the contents of the first block in hex values\n"
@@ -204,6 +213,163 @@ bool edid_state::match_timings(const timings &t1, const timings &t2)
 	return true;
 }
 
+static void or_str(std::string &s, const std::string &flag, unsigned &num_flags)
+{
+	if (!num_flags)
+		s = flag;
+	else if (num_flags % 2 == 0)
+		s = s + " | \\\n\t\t" + flag;
+	else
+		s = s + " | " + flag;
+	num_flags++;
+}
+
+static void print_modeline(unsigned indent, const struct timings *t, double refresh)
+{
+	unsigned offset = (!t->even_vtotal && t->interlaced) ? 1 : 0;
+
+	printf("%*sModeline \"%ux%u_%.2f%s\" %.3f  %u %u %u %u  %u %u %u %u  %cHSync",
+	       indent, "",
+	       t->hact, t->vact, refresh,
+	       t->interlaced ? "i" : "", t->pixclk_khz / 1000.0,
+	       t->hact, t->hact + t->hfp, t->hact + t->hfp + t->hsync,
+	       t->hact + t->hfp + t->hsync + t->hbp,
+	       t->vact, t->vact + t->vfp, t->vact + t->vfp + t->vsync,
+	       t->vact + t->vfp + t->vsync + t->vbp + offset,
+	       t->pos_pol_hsync ? '+' : '-');
+	if (!t->no_pol_vsync)
+		printf(" %cVSync", t->pos_pol_vsync ? '+' : '-');
+	if (t->interlaced)
+		printf(" Interlace");
+	printf("\n");
+}
+
+static void print_fbmode(unsigned indent, const struct timings *t,
+			 double refresh, double hor_freq_khz)
+{
+	printf("%*smode \"%ux%u-%u%s\"\n",
+	       indent, "",
+	       t->hact, t->vact,
+	       (unsigned)(0.5 + t->interlaced ? refresh / 2.0 : refresh),
+	       t->interlaced ? "-lace" : "");
+	printf("%*s# D: %.2f MHz, H: %.3f kHz, V: %.2f Hz\n",
+	       indent + 8, "",
+	       t->pixclk_khz / 1000.0, hor_freq_khz, refresh);
+	printf("%*sgeometry %u %u %u %u 32\n",
+	       indent + 8, "",
+	       t->hact, t->vact, t->hact, t->vact);
+	unsigned mult = t->interlaced ? 2 : 1;
+	unsigned offset = !t->even_vtotal && t->interlaced;
+	printf("%*stimings %llu %d %d %d %u %u %u\n",
+	       indent + 8, "",
+	       (unsigned long long)(1000000000.0 / (double)(t->pixclk_khz) + 0.5),
+	       t->hbp, t->hfp, mult * t->vbp, mult * t->vfp + offset, t->hsync, mult * t->vsync);
+	if (t->interlaced)
+		printf("%*slaced true\n", indent + 8, "");
+	if (t->pos_pol_hsync)
+		printf("%*shsync high\n", indent + 8, "");
+	if (t->pos_pol_vsync)
+		printf("%*svsync high\n", indent + 8, "");
+	printf("%*sendmode\n", indent, "");
+}
+
+static void print_v4l2_timing(const struct timings *t,
+			      double refresh, const char *type)
+{
+	printf("\t#define V4L2_DV_BT_%uX%u%c%u_%02u { \\\n",
+	       t->hact, t->vact, t->interlaced ? 'I' : 'P',
+	       (unsigned)refresh, (unsigned)(0.5 + 100.0 * (refresh - (unsigned)refresh)));
+	printf("\t\t.type = V4L2_DV_BT_656_1120, \\\n");
+	printf("\t\tV4L2_INIT_BT_TIMINGS(%u, %u, %u, ",
+	       t->hact, t->vact, t->interlaced);
+	if (!t->pos_pol_hsync && !t->pos_pol_vsync)
+		printf("0, \\\n");
+	else if (t->pos_pol_hsync && t->pos_pol_vsync)
+		printf("\\\n\t\t\tV4L2_DV_HSYNC_POS_POL | V4L2_DV_VSYNC_POS_POL, \\\n");
+	else if (t->pos_pol_hsync)
+		printf("V4L2_DV_HSYNC_POS_POL, \\\n");
+	else
+		printf("V4L2_DV_VSYNC_POS_POL, \\\n");
+	printf("\t\t\t%lluULL, %d, %u, %d, %u, %u, %d, %u, %u, %d, \\\n",
+	       t->pixclk_khz * 1000ULL, t->hfp, t->hsync, t->hbp,
+	       t->vfp, t->vsync, t->vbp,
+	       t->interlaced ? t->vfp : 0,
+	       t->interlaced ? t->vsync : 0,
+	       t->interlaced ? t->vbp + !t->even_vtotal : 0);
+
+	std::string flags;
+	unsigned num_flags = 0;
+	unsigned vic = 0;
+	unsigned hdmi_vic = 0;
+	const char *std = "0";
+
+	if (t->interlaced && !t->even_vtotal)
+		or_str(flags, "V4L2_DV_FL_HALF_LINE", num_flags);
+	if (!memcmp(type, "VIC", 3)) {
+		or_str(flags, "V4L2_DV_FL_HAS_CEA861_VIC", num_flags);
+		or_str(flags, "V4L2_DV_FL_IS_CE_VIDEO", num_flags);
+		vic = strtoul(type + 4, 0, 0);
+	}
+	if (!memcmp(type, "HDMI VIC", 8)) {
+		or_str(flags, "V4L2_DV_FL_HAS_HDMI_VIC", num_flags);
+		or_str(flags, "V4L2_DV_FL_IS_CE_VIDEO", num_flags);
+		hdmi_vic = strtoul(type + 9, 0, 0);
+		vic = hdmi_vic_to_vic(hdmi_vic);
+		if (vic)
+			or_str(flags, "V4L2_DV_FL_HAS_CEA861_VIC", num_flags);
+	}
+	if (vic && (fmod(refresh, 6)) == 0.0)
+		or_str(flags, "V4L2_DV_FL_CAN_REDUCE_FPS", num_flags);
+	if (t->rb)
+		or_str(flags, "V4L2_DV_FL_REDUCED_BLANKING", num_flags);
+	if (t->hratio && t->vratio)
+		or_str(flags, "V4L2_DV_FL_HAS_PICTURE_ASPECT", num_flags);
+
+	if (!memcmp(type, "VIC", 3) || !memcmp(type, "HDMI VIC", 8))
+		std = "V4L2_DV_BT_STD_CEA861";
+	else if (!memcmp(type, "DMT", 3))
+		std = "V4L2_DV_BT_STD_DMT";
+	else if (!memcmp(type, "CVT", 3))
+		std = "V4L2_DV_BT_STD_CVT";
+	else if (!memcmp(type, "GTF", 3))
+		std = "V4L2_DV_BT_STD_GTF";
+	printf("\t\t\t%s, \\\n", std);
+	printf("\t\t\t%s, \\\n", flags.empty() ? "0" : flags.c_str());
+	printf("\t\t\t{ %u, %u }, %u, %u) \\\n",
+	       t->hratio, t->vratio, vic, hdmi_vic);
+	printf("\t}\n");
+}
+
+static void print_detailed_timing(unsigned indent, const struct timings *t)
+{
+	printf("%*sHfront %4d Hsync %3u Hback %3d Hpol %s",
+	       indent, "",
+	       t->hfp, t->hsync, t->hbp, t->pos_pol_hsync ? "P" : "N");
+	if (t->hborder)
+		printf(" Hborder %u", t->hborder);
+	printf("\n");
+
+	printf("%*sVfront %4u Vsync %3u Vback %3d",
+	       indent, "", t->vfp, t->vsync, t->vbp);
+	if (!t->no_pol_vsync)
+		printf(" Vpol %s", t->pos_pol_vsync ? "P" : "N");
+	if (t->vborder)
+		printf(" Vborder %u", t->vborder);
+	if (t->even_vtotal) {
+		printf(" Both Fields");
+	} else if (t->interlaced) {
+		printf(" Vfront +0.5 Odd Field\n");
+		printf("%*sVfront %4d Vsync %3u Vback %3d",
+		       indent, "", t->vfp, t->vsync, t->vbp);
+		if (!t->no_pol_vsync)
+			printf(" Vpol %s", t->pos_pol_vsync ? "P" : "N");
+		if (t->vborder)
+			printf(" Vborder %u", t->vborder);
+		printf(" Vback  +0.5 Even Field");
+	}
+	printf("\n");
+}
+
 bool edid_state::print_timings(const char *prefix, const struct timings *t,
 			       const char *type, const char *flags,
 			       bool detailed)
@@ -283,36 +449,16 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	       t->pixclk_khz / 1000.0,
 	       s.c_str());
 
-	if (detailed) {
-		unsigned len = strlen(type) + 2;
+	unsigned len = strlen(prefix) + strlen(type) + 2;
 
-		printf("%s%*sHfront %4d Hsync %3u Hback %3d Hpol %s",
-		       prefix, len, "",
-		       t->hfp, t->hsync, t->hbp, t->pos_pol_hsync ? "P" : "N");
-		if (t->hborder)
-			printf(" Hborder %u", t->hborder);
-		printf("\n");
-
-		printf("%s%*sVfront %4d Vsync %3u Vback %3d",
-		       prefix, len, "", t->vfp, t->vsync, t->vbp);
-		if (!t->no_pol_vsync)
-			printf(" Vpol %s", t->pos_pol_vsync ? "P" : "N");
-		if (t->vborder)
-			printf(" Vborder %u", t->vborder);
-		if (t->even_vtotal) {
-			printf(" Both Fields");
-		} else if (t->interlaced) {
-			printf(" Vfront +0.5 Odd Field\n");
-			printf("%s%*sVfront %4d Vsync %3u Vback %3d",
-			       prefix, len, "", t->vfp, t->vsync, t->vbp);
-			if (!t->no_pol_vsync)
-				printf(" Vpol %s", t->pos_pol_vsync ? "P" : "N");
-			if (t->vborder)
-				printf(" Vborder %u", t->vborder);
-			printf(" Vback  +0.5 Even Field");
-		}
-		printf("\n");
-	}
+	if (detailed && options[OptXModeLineTimings])
+		print_modeline(len, t, refresh);
+	else if (detailed && options[OptFBModeTimings])
+		print_fbmode(len, t, refresh, hor_freq_khz);
+	else if (detailed && options[OptV4L2Timings])
+		print_v4l2_timing(t, refresh, type);
+	else if (detailed)
+		print_detailed_timing(len, t);
 
 	if (t->hfp <= 0)
 		fail("0 or negative horizontal front porch.\n");

@@ -239,6 +239,7 @@ const char *oui_name(unsigned oui, bool reverse = false);
 const struct timings *find_dmt_id(unsigned char dmt_id);
 const struct timings *find_vic_id(unsigned char vic);
 const struct timings *find_hdmi_vic_id(unsigned char hdmi_vic);
+unsigned char hdmi_vic_to_vic(unsigned char hdmi_vic);
 char *extract_string(const unsigned char *x, unsigned len);
 
 #endif

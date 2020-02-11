@@ -97,6 +97,9 @@ the short format. With the option \fB\-\-short\-timings\fR all timings are
 shown in short format only. With the option \fB\-\-long\-timings\fR all timings
 are shown in long format.
 
+Alternate formats for long timings can be chosen via the \fB\-\-xmodeline\fR or
+\fB\-\-fbmode\fR options.
+
 .SH STANDARDS
 .TP
 The following EDID standards are supported by edid-decode:
@@ -171,11 +174,24 @@ reported as they happen.
 \fB\-p\fR, \fB\-\-preferred\-timing\fR
 Report the preferred timing at the end.
 .TP
+\fB\-S\fR, \fB\-\-short\-timings\fR
+Report all video timings in a short format.
+.TP
 \fB\-L\fR, \fB\-\-long\-timings\fR
 Report all video timings in a long format.
 .TP
-\fB\-S\fR, \fB\-\-short\-timings\fR
-Report all video timings in a short format.
+\fB\-X\fR, \fB\-\-xmodeline\fR
+Report all long video timings in the ModeLine format as defined in xorg.conf(5).
+This ModeLine can be used in the xorg.conf file or passed to xrandr(1) with the
+xrandr \fB\-\-newmode\fR option.
+.TP
+\fB\-F\fR, \fB\-\-fbmode\fR
+Report all long video timings in the video mode format as defined in fb.modes(5).
+.TP
+\fB\-V\fR, \fB\-\-v4l2\-timings\fR
+Report all long video timings in the video mode format as defined in the linux header v4l2-dv-timings.h
+for use with the V4L2 VIDIOC_S_DV_TIMINGS ioctl.
+.TP
 \fB\-s\fR, \fB\-\-skip\-hex\-dump\fR
 Skip the initial hex dump of the EDID.
 .TP
@@ -204,7 +220,7 @@ so they may be wrong.  Do not rely on the output format, as it will likely
 change in future versions of the tool as additional fields and extensions are
 added.
 .SH "SEE ALSO"
-Xorg(1), xrandr(1)
+Xorg(1), xrandr(1), xorg.conf(5), fb.modes(5)
 .SH AUTHORS
 edid-decode was written by Adam Jackson, with contributions from Eric
 Anholt, Damien Lespiau, Hans Verkuil and others.  For complete history and the
