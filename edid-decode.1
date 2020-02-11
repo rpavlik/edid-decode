@@ -29,6 +29,74 @@ for connected monitors can be found in
 .B /sys/class/drm/*/edid
 on modern Linux systems with kernel modesetting support.
 
+All timings are shown in a short format, for example:
+
+    VIC  16:  1920x1080   60.000 Hz  16:9    67.500 kHz 148.500 MHz (native)
+    VIC   5:  1920x1080i  60.000 Hz  16:9    33.750 kHz  74.250 MHz
+    VIC  39:  1920x1080i  50.000 Hz  16:9    31.250 kHz  72.000 MHz
+
+Each format starts with a timings type prefix, the resolution, an optional
+interlaced indicator ('i'), the frame rate (field rate for interlaced formats),
+the picture aspect ratio, the horizontal frequency, the pixelclock
+frequency and optionally additional flags between parenthesis.
+
+Note that for interlaced formats the frame height is given, not the field
+height. So each field in a 1920x1080i format has 540 lines.
+
+Detailed timings have another 2-3 lines of data:
+
+    VIC  16:  1920x1080   60.000 Hz  16:9    67.500 kHz 148.500 MHz (native)
+             Hfront   88 Hsync  44 Hback 148 Hpol P
+             Vfront    4 Vsync   5 Vback  36 Vpol P
+    VIC   5:  1920x1080i  60.000 Hz  16:9    33.750 kHz  74.250 MHz
+             Hfront   88 Hsync  44 Hback 148 Hpol P
+             Vfront    2 Vsync   5 Vback  15 Vpol P Vfront +0.5 Odd Field
+             Vfront    2 Vsync   5 Vback  15 Vpol P Vback  +0.5 Even Field
+    VIC  39:  1920x1080i  50.000 Hz  16:9    31.250 kHz  72.000 MHz
+             Hfront   32 Hsync 168 Hback 184 Hpol P
+             Vfront   23 Vsync   5 Vback  57 Vpol N Both Fields
+
+These describe the horizontal and vertical front porch, sync, backporch
+and sync polarity values. For interlaced formats there are two lines
+for the vertical information: one for the Odd Field (aka Field 1) and
+one for the Even Field (aka Field 2). The vertical front porch of the
+Odd Field is actually 2.5 (hence the 'Vfront +0.5' at the end of the
+line), and the back porch of the Even Field is actually 15.5 (hence
+the 'Vback  +0.5' at the end of the line).
+
+There is a special 'VIC 39' interlaced format where both fields have
+the same vertical timings, in that case this is marked with 'Both Fields'.
+
+The following timing types can be shown:
+
+.RS
+.TP
+DMT: Discrete Monitor Timing (see DMT 1.3 standard)
+.TP
+CVT: Coordinated Video Timings (formula-based, see CVT 1.2 standard)
+.TP
+GTF: Generalized Timing Formula (formula-based, see GTF 1.1 standard)
+.TP
+IBM: Old IBM Timings
+.TP
+Mac: Old Apple Timings
+.TP
+VIC #: Video Identification Code (see CTA-861 standard). The number is the actual
+VIC code.
+.TP
+HDMI VIC #: HDMI-specific Video Identification Code (see HDMI 2.1 standard). The number
+is the actual HDMI VIC code.
+.TP
+DTD #: Detailed Timings Descriptor (see EDID standard). Also used for
+DisplayID Video Timing Modes Types I, II, VI and VII. The number denotes that
+this is the Nth DTD in the EDID.
+.RE
+
+By default DTDs are shown in the long format while others are just shown in
+the short format. With the option \fB\-\-short\-timings\fR all timings are
+shown in short format only. With the option \fB\-\-long\-timings\fR all timings
+are shown in long format.
+
 .SH STANDARDS
 .TP
 The following EDID standards are supported by edid-decode:
@@ -65,6 +133,17 @@ SPWG Notebook Panel Specification, Version 3.5
 EPI Embedded Panel Interface, Revision 1.0
 .RE
 
+.TP
+The following related standards are also used by edid-decode:
+.RS
+.TP
+DMT 1.3: VESA and Industry Standards and Guidelines for Computer Display Monitor Timing (DMT), Version 1.0, Rev. 13
+.TP
+CVT 1.2: VESA Coordinated Video Timings (CVT) Standard, Version 1.2
+.TP
+GTF 1.1: VESA Generalized Timing Formula Standard, Version: 1.1
+.RE
+
 .SH OPTIONS
 .TP
 \fB\-h\fR, \fB\-\-help\fR
@@ -92,6 +171,11 @@ reported as they happen.
 \fB\-p\fR, \fB\-\-preferred\-timing\fR
 Report the preferred timing at the end.
 .TP
+\fB\-L\fR, \fB\-\-long\-timings\fR
+Report all video timings in a long format.
+.TP
+\fB\-S\fR, \fB\-\-short\-timings\fR
+Report all video timings in a short format.
 \fB\-s\fR, \fB\-\-skip\-hex\-dump\fR
 Skip the initial hex dump of the EDID.
 .TP

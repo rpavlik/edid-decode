@@ -42,7 +42,11 @@ struct timings {
 	// So use int instead of unsigned for hbp and vbp.
 	int hbp;
 	bool pos_pol_hsync;
+	// For interlaced formats the vertical front porch of the Even Field
+	// is actually a half-line longer.
 	unsigned vfp, vsync;
+	// For interlaced formats the vertical back porch of the Odd Field
+	// is actually a half-line longer.
 	int vbp;
 	bool pos_pol_vsync;
 	unsigned hborder, vborder;

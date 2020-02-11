@@ -41,6 +41,8 @@ enum Option {
 	OptHelp = 'h',
 	OptOutputFormat = 'o',
 	OptPreferredTiming = 'p',
+	OptLongTimings = 'L',
+	OptShortTimings = 'S',
 	OptSkipHexDump = 's',
 	OptSkipSHA = 128,
 	OptLast = 256
@@ -57,6 +59,8 @@ static struct option long_options[] = {
 	{ "skip-sha", no_argument, 0, OptSkipSHA },
 	{ "check-inline", no_argument, 0, OptCheckInline },
 	{ "check", no_argument, 0, OptCheck },
+	{ "short-timings", no_argument, 0, OptShortTimings },
+	{ "long-timings", no_argument, 0, OptLongTimings },
 	{ 0, 0, 0, 0 }
 };
 
@@ -79,6 +83,8 @@ static void usage(void)
 	       "  -C, --check-inline    check if the EDID conforms to the standards, failures and\n"
 	       "                        warnings are reported inline.\n"
 	       "  -p, --preferred-timing report the preferred timing\n"
+	       "  -L, --long-timings    report all video timings in a long format\n"
+	       "  -S, --short-timings   report all video timings in a short format\n"
 	       "  -s, --skip-hex-dump   skip the initial hex dump of the EDID\n"
 	       "  --skip-sha            skip the SHA report\n"
 	       "  -e, --extract         extract the contents of the first block in hex values\n"
@@ -210,6 +216,11 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	if (!type)
 		type = "";
 
+	if (detailed && options[OptShortTimings])
+		detailed = false;
+	if (options[OptLongTimings])
+		detailed = true;
+
 	unsigned vact = t->vact;
 	unsigned hbl = t->hfp + t->hsync + t->hbp;
 	unsigned vbl = t->vfp + t->vsync + t->vbp;
@@ -260,41 +271,47 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	if (!s.empty())
 		s = " (" + s + ")";
 
+	char buf[10];
+
+	sprintf(buf, "%u%s", t->vact, t->interlaced ? "i" : "");
+	printf("%s%s: %5ux%-5s %7.3f Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
+	       prefix, type,
+	       t->hact, buf,
+	       refresh,
+	       t->hratio, t->vratio,
+	       hor_freq_khz,
+	       t->pixclk_khz / 1000.0,
+	       s.c_str());
+
 	if (detailed) {
 		unsigned len = strlen(type) + 2;
 
-		printf("%s%s: Clock %.3f MHz", prefix, type, t->pixclk_khz / 1000.0);
-		if (flags && *flags)
-			printf(", %s", flags);
-		if (t->hsize_mm || t->vsize_mm)
-			printf(", %u mm x %u mm", t->hsize_mm, t->vsize_mm);
+		printf("%s%*sHfront %4d Hsync %3u Hback %3d Hpol %s",
+		       prefix, len, "",
+		       t->hfp, t->hsync, t->hbp, t->pos_pol_hsync ? "P" : "N");
+		if (t->hborder)
+			printf(" Hborder %u", t->hborder);
 		printf("\n");
-		printf("%s%*s%4u %4u %4u %4u (%3d %3u %3d)%s\n"
-		       "%s%*s%4u %4u %4u %4u (%3u %3u %3d)%s\n"
-		       "%s%*s%chsync%s\n"
-		       "%s%*sVertFreq: %.3f%s Hz, HorFreq: %.3f kHz\n",
-		       prefix, len, "",
-		       t->hact, t->hact + t->hfp, t->hact + t->hfp + t->hsync,
-		       htotal, t->hfp, t->hsync, t->hbp,
-		       t->hborder ? (std::string(" hborder ") + std::to_string(t->hborder)).c_str() : "",
-		       prefix, len, "",
-		       vact, vact + t->vfp, vact + t->vfp + t->vsync, vact + vbl, t->vfp, t->vsync, t->vbp,
-		       t->vborder ? (std::string(" vborder ") + std::to_string(t->vborder)).c_str() : "",
-		       prefix, len, "",
-		       t->pos_pol_hsync ? '+' : '-', t->no_pol_vsync ? "" : (t->pos_pol_vsync ? " +vsync" : " -vsync"),
-		       prefix, len, "",
-		       refresh, t->interlaced ? "i" : "", hor_freq_khz);
-	} else {
-		char buf[10];
-		sprintf(buf, "%u%s", t->vact, t->interlaced ? "i" : "");
-		printf("%s%s: %5ux%-5s %7.3f Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
-		       prefix, type,
-		       t->hact, buf,
-		       refresh,
-		       t->hratio, t->vratio,
-		       hor_freq_khz,
-		       t->pixclk_khz / 1000.0,
-		       s.c_str());
+
+		printf("%s%*sVfront %4d Vsync %3u Vback %3d",
+		       prefix, len, "", t->vfp, t->vsync, t->vbp);
+		if (!t->no_pol_vsync)
+			printf(" Vpol %s", t->pos_pol_vsync ? "P" : "N");
+		if (t->vborder)
+			printf(" Vborder %u", t->vborder);
+		if (t->even_vtotal) {
+			printf(" Both Fields");
+		} else if (t->interlaced) {
+			printf(" Vfront +0.5 Odd Field\n");
+			printf("%s%*sVfront %4d Vsync %3u Vback %3d",
+			       prefix, len, "", t->vfp, t->vsync, t->vbp);
+			if (!t->no_pol_vsync)
+				printf(" Vpol %s", t->pos_pol_vsync ? "P" : "N");
+			if (t->vborder)
+				printf(" Vborder %u", t->vborder);
+			printf(" Vback  +0.5 Even Field");
+		}
+		printf("\n");
 	}
 
 	if (t->hfp <= 0)
