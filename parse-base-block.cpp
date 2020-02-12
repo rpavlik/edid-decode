@@ -892,7 +892,7 @@ void edid_state::print_standard_timing(const char *prefix, unsigned char b1, uns
 		edid_gtf_mode(refresh, formula);
 		print_timings(prefix, &formula, "GTF");
 	} else {
-		printf("%s%5ux%-5u %3u.000 Hz %3u:%u\n",
+		printf("%sUnknown : %5ux%-5u %3u.000 Hz %3u:%u\n",
 		       prefix, hact, vact, refresh, hratio, vratio);
 		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
 		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
