@@ -184,7 +184,7 @@ void calc_ratio(struct timings *t)
 	t->vratio = t->vact / d;
 }
 
-std::string edid_state::dtd_name()
+std::string edid_state::dtd_type()
 {
 	unsigned len = std::to_string(preparse_total_dtds).length();
 	char buf[16];
@@ -379,8 +379,6 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		fail("Unknown video timings.\n");
 		return false;
 	}
-	if (!type)
-		type = "";
 
 	if (detailed && options[OptShortTimings])
 		detailed = false;
@@ -424,16 +422,9 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		if (t->rb == 2)
 			s += "v2";
 	}
-	if (flags && *flags) {
-		if (!s.empty())
-			s += ", ";
-		s += flags;
-	}
-	if (t->hsize_mm || t->vsize_mm) {
-		if (!s.empty())
-			s += ", ";
-		s += std::to_string(t->hsize_mm) + " mm x " + std::to_string(t->vsize_mm) + " mm";
-	}
+	add_str(s, flags);
+	if (t->hsize_mm || t->vsize_mm)
+		add_str(s, std::to_string(t->hsize_mm) + " mm x " + std::to_string(t->vsize_mm) + " mm");
 	if (!s.empty())
 		s = " (" + s + ")";
 

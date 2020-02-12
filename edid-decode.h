@@ -162,9 +162,9 @@ struct edid_state {
 	// Block Map block state
 	bool saw_block_1;
 
-	std::string dtd_name();
+	std::string dtd_type();
 	bool print_timings(const char *prefix, const struct timings *t,
-			   const char *type, const char *flags = 0,
+			   const char *type, const char *flags = "",
 			   bool detailed = false);
 	bool match_timings(const timings &t1, const timings &t2);
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
@@ -220,6 +220,14 @@ struct edid_state {
 	int parse_edid();
 };
 
+static inline void add_str(std::string &s, const std::string &add)
+{
+	if (s.empty())
+		s = add;
+	else if (!add.empty())
+		s = s + ", " + add;
+}
+
 void msg(bool is_warn, const char *fmt, ...);
 
 #define warn(fmt, args...) msg(true, fmt, ##args)
@@ -232,7 +240,6 @@ bool memchk(const unsigned char *x, unsigned len, unsigned char v = 0);
 void hex_block(const char *prefix, const unsigned char *x, unsigned length,
 	       bool show_ascii = true, unsigned step = 16);
 std::string block_name(unsigned char block);
-void print_timings(edid_state &state, const char *prefix, const struct timings *t, const char *suffix);
 void calc_ratio(struct timings *t);
 const char *oui_name(unsigned oui, bool reverse = false);
 

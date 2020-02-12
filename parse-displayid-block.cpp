@@ -303,7 +303,7 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 		s += ", preferred";
 
 	dtd_cnt++;
-	print_timings("    ", &t, dtd_name().c_str(), s.c_str(), true);
+	print_timings("    ", &t, dtd_type().c_str(), s.c_str(), true);
 }
 
 // tag 0x04
@@ -360,7 +360,7 @@ void edid_state::parse_displayid_type_2_timing(const unsigned char *x)
 		s += ", preferred";
 
 	dtd_cnt++;
-	print_timings("    ", &t, dtd_name().c_str(), s.c_str(), true);
+	print_timings("    ", &t, dtd_type().c_str(), s.c_str(), true);
 }
 
 // tag 0x05
@@ -433,16 +433,16 @@ void edid_state::parse_displayid_type_3_timing(const unsigned char *x)
 void edid_state::parse_displayid_type_4_8_timing(unsigned char type, unsigned short id)
 {
 	const struct timings *t = NULL;
-	char suffix[16];
+	char type_name[16];
 
 	switch (type) {
-	case 0: t = find_dmt_id(id); strcpy(suffix, "DMT"); break;
-	case 1: t = find_vic_id(id); sprintf(suffix, "VIC %3u", id); break;
-	case 2: t = find_hdmi_vic_id(id); sprintf(suffix, "HDMI VIC %u", id); break;
+	case 0: t = find_dmt_id(id); strcpy(type_name, "DMT"); break;
+	case 1: t = find_vic_id(id); sprintf(type_name, "VIC %3u", id); break;
+	case 2: t = find_hdmi_vic_id(id); sprintf(type_name, "HDMI VIC %u", id); break;
 	default: break;
 	}
 	if (t)
-		print_timings("    ", t, suffix);
+		print_timings("    ", t, type_name);
 }
 
 // tag 0x09
@@ -813,21 +813,21 @@ void edid_state::parse_displayid_stereo_display_intf(const unsigned char *x)
 	while (1U + (x[0] & 0x1f) <= len) {
 		unsigned num_codes = x[0] & 0x1f;
 		unsigned type = x[0] >> 6;
-		char suffix[16];
+		char type_name[16];
 
 		for (unsigned i = 1; i <= num_codes; i++) {
 			switch (type) {
 			case 0x00:
-				strcpy(suffix, "DMT");
-				print_timings("    ", find_dmt_id(x[i]), suffix);
+				strcpy(type_name, "DMT");
+				print_timings("    ", find_dmt_id(x[i]), type_name);
 				break;
 			case 0x01:
-				sprintf(suffix, "VIC %3u", x[i]);
-				print_timings("    ", find_vic_id(x[i]), suffix);
+				sprintf(type_name, "VIC %3u", x[i]);
+				print_timings("    ", find_vic_id(x[i]), type_name);
 				break;
 			case 0x02:
-				sprintf(suffix, "HDMI VIC %u", x[i]);
-				print_timings("    ", find_hdmi_vic_id(x[i]), suffix);
+				sprintf(type_name, "HDMI VIC %u", x[i]);
+				print_timings("    ", find_hdmi_vic_id(x[i]), type_name);
 				break;
 			}
 		}
@@ -1008,7 +1008,7 @@ void edid_state::parse_displayid_type_6_timing(const unsigned char *x)
 		s += ", preferred";
 
 	dtd_cnt++;
-	print_timings("    ", &t, dtd_name().c_str(), s.c_str(), true);
+	print_timings("    ", &t, dtd_type().c_str(), s.c_str(), true);
 }
 
 static std::string ieee7542d(unsigned short fp)
@@ -1564,9 +1564,9 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x08:
 			   for (i = 0; i < min(len, 8) * 8; i++)
 				   if (x[offset + 3 + i / 8] & (1 << (i % 8))) {
-					   char suffix[16];
-					   sprintf(suffix, "VIC %3u", i + 1);
-					   print_timings("    ", find_vic_id(i + 1), suffix);
+					   char type[16];
+					   sprintf(type, "VIC %3u", i + 1);
+					   print_timings("    ", find_vic_id(i + 1), type);
 				   }
 			   break;
 		case 0x09: parse_displayid_video_timing_range_limits(x + offset); break;

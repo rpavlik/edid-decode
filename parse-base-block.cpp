@@ -248,7 +248,7 @@ static const struct {
 static const struct {
 	unsigned dmt_id;
 	struct timings t;
-	const char *std_name;
+	const char *type;
 } established_timings12[] = {
 	/* 0x23 bit 7 - 0 */
 	{ 0x00, { 720, 400, 9, 5, 28320, 0, false,
@@ -1192,14 +1192,6 @@ void edid_state::detailed_epi(const unsigned char *x)
 	printf("  EPI Version: %u.%u\n", (x[17] & 0xf0) >> 4, x[17] & 0x0f);
 }
 
-static void add_str(std::string &s, const std::string &add)
-{
-	if (s.empty())
-		s = add;
-	else
-		s = s + ", " + add;
-}
-
 void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 {
 	struct timings t = {};
@@ -1319,11 +1311,11 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	calc_ratio(&t);
 
-	bool ok = print_timings(prefix, &t, dtd_name().c_str(), s_flags.c_str(), true);
+	bool ok = print_timings(prefix, &t, dtd_type().c_str(), s_flags.c_str(), true);
 
 	if (block_nr == 0 && dtd_cnt == 1) {
 		preferred_timings = t;
-		preferred_type = dtd_name();
+		preferred_type = dtd_type();
 		preferred_flags = s_flags;
 	}
 
@@ -1749,15 +1741,15 @@ void edid_state::parse_base_block(const unsigned char *x)
 		for (i = 0; i < 17; i++) {
 			if (x[0x23 + i / 8] & (1 << (7 - i % 8))) {
 				const struct timings *t;
-				const char *suffix = "DMT";
+				const char *type = "DMT";
 
 				if (established_timings12[i].dmt_id) {
 					t = find_dmt_id(established_timings12[i].dmt_id);
 				} else {
 					t = &established_timings12[i].t;
-					suffix = established_timings12[i].std_name;
+					type = established_timings12[i].type;
 				}
-				print_timings("  ", t, suffix);
+				print_timings("  ", t, type);
 			}
 		}
 	} else {
