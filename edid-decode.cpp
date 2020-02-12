@@ -104,7 +104,7 @@ static std::string s_msgs[EDID_MAX_BLOCKS + 1][2];
 
 void msg(bool is_warn, const char *fmt, ...)
 {
-	char buf[256] = "";
+	char buf[1024] = "";
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -1061,29 +1061,61 @@ int edid_state::parse_edid()
 		fail("GTF timings are used, but the EDID does not signal GTF support.\n");
 	if (uses_cvt && !supports_cvt)
 		fail("CVT timings are used, but the EDID does not signal CVT support.\n");
+	/*
+	 * Allow for regular rounding of vertical and horizontal frequencies.
+	 * The spec says that the pixelclock shall be rounded up, so there is
+	 * no need to take rounding into account.
+	 */
 	if (has_display_range_descriptor &&
-	    (min_vert_freq_hz < min_display_vert_freq_hz ||
-	     max_vert_freq_hz > max_display_vert_freq_hz ||
-	     min_hor_freq_hz / 1000 < min_display_hor_freq_hz / 1000 ||
-	     max_hor_freq_hz / 1000  > max_display_hor_freq_hz / 1000 ||
-	     max_pixclk_khz > max_display_pixclk_khz)) {
+	    (min_vert_freq_hz + 0.5 < min_display_vert_freq_hz ||
+	     (max_vert_freq_hz >= max_display_vert_freq_hz + 0.5 && max_display_vert_freq_hz) ||
+	     min_hor_freq_hz + 500 < min_display_hor_freq_hz ||
+	     (max_hor_freq_hz >= max_display_hor_freq_hz + 500 && max_display_hor_freq_hz) ||
+	     (max_pixclk_khz > max_display_pixclk_khz && max_display_pixclk_khz))) {
+		/*
+		 * Check if it is really out of range, or if it could be a rounding error.
+		 * The EDID spec is not very clear about rounding.
+		 */
+		bool fail =
+			min_vert_freq_hz + 1.0 <= min_display_vert_freq_hz ||
+			(max_vert_freq_hz >= max_display_vert_freq_hz + 1.0 && max_display_vert_freq_hz) ||
+			min_hor_freq_hz + 1000 <= min_display_hor_freq_hz ||
+			(max_hor_freq_hz >= max_display_hor_freq_hz + 1000 && max_display_hor_freq_hz) ||
+			(max_pixclk_khz >= max_display_pixclk_khz + 10000 && max_display_pixclk_khz);
+
+		std::string err("Some timings are out of range of the Monitor Ranges:\n");
+		char buf[512];
+
+		if (min_vert_freq_hz + 0.5 < min_display_vert_freq_hz ||
+		    (max_vert_freq_hz >= max_display_vert_freq_hz + 0.5 && max_display_vert_freq_hz)) {
+			sprintf(buf, "    Vertical Freq: %.3f - %.3f Hz (Monitor: %u.000 - %u.000 Hz)\n",
+				min_vert_freq_hz, max_vert_freq_hz,
+				min_display_vert_freq_hz, max_display_vert_freq_hz);
+			err += buf;
+		}
+
+		if (min_hor_freq_hz + 500 < min_display_hor_freq_hz ||
+		    (max_hor_freq_hz >= max_display_hor_freq_hz + 500 && max_display_hor_freq_hz)) {
+			sprintf(buf, "    Horizontal Freq: %.3f - %.3f kHz (Monitor: %.3f - %.3f kHz)\n",
+				min_hor_freq_hz / 1000.0, max_hor_freq_hz / 1000.0,
+				min_display_hor_freq_hz / 1000.0, max_display_hor_freq_hz / 1000.0);
+			err += buf;
+		}
+
+		if (max_pixclk_khz >= max_display_pixclk_khz && max_display_pixclk_khz) {
+			sprintf(buf, "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
+				max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
+			err += buf;
+		}
+
+		if (!fail)
+			err += "    Could be due to a Monitor Range off-by-one rounding issue\n";
+
 		/*
 		 * EDID 1.4 states (in an Errata) that explicitly defined
 		 * timings supersede the monitor range definition.
 		 */
-		char buf[512];
-		snprintf(buf, sizeof(buf),
-			"One or more of the timings is out of range of the Monitor Ranges:\n"
-			"    Vertical Freq: %u - %u Hz (Monitor: %u - %u Hz)\n"
-			"    Horizontal Freq: %.3f - %.3f kHz (Monitor: %.3f - %.3f kHz)\n"
-			"    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
-			min_vert_freq_hz, max_vert_freq_hz,
-			min_display_vert_freq_hz, max_display_vert_freq_hz,
-			min_hor_freq_hz / 1000.0, max_hor_freq_hz / 1000.0,
-			min_display_hor_freq_hz / 1000.0, max_display_hor_freq_hz / 1000.0,
-			max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
-
-		msg(edid_minor >= 4, "%s", buf);
+		msg(!fail || edid_minor >= 4, "%s", err.c_str());
 	}
 
 	if (options[OptPreferredTiming]) {

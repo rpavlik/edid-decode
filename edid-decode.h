@@ -112,8 +112,8 @@ struct edid_state {
 
 	unsigned min_hor_freq_hz;
 	unsigned max_hor_freq_hz;
-	unsigned min_vert_freq_hz;
-	unsigned max_vert_freq_hz;
+	double min_vert_freq_hz;
+	double max_vert_freq_hz;
 	unsigned max_pixclk_khz;
 
 	unsigned warnings;
