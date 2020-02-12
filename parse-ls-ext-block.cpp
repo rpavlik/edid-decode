@@ -53,8 +53,8 @@ void edid_state::parse_ls_ext_block(const unsigned char *x)
 {
 	const unsigned char *orig = x;
 
-	printf("%s Version %u.%u Unicode Version %u.%u.%u\n",
-	       block.c_str(), x[1], x[2], (x[3] >> 4), x[3] & 0x0f, x[4]);
+	printf("  Version: %u.%u\n  Unicode Version: %u.%u.%u\n",
+	       x[1], x[2], (x[3] >> 4), x[3] & 0x0f, x[4]);
 	x += 5;
 
 	while (x[0] && x + x[0] < orig + 127) {

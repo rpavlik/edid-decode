@@ -92,6 +92,8 @@ struct edid_state {
 
 		// DisplayID block state
 		preparse_color_ids = preparse_xfer_ids = 0;
+		preparse_displayid_blocks = 0;
+		displayid_base_block = true;
 
 		// Block Map block state
 		saw_block_1 = false;
@@ -158,6 +160,8 @@ struct edid_state {
 	// DisplayID block state
 	unsigned short preparse_color_ids;
 	unsigned short preparse_xfer_ids;
+	unsigned preparse_displayid_blocks;
+	bool displayid_base_block;
 
 	// Block Map block state
 	bool saw_block_1;

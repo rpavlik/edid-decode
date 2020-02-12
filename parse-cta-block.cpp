@@ -287,18 +287,21 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 			continue;
 		}
 		if (format != 15)
-			printf("    %s, max channels %u\n", audio_format(format).c_str(),
-			       (x[i] & 0x07)+1);
+			printf("    %s:\n", audio_format(format).c_str());
+		else
+			printf("    %s:\n", audio_ext_format(ext_format).c_str());
+		if (format != 15)
+			printf("      Max channels: %u\n", (x[i] & 0x07)+1);
 		else if (ext_format == 11)
-			printf("    %s, MPEG-H 3D Audio Level: %s\n", audio_ext_format(ext_format).c_str(),
+			printf("      MPEG-H 3D Audio Level: %s\n",
 			       mpeg_h_3d_audio_level(x[i] & 0x07).c_str());
 		else if (ext_format == 13)
-			printf("    %s, max channels %u\n", audio_ext_format(ext_format).c_str(),
+			printf("      Max channels: %u\n",
 			       (((x[i + 1] & 0x80) >> 3) | ((x[i] & 0x80) >> 4) |
 				(x[i] & 0x07))+1);
 		else
-			printf("    %s, max channels %u\n", audio_ext_format(ext_format).c_str(),
-			       (x[i] & 0x07)+1);
+			printf("      Max channels: %u\n", (x[i] & 0x07)+1);
+
 		printf("      Supported sample rates (kHz):%s%s%s%s%s%s%s\n",
 		       (x[i+1] & 0x40) ? " 192" : "",
 		       (x[i+1] & 0x20) ? " 176.4" : "",
@@ -472,6 +475,10 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 {
 	unsigned i;
 
+	if (length == 0) {
+		fail("Empty Data Block with length %u\n", length);
+		return;
+	}
 	for (i = 0; i < length; i++)  {
 		unsigned char svr = x[i];
 
@@ -509,7 +516,11 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 {
 	unsigned len_vic, len_3d;
 
-	printf("    Source physical address %u.%u.%u.%u\n", x[3] >> 4, x[3] & 0x0f,
+	if (length < 4) {
+		fail("Empty Data Block with length %u\n", length);
+		return;
+	}
+	printf("    Source physical address: %u.%u.%u.%u\n", x[3] >> 4, x[3] & 0x0f,
 	       x[4] >> 4, x[4] & 0x0f);
 
 	if (length < 6)
@@ -893,7 +904,7 @@ static void cta_dolby_vision(const unsigned char *x, unsigned length)
 {
 	unsigned char version = (x[0] >> 5) & 0x07;
 
-	printf("    Version %u, %u bytes\n", version, length + 5);
+	printf("    Version: %u (%u bytes)\n", version, length + 5);
 	if (x[0] & 0x01)
 		printf("    Supports YUV422 12 bit\n");
 
@@ -1039,16 +1050,16 @@ static void cta_sadb(const unsigned char *x, unsigned length)
 	unsigned sad;
 	unsigned i;
 
-	if (length < 3)
+	if (length < 3) {
+		fail("Empty Data Block with length %u\n", length);
 		return;
+	}
 
 	sad = ((x[2] << 16) | (x[1] << 8) | x[0]);
 
-	printf("    Speaker map:\n");
-
 	for (i = 0; i < ARRAY_SIZE(speaker_map); i++) {
 		if ((sad >> i) & 1)
-			printf("      %s\n", speaker_map[i]);
+			printf("    %s\n", speaker_map[i]);
 	}
 }
 
@@ -1248,8 +1259,10 @@ static void cta_rcdb(const unsigned char *x, unsigned length)
 	unsigned spm = ((x[3] << 16) | (x[2] << 8) | x[1]);
 	unsigned i;
 
-	if (length < 4)
+	if (length < 4) {
+		fail("Empty Data Block with length %u\n", length);
 		return;
+	}
 
 	if (x[0] & 0x40)
 		printf("    Speaker count: %u\n", (x[0] & 0x1f) + 1);
@@ -1306,6 +1319,10 @@ static const char *speaker_location[] = {
 
 static void cta_sldb(const unsigned char *x, unsigned length)
 {
+	if (length < 2) {
+		fail("Empty Data Block with length %u\n", length);
+		return;
+	}
 	while (length >= 2) {
 		printf("    Channel: %u (%sactive)\n", x[0] & 0x1f,
 		       (x[0] & 0x20) ? "" : "not ");
@@ -1328,6 +1345,10 @@ static void cta_vcdb(const unsigned char *x, unsigned length)
 {
 	unsigned char d = x[0];
 
+	if (length < 1) {
+		fail("Empty Data Block with length %u\n", length);
+		return;
+	}
 	printf("    YCbCr quantization: %s\n",
 	       (d & 0x80) ? "Selectable (via AVI YQ)" : "No Data");
 	printf("    RGB quantization: %s\n",
@@ -1390,16 +1411,18 @@ static void cta_colorimetry_block(const unsigned char *x, unsigned length)
 {
 	unsigned i;
 
-	if (length >= 2) {
-		for (i = 0; i < ARRAY_SIZE(colorimetry_map); i++) {
-			if (x[0] & (1 << i))
-				printf("    %s\n", colorimetry_map[i]);
-		}
-		if (x[1] & 0x80)
-			printf("    DCI-P3\n");
-		if (x[1] & 0x40)
-			printf("    ICtCp\n");
+	if (length < 2) {
+		fail("Empty Data Block with length %u\n", length);
+		return;
 	}
+	for (i = 0; i < ARRAY_SIZE(colorimetry_map); i++) {
+		if (x[0] & (1 << i))
+			printf("    %s\n", colorimetry_map[i]);
+	}
+	if (x[1] & 0x80)
+		printf("    DCI-P3\n");
+	if (x[1] & 0x40)
+		printf("    ICtCp\n");
 }
 
 static const char *eotf_map[] = {
@@ -1413,23 +1436,25 @@ static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned lengt
 {
 	unsigned i;
 
-	if (length >= 2) {
-		printf("    Electro optical transfer functions:\n");
-		for (i = 0; i < 6; i++) {
-			if (x[0] & (1 << i)) {
-				if (i < ARRAY_SIZE(eotf_map)) {
-					printf("      %s\n", eotf_map[i]);
-				} else {
-					printf("      Unknown (%u)\n", i);
-					fail("Unknown EOTF (%u).\n", i);
-				}
+	if (length < 2) {
+		fail("Empty Data Block with length %u\n", length);
+		return;
+	}
+	printf("    Electro optical transfer functions:\n");
+	for (i = 0; i < 6; i++) {
+		if (x[0] & (1 << i)) {
+			if (i < ARRAY_SIZE(eotf_map)) {
+				printf("      %s\n", eotf_map[i]);
+			} else {
+				printf("      Unknown (%u)\n", i);
+				fail("Unknown EOTF (%u).\n", i);
 			}
 		}
-		printf("    Supported static metadata descriptors:\n");
-		for (i = 0; i < 8; i++) {
-			if (x[1] & (1 << i))
-				printf("      Static metadata type %u\n", i + 1);
-		}
+	}
+	printf("    Supported static metadata descriptors:\n");
+	for (i = 0; i < 8; i++) {
+		if (x[1] & (1 << i))
+			printf("      Static metadata type %u\n", i + 1);
 	}
 
 	if (length >= 3)
@@ -1447,6 +1472,10 @@ static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned lengt
 
 static void cta_hdr_dyn_metadata_block(const unsigned char *x, unsigned length)
 {
+	if (length < 3) {
+		fail("Empty Data Block with length %u\n", length);
+		return;
+	}
 	while (length >= 3) {
 		unsigned type_len = x[0];
 		unsigned type = x[1] | (x[2] << 8);
@@ -1473,8 +1502,10 @@ static void cta_ifdb(const unsigned char *x, unsigned length)
 {
 	unsigned len_hdr = x[0] >> 5;
 
-	if (length < 2)
+	if (length < 2) {
+		fail("Empty Data Block with length %u\n", length);
 		return;
+	}
 	printf("    VSIFs: %u\n", x[1]);
 	if (length < len_hdr + 2)
 		return;
@@ -1486,7 +1517,7 @@ static void cta_ifdb(const unsigned char *x, unsigned length)
 		if ((x[0] & 0x1f) == 1 && length >= 4) {
 			unsigned oui = (x[3] << 16) | (x[2] << 8) | x[1];
 
-			printf("    InfoFrame Type Code %u IEEE OUI %s\n",
+			printf("    InfoFrame Type Code %u, OUI %s\n",
 			       x[0] & 0x1f, ouitohex(oui).c_str());
 			x += 4;
 			length -= 4;
@@ -1504,8 +1535,10 @@ static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 {
 	unsigned num_descs;
 
-	if (length < 2)
+	if (length < 2) {
+		fail("Empty Data Block with length %u\n", length);
 		return;
+	}
 	if (x[0] & 3)
 		printf("    Max Stream Count: %u\n", (x[0] & 3) + 1);
 	if (x[0] & 4)
@@ -1595,13 +1628,13 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x79: data_block = "HDMI Forum Sink Capability Data Block"; break;
 	default:
 		if (x[0] <= 12)
-			printf("Unknown CTA Video-Related");
+			printf("  Unknown CTA Video-Related");
 		else if (x[0] <= 31)
-			printf("Unknown CTA Audio-Related");
+			printf("  Unknown CTA Audio-Related");
 		else if (x[0] >= 120 && x[0] <= 127)
-			printf("Unknown CTA HDMI-Related");
+			printf("  Unknown CTA HDMI-Related");
 		else
-			printf("Unknown CTA");
+			printf("  Unknown CTA");
 		printf(" Data Block (extended tag 0x%02x, length %u)\n", x[0], length);
 		hex_block("    ", x + 1, length);
 		data_block.clear();
@@ -1610,7 +1643,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	}
 
 	if (data_block.length())
-		printf("%s\n", data_block.c_str());
+		printf("  %s:\n", data_block.c_str());
 
 	switch (x[0]) {
 	case 0x00: cta_vcdb(x + 1, length); return;
@@ -1623,7 +1656,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 				reverse = true;
 		}
 		if (!name) {
-			printf("Vendor-Specific Video Data Block, OUI %s\n",
+			printf("  Vendor-Specific Video Data Block, OUI %s:\n",
 			       ouitohex(oui).c_str());
 			hex_block("    ", x + 4, length - 3);
 			data_block.clear();
@@ -1634,7 +1667,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 		data_block = std::string("Vendor-Specific Video Data Block (") + name + ")";
 		if (reverse)
 			fail((std::string("OUI ") + ouitohex(oui) + " is in the wrong byte order\n").c_str());
-		printf("%s: OUI %s\n", data_block.c_str(), ouitohex(oui).c_str());
+		printf("  %s, OUI %s:\n", data_block.c_str(), ouitohex(oui).c_str());
 		if (oui == 0x90848b)
 			cta_hdr10plus(x + 4, length - 3);
 		else if (oui == 0x00d046)
@@ -1684,12 +1717,12 @@ void edid_state::cta_block(const unsigned char *x)
 	switch ((x[0] & 0xe0) >> 5) {
 	case 0x01:
 		data_block = "Audio Data Block";
-		printf("  %s\n", data_block.c_str());
+		printf("  %s:\n", data_block.c_str());
 		cta_audio_block(x + 1, length);
 		break;
 	case 0x02:
 		data_block = "Video Data Block";
-		printf("  %s\n", data_block.c_str());
+		printf("  %s:\n", data_block.c_str());
 		cta_svd(x + 1, length, 0);
 		break;
 	case 0x03:
@@ -1701,7 +1734,7 @@ void edid_state::cta_block(const unsigned char *x)
 				reverse = true;
 		}
 		if (!name) {
-			printf("  Vendor-Specific Data Block, OUI %s\n", ouitohex(oui).c_str());
+			printf("  Vendor-Specific Data Block, OUI %s:\n", ouitohex(oui).c_str());
 			hex_block("    ", x + 4, length - 3);
 			data_block.clear();
 			warn("Unknown Vendor-Specific Data Block, OUI %s.\n",
@@ -1711,7 +1744,7 @@ void edid_state::cta_block(const unsigned char *x)
 		data_block = std::string("Vendor-Specific Data Block (") + name + ")";
 		if (reverse)
 			fail((std::string("OUI ") + ouitohex(oui) + " is in the wrong byte order\n").c_str());
-		printf("  %s: OUI %s\n", data_block.c_str(), ouitohex(oui).c_str());
+		printf("  %s, OUI %s:\n", data_block.c_str(), ouitohex(oui).c_str());
 		if (oui == 0x000c03) {
 			cta_hdmi_block(x + 1, length);
 			last_block_was_hdmi_vsdb = 1;
@@ -1733,16 +1766,15 @@ void edid_state::cta_block(const unsigned char *x)
 		break;
 	case 0x04:
 		data_block = "Speaker Allocation Data Block";
-		printf("  %s\n", data_block.c_str());
+		printf("  %s:\n", data_block.c_str());
 		cta_sadb(x + 1, length);
 		break;
 	case 0x05:
 		data_block = "VESA Display Transfer Characteristics Data Block";
-		printf("  %s\n", data_block.c_str());
+		printf("  %s:\n", data_block.c_str());
 		cta_vesa_dtcdb(x + 1, length);
 		break;
 	case 0x07:
-		printf("  Extended tag: ");
 		cta_ext_block(x + 1, length - 1);
 		break;
 	default: {
@@ -1815,7 +1847,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 	unsigned offset = x[2];
 	const unsigned char *detailed;
 
-	printf("%s Revision %u\n", block.c_str(), version);
+	printf("  Revision: %u\n", version);
 	if (version == 0)
 		fail("Invalid CTA Extension revision 0\n");
 	if (version > 3)
@@ -1829,33 +1861,32 @@ void edid_state::parse_cta_block(const unsigned char *x)
 			break;
 
 		if (version < 3 && ((offset - 4) / 8)) {
-			printf("%u 8-byte timing descriptors\n", (offset - 4) / 8);
+			printf("  8-byte timing descriptors: %u\n", (offset - 4) / 8);
 			fail("8-byte descriptors are no longer used\n");
 		}
 
 		if (version >= 2) {
 			if (x[3] & 0x80)
-				printf("Underscans PC formats by default\n");
+				printf("  Underscans PC formats by default\n");
 			if (x[3] & 0x40)
-				printf("Basic audio support\n");
+				printf("  Basic audio support\n");
 			if (x[3] & 0x20)
-				printf("Supports YCbCr 4:4:4\n");
+				printf("  Supports YCbCr 4:4:4\n");
 			if (x[3] & 0x10)
-				printf("Supports YCbCr 4:2:2\n");
+				printf("  Supports YCbCr 4:2:2\n");
 			// Disable this test: this fails a lot of EDIDs, and there are
 			// also some corner cases where you only want to receive 4:4:4
 			// and refuse a fallback to 4:2:2.
 //			if ((x[3] & 0x30) && (x[3] & 0x30) != 0x30)
 //				msg(!has_hdmi, "If YCbCr support is indicated, then both 4:2:2 and 4:4:4 %s be supported.\n",
 //				    has_hdmi ? "shall" : "should");
-			printf("%u native detailed modes\n", x[3] & 0x0f);
+			printf("  Native detailed modes: %u\n", x[3] & 0x0f);
 			if (!(x[3] & 0x0f))
 				first_svd_might_be_preferred = true;
 		}
 		if (version >= 3) {
 			unsigned i;
 
-			printf("%u bytes of CTA data blocks\n", offset - 4);
 			for (i = 4; i < offset; i += (x[i] & 0x1f) + 1)
 				cta_block(x + i);
 
@@ -1864,10 +1895,16 @@ void edid_state::parse_cta_block(const unsigned char *x)
 				fail("Offset is %u, but should be %u\n", offset, i);
 		}
 
+		data_block = "Detailed Timing Descriptors";
 		seen_non_detailed_descriptor = false;
+		bool first = true;
 		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18) {
 			if (memchk(detailed, 18))
 				break;
+			if (first) {
+				first = false;
+				printf("  %s:\n", data_block.c_str());
+			}
 			detailed_block(detailed);
 		}
 		if (!memchk(detailed, x + 0x7f - detailed)) {

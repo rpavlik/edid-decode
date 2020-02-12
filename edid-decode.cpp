@@ -130,7 +130,7 @@ static void show_msgs(bool is_warn)
 	for (unsigned i = 0; i < state.num_blocks; i++) {
 		if (s_msgs[i][is_warn].empty())
 			continue;
-		printf("Block %u (%s):\n%s",
+		printf("Block %u, %s:\n%s",
 		       i, block_name(edid[i * EDID_PAGE_SIZE]).c_str(),
 		       s_msgs[i][is_warn].c_str());
 	}
@@ -440,7 +440,7 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	       t->pixclk_khz / 1000.0,
 	       s.c_str());
 
-	unsigned len = strlen(prefix) + strlen(type) + 2;
+	unsigned len = strlen(prefix) + 2;
 
 	if (detailed && options[OptXModeLineTimings])
 		print_modeline(len, t, refresh);
@@ -449,7 +449,7 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	else if (detailed && options[OptV4L2Timings])
 		print_v4l2_timing(t, refresh, type);
 	else if (detailed)
-		print_detailed_timing(len, t);
+		print_detailed_timing(len + strlen(type) + 6, t);
 
 	if (t->hfp <= 0)
 		fail("0 or negative horizontal front porch.\n");
@@ -920,11 +920,13 @@ std::string block_name(unsigned char block)
 	char buf[10];
 
 	switch (block) {
-	case 0x00: return "Base Block";
+	case 0x00: return "Base EDID";
 	case 0x02: return "CTA-861 Extension Block";
-	case 0x10: return "VTB Extension Block";
+	case 0x10: return "Video Timing Extension Block";
+	case 0x20: return "EDID 2.0 Extension Block";
 	case 0x40: return "Display Information Extension Block";
 	case 0x50: return "Localized String Extension Block";
+	case 0x60: return "Microdisplay Interface Extension Block";
 	case 0x70: return "DisplayID Extension Block";
 	case 0xf0: return "Block Map Extension Block";
 	case 0xff: return "Manufacturer-Specific Extension Block";
@@ -989,6 +991,7 @@ void edid_state::parse_extension(const unsigned char *x)
 	data_block.clear();
 
 	printf("\n");
+	printf("Block %u, %s:\n", block_nr, block.c_str());
 
 	switch (x[0]) {
 	case 0x02:
@@ -998,8 +1001,7 @@ void edid_state::parse_extension(const unsigned char *x)
 		parse_vtb_ext_block(x);
 		break;
 	case 0x20:
-		printf("%s\n", block.c_str());
-		fail("Deprecated extension block, do not use.\n");
+		fail("Deprecated extension block for EDID 2.0, do not use.\n");
 		break;
 	case 0x40:
 		parse_di_ext_block(x);
@@ -1044,6 +1046,7 @@ int edid_state::parse_edid()
 		preparse_extension(edid + i * EDID_PAGE_SIZE);
 
 	block = block_name(0x00);
+	printf("Block %u, %s:\n", block_nr, block.c_str());
 	parse_base_block(edid);
 
 	for (unsigned i = 1; i < num_blocks; i++) {
@@ -1086,7 +1089,7 @@ int edid_state::parse_edid()
 	if (options[OptPreferredTiming]) {
 		printf("\n----------------\n");
 		printf("\nPreferred Video Timing:\n");
-		print_timings("", &preferred_timings,
+		print_timings("  ", &preferred_timings,
 			      preferred_type.c_str(),
 			      preferred_flags.c_str(), true);
 	}

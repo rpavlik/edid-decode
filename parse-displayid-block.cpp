@@ -77,7 +77,7 @@ static void parse_displayid_product_id(const unsigned char *x, bool is_v2)
 
 	if (is_v2) {
 		unsigned oui = (x[3] << 16) | (x[4] << 8) | x[5];
-		printf("    Vendor IEEE OUI %s\n", ouitohex(oui).c_str());
+		printf("    Vendor OUI %s\n", ouitohex(oui).c_str());
 	} else {
 		printf("    Vendor ID: %c%c%c\n", x[3], x[4], x[5]);
 	}
@@ -436,7 +436,7 @@ void edid_state::parse_displayid_type_4_8_timing(unsigned char type, unsigned sh
 	char type_name[16];
 
 	switch (type) {
-	case 0: t = find_dmt_id(id); strcpy(type_name, "DMT"); break;
+	case 0: t = find_dmt_id(id); sprintf(type_name, "DMT 0x%02x", id); break;
 	case 1: t = find_vic_id(id); sprintf(type_name, "VIC %3u", id); break;
 	case 2: t = find_hdmi_vic_id(id); sprintf(type_name, "HDMI VIC %u", id); break;
 	default: break;
@@ -476,7 +476,7 @@ static void parse_displayid_string(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 	if (check_displayid_datablock_length(x))
-		printf("    '%s'\n", extract_string(x + 3, x[2]));
+		printf("    Text: '%s'\n", extract_string(x + 3, x[2]));
 }
 
 // tag 0x0c
@@ -818,7 +818,7 @@ void edid_state::parse_displayid_stereo_display_intf(const unsigned char *x)
 		for (unsigned i = 1; i <= num_codes; i++) {
 			switch (type) {
 			case 0x00:
-				strcpy(type_name, "DMT");
+				sprintf(type_name, "DMT 0x%02x", x[i]);
 				print_timings("    ", find_dmt_id(x[i]), type_name);
 				break;
 			case 0x01:
@@ -1376,6 +1376,7 @@ void edid_state::preparse_displayid_block(const unsigned char *x)
 
 	unsigned offset = 5;
 
+	preparse_displayid_blocks++;
 	while (length > 0) {
 		unsigned tag = x[offset];
 		unsigned len = x[offset + 2];
@@ -1426,15 +1427,24 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 	unsigned ext_count = x[4];
 	unsigned i;
 
-	printf("%s Version %u.%u Length %u Extension Count %u\n",
-	       block.c_str(), version >> 4, version & 0xf,
-	       length, ext_count);
+	printf("  Version: %u.%u\n  Extension Count: %u\n",
+	       version >> 4, version & 0xf, ext_count);
 
-	if (ext_count > 0)
-		warn("Non-0 DisplayID extension count %d.\n", ext_count);
-
-	printf("%s: %s\n", product_type(version, prod_type, true).c_str(),
-	       product_type(version, prod_type, false).c_str());
+	if (displayid_base_block) {
+		printf("  %s: %s\n", product_type(version, prod_type, true).c_str(),
+		       product_type(version, prod_type, false).c_str());
+		displayid_base_block = false;
+		if (!prod_type)
+			fail("DisplayID Base Block has no product type.\n");
+		if (ext_count != preparse_displayid_blocks - 1)
+			fail("Expected %u DisplayID Extension Blocks, but got %u\n",
+			     preparse_displayid_blocks - 1, ext_count);
+	} else {
+		if (prod_type)
+			fail("Product Type should be 0 in extension block.\n");
+		if (ext_count)
+			fail("Extension Count should be 0 in extension block.\n");
+	}
 
 	if (length > 121) {
 		fail("DisplayID length %d is greater than 121.\n", length);
@@ -1497,7 +1507,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 				if (name)
 					data_block = std::string("Vendor-Specific Data Block (") + name + ")";
 				else
-					data_block = "Vendor-Specific Data Block (OUI " + ouitohex(oui) + ")";
+					data_block = "Vendor-Specific Data Block, OUI " + ouitohex(oui);
 				if (reversed)
 					fail((std::string("OUI ") + ouitohex(oui) + " is in the wrong byte order\n").c_str());
 			} else {
@@ -1533,7 +1543,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			break;
 		}
 
-		printf("  %s\n", data_block.c_str());
+		printf("  %s:\n", data_block.c_str());
 
 		switch (tag) {
 		case 0x00: parse_displayid_product_id(x + offset, false); break;
@@ -1558,7 +1568,9 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x07:
 			   for (i = 0; i < min(len, 10) * 8; i++)
 				   if (x[offset + 3 + i / 8] & (1 << (i % 8))) {
-					   print_timings("    ", find_dmt_id(i + 1), "DMT");
+					   char type[16];
+					   sprintf(type, "DMT 0x%02x", i + 1);
+					   print_timings("    ", find_dmt_id(i + 1), type);
 				   }
 			   break;
 		case 0x08:
