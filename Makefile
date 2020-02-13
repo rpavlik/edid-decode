@@ -1,6 +1,8 @@
 bindir ?= /usr/bin
 mandir ?= /usr/share/man
 
+EMXX ?= em++
+
 SOURCES = edid-decode.cpp parse-base-block.cpp parse-cta-block.cpp \
 	  parse-displayid-block.cpp parse-ls-ext-block.cpp \
 	  parse-di-ext-block.cpp parse-vtb-ext-block.cpp
@@ -12,6 +14,9 @@ sha = -DSHA=$(shell if [ -d .git ]; then git rev-parse HEAD ; else printf '"not 
 
 edid-decode: $(SOURCES) edid-decode.h Makefile
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(WARN_FLAGS) -g $(sha) -o $@ $(SOURCES) -lm
+
+edid-decode.js: $(SOURCES) edid-decode.h Makefile
+	$(EMXX) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(WARN_FLAGS) $(sha) -s EXPORTED_FUNCTIONS='["_parse_edid"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -o $@ $(SOURCES) -lm
 
 clean:
 	rm -f edid-decode
