@@ -250,7 +250,7 @@ static void print_fbmode(unsigned indent, const struct timings *t,
 	printf("%*smode \"%ux%u-%u%s\"\n",
 	       indent, "",
 	       t->hact, t->vact,
-	       (unsigned)(0.5 + t->interlaced ? refresh / 2.0 : refresh),
+	       (unsigned)(0.5 + (t->interlaced ? refresh / 2.0 : refresh)),
 	       t->interlaced ? "-lace" : "");
 	printf("%*s# D: %.2f MHz, H: %.3f kHz, V: %.2f Hz\n",
 	       indent + 8, "",

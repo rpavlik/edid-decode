@@ -890,7 +890,7 @@ void edid_state::print_standard_timing(const char *prefix, unsigned char b1, uns
 	} else if (gtf_only || edid_minor >= 2) {
 		uses_gtf = true;
 		edid_gtf_mode(refresh, formula);
-		print_timings(prefix, &formula, "GTF");
+		print_timings(prefix, &formula, "GTF     ");
 	} else {
 		printf("%sUnknown : %5ux%-5u %3u.000 Hz %3u:%u\n",
 		       prefix, hact, vact, refresh, hratio, vratio);
