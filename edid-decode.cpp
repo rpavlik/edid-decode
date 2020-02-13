@@ -1214,3 +1214,22 @@ int main(int argc, char **argv)
 
 	return ret ? ret : state.parse_edid();
 }
+
+#ifdef __EMSCRIPTEN__
+/*
+ * The surrounding JavaScript implementation will call this function
+ * each time it wants to decode an EDID. So this should reset all the
+ * state and start over.
+ */
+extern "C" int parse_edid(const char *input)
+{
+	for (unsigned i = 0; i < EDID_MAX_BLOCKS + 1; i++) {
+		s_msgs[i][0].clear();
+		s_msgs[i][1].clear();
+	}
+	options[OptCheck] = 1;
+	state = edid_state();
+	int ret = edid_from_file(input);
+	return ret ? ret : state.parse_edid();
+}
+#endif
