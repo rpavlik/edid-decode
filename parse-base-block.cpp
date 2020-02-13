@@ -1538,13 +1538,15 @@ void edid_state::parse_base_block(const unsigned char *x)
 
 	data_block = "Vendor & Product Identification";
 	printf("  %s:\n", data_block.c_str());
-	printf("    Manufacturer: %s\n    Model: %u\n    Serial Number: %u\n",
-	       manufacturer_name(x + 0x08),
-	       (unsigned short)(x[0x0a] + (x[0x0b] << 8)),
-	       (unsigned)(x[0x0c] + (x[0x0d] << 8) +
-			  (x[0x0e] << 16) + (x[0x0f] << 24)));
-	has_serial_number = x[0x0c] || x[0x0d] || x[0x0e] || x[0x0f];
 	/* XXX need manufacturer ID table */
+	printf("    Manufacturer: %s\n    Model: %u\n",
+	       manufacturer_name(x + 0x08),
+	       (unsigned short)(x[0x0a] + (x[0x0b] << 8)));
+	has_serial_number = x[0x0c] || x[0x0d] || x[0x0e] || x[0x0f];
+	if (has_serial_number)
+		printf("    Serial Number: %u\n",
+		       (unsigned)(x[0x0c] + (x[0x0d] << 8) +
+				  (x[0x0e] << 16) + (x[0x0f] << 24)));
 
 	time(&the_time);
 	ptm = localtime(&the_time);
