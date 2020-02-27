@@ -53,6 +53,7 @@ struct timings {
 	bool even_vtotal; // special for VIC 39
 	bool no_pol_vsync; // digital composite signals have no vsync polarity
 	unsigned hsize_mm, vsize_mm;
+	bool ycbcr420; // YCbCr 4:2:0 encoding
 };
 
 struct edid_state {
@@ -182,8 +183,8 @@ struct edid_state {
 	void detailed_block(const unsigned char *x);
 	void parse_base_block(const unsigned char *x);
 
-	void print_vic_index(const char *prefix, unsigned idx, const char *suffix);
-	void cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420);
+	void print_vic_index(const char *prefix, unsigned idx, const char *suffix, bool ycbcr420 = false);
+	void cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420);
 	void cta_y420cmdb(const unsigned char *x, unsigned length);
 	void cta_vfpdb(const unsigned char *x, unsigned length);
 	void cta_hdmi_block(const unsigned char *x, unsigned length);

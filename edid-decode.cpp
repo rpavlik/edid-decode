@@ -394,6 +394,9 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	if (t->interlaced)
 		vact /= 2;
 
+	if (t->ycbcr420)
+		hor_freq_khz /= 2;
+
 	double vtotal = vact + vbl;
 
 	bool ok = true;
@@ -427,6 +430,7 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		add_str(s, std::to_string(t->hsize_mm) + " mm x " + std::to_string(t->vsize_mm) + " mm");
 	if (!s.empty())
 		s = " (" + s + ")";
+	unsigned pixclk_khz = t->pixclk_khz / (t->ycbcr420 ? 2 : 1);
 
 	char buf[10];
 
@@ -437,16 +441,16 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	       refresh,
 	       t->hratio, t->vratio,
 	       hor_freq_khz,
-	       t->pixclk_khz / 1000.0,
+	       pixclk_khz / 1000.0,
 	       s.c_str());
 
 	unsigned len = strlen(prefix) + 2;
 
-	if (detailed && options[OptXModeLineTimings])
+	if (!t->ycbcr420 && detailed && options[OptXModeLineTimings])
 		print_modeline(len, t, refresh);
-	else if (detailed && options[OptFBModeTimings])
+	else if (!t->ycbcr420 && detailed && options[OptFBModeTimings])
 		print_fbmode(len, t, refresh, hor_freq_khz);
-	else if (detailed && options[OptV4L2Timings])
+	else if (!t->ycbcr420 && detailed && options[OptV4L2Timings])
 		print_v4l2_timing(t, refresh, type);
 	else if (detailed)
 		print_detailed_timing(len + strlen(type) + 6, t);
@@ -475,10 +479,10 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
 		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	}
-	if (t->pixclk_khz && (t->hact + hbl)) {
-		min_hor_freq_hz = min(min_hor_freq_hz, (t->pixclk_khz * 1000) / (t->hact + hbl));
-		max_hor_freq_hz = max(max_hor_freq_hz, (t->pixclk_khz * 1000) / (t->hact + hbl));
-		max_pixclk_khz = max(max_pixclk_khz, t->pixclk_khz);
+	if (pixclk_khz && (t->hact + hbl)) {
+		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (t->hact + hbl));
+		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (t->hact + hbl));
+		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
 	}
 	return ok;
 }

@@ -982,6 +982,19 @@ void edid_state::detailed_display_range_limits(const unsigned char *x)
 	       range_class.c_str(),
 	       x[5] + v_min_offset, x[6] + v_max_offset,
 	       x[7] + h_min_offset, x[8] + h_max_offset);
+
+	// For EDID 1.3 the horizontal frequency maxes out at 255 kHz.
+	// So to avoid false range-check warnings due to this limitation,
+	// just double the max_display_hor_freq_hz in this case.
+	if (edid_minor < 4 && x[8] == 0xff)
+		max_display_hor_freq_hz *= 2;
+
+	// For EDID 1.3 the vertical frequency maxes out at 255 Hz.
+	// So to avoid false range-check warnings due to this limitation,
+	// just double the max_display_vert_freq_hz in this case.
+	if (edid_minor < 4 && x[6] == 0xff)
+		max_display_vert_freq_hz *= 2;
+
 	if (x[9]) {
 		max_display_pixclk_khz = x[9] * 10000;
 		printf(", max dotclock %d MHz\n", x[9] * 10);

@@ -342,7 +342,7 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 	}
 }
 
-void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
+void edid_state::cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420)
 {
 	unsigned i;
 
@@ -387,7 +387,13 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 			sprintf(type, "VIC %3u", vic);
 			const char *flags = native ? "native" : "";
 
-			print_timings("    ", t, type, flags);
+			if (for_ycbcr420) {
+				struct timings tmp = *t;
+				tmp.ycbcr420 = true;
+				print_timings("    ", &tmp, type, flags);
+			} else {
+				print_timings("    ", t, type, flags);
+			}
 			if (override_pref) {
 				preferred_timings = *t;
 				preferred_type = type;
@@ -408,7 +414,7 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, int for_ycbcr420)
 	}
 }
 
-void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *suffix)
+void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *suffix, bool ycbcr420)
 {
 	if (!suffix)
 		suffix = "";
@@ -419,11 +425,14 @@ void edid_state::print_vic_index(const char *prefix, unsigned idx, const char *s
 
 		sprintf(buf, "VIC %3u", vic);
 
-		if (t)
-			print_timings(prefix, t, buf, suffix);
-		else
+		if (t) {
+			struct timings tmp = *t;
+			tmp.ycbcr420 = ycbcr420;
+			print_timings(prefix, &tmp, buf, suffix);
+		} else {
 			printf("%sUnknown (%s%s%s)\n", prefix, buf,
 			       *suffix ? ", " : "", suffix);
+		}
 	} else {
 		// Should not happen!
 		printf("%sSVD Index %u is out of range", prefix, idx + 1);
@@ -457,7 +466,7 @@ void edid_state::cta_y420cmdb(const unsigned char *x, unsigned length)
 			if (!(v & (1 << j)))
 				continue;
 
-			print_vic_index("    ", i * 8 + j, "");
+			print_vic_index("    ", i * 8 + j, "", true);
 			max_idx = i * 8 + j;
 			if (max_idx < preparsed_svds[0].size()) {
 				unsigned vic = preparsed_svds[0][max_idx];
@@ -1682,7 +1691,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x06: cta_hdr_static_metadata_block(x + 1, length); return;
 	case 0x07: cta_hdr_dyn_metadata_block(x + 1, length); return;
 	case 0x0d: cta_vfpdb(x + 1, length); return;
-	case 0x0e: cta_svd(x + 1, length, 1); return;
+	case 0x0e: cta_svd(x + 1, length, true); return;
 	case 0x0f: cta_y420cmdb(x + 1, length); return;
 	case 0x12: cta_hdmi_audio_block(x + 1, length); return;
 	case 0x13: cta_rcdb(x + 1, length); return;
@@ -1725,7 +1734,7 @@ void edid_state::cta_block(const unsigned char *x)
 	case 0x02:
 		data_block = "Video Data Block";
 		printf("  %s:\n", data_block.c_str());
-		cta_svd(x + 1, length, 0);
+		cta_svd(x + 1, length, false);
 		break;
 	case 0x03:
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
