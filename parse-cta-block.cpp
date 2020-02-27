@@ -636,119 +636,121 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 		b += len_vic;
 	}
 
-	if (len_3d) {
-		if (formats) {
-			/* 3D_Structure_ALL_15..8 */
-			if (x[b] & 0x80)
-				printf("      3D: Side-by-side (half, quincunx)\n");
-			if (x[b] & 0x01)
-				printf("      3D: Side-by-side (half, horizontal)\n");
-			/* 3D_Structure_ALL_7..0 */
-			b++;
-			if (x[b] & 0x40)
-				printf("      3D: Top-and-bottom\n");
-			if (x[b] & 0x20)
-				printf("      3D: L + depth + gfx + gfx-depth\n");
-			if (x[b] & 0x10)
-				printf("      3D: L + depth\n");
-			if (x[b] & 0x08)
-				printf("      3D: Side-by-side (full)\n");
-			if (x[b] & 0x04)
-				printf("      3D: Line-alternative\n");
-			if (x[b] & 0x02)
-				printf("      3D: Field-alternative\n");
-			if (x[b] & 0x01)
-				printf("      3D: Frame-packing\n");
-			b++;
-			len_3d -= 2;
-		}
+	if (!len_3d)
+		return;
 
-		if (mask) {
-			int max_idx = -1;
-			unsigned i;
-
-			printf("      3D VIC indices that support these capabilities:\n");
-			/* worst bit ordering ever */
-			for (i = 0; i < 8; i++)
-				if (x[b + 1] & (1 << i)) {
-					print_vic_index("        ", i, "");
-					max_idx = i;
-				}
-			for (i = 0; i < 8; i++)
-				if (x[b] & (1 << i)) {
-					print_vic_index("        ", i + 8, "");
-					max_idx = i + 8;
-				}
-			b += 2;
-			len_3d -= 2;
-			if (max_idx >= (int)preparsed_svds[0].size())
-				fail("HDMI 3D VIC indices max index %d > %u (#SVDs).\n",
-				     max_idx + 1, preparsed_svds[0].size());
-		}
-
-		/*
-		 * list of nibbles:
-		 * 2D_VIC_Order_X
-		 * 3D_Structure_X
-		 * (optionally: 3D_Detail_X and reserved)
-		 */
-		if (len_3d > 0) {
-			unsigned end = b + len_3d;
-		int max_idx = -1;
-
-			printf("      3D VIC indices with specific capabilities:\n");
-			while (b < end) {
-				unsigned char idx = x[b] >> 4;
-				std::string s;
-
-				if (idx > max_idx)
-					max_idx = idx;
-				switch (x[b] & 0x0f) {
-				case 0: s = "frame packing"; break;
-				case 1: s = "field alternative"; break;
-				case 2: s = "line alternative"; break;
-				case 3: s = "side-by-side (full)"; break;
-				case 4: s = "L + depth"; break;
-				case 5: s = "L + depth + gfx + gfx-depth"; break;
-				case 6: s = "top-and-bottom"; break;
-				case 8:
-					s = "side-by-side";
-					switch (x[b + 1] >> 4) {
-					case 0x00: break;
-					case 0x01: s += ", horizontal"; break;
-					case 0x02: case 0x03: case 0x04: case 0x05:
-						   s += ", not in use";
-						   fail("not-in-use 3D_Detail_X value 0x%02x.\n",
-							x[b + 1] >> 4);
-						   break;
-					case 0x06: s += ", all quincunx combinations"; break;
-					case 0x07: s += ", quincunx odd/left, odd/right"; break;
-					case 0x08: s += ", quincunx odd/left, even/right"; break;
-					case 0x09: s += ", quincunx even/left, odd/right"; break;
-					case 0x0a: s += ", quincunx even/left, even/right"; break;
-					default:
-						   s += ", reserved";
-						   fail("reserved 3D_Detail_X value 0x%02x.\n",
-							x[b + 1] >> 4);
-						   break;
-					}
-					break;
-				default:
-					s = "unknown (";
-					s += utohex(x[b] & 0x0f) + ")";
-					fail("Unknown 3D_Structure_X value 0x%02x.\n", x[b] & 0x0f);
-					break;
-				}
-				print_vic_index("        ", idx, s.c_str());
-				if ((x[b] & 0x0f) >= 8)
-					b++;
-				b++;
-			}
-			if (max_idx >= (int)preparsed_svds[0].size())
-				fail("HDMI 2D VIC indices max index %d > %u (#SVDs).\n",
-				     max_idx + 1, preparsed_svds[0].size());
-		}
+	if (formats) {
+		/* 3D_Structure_ALL_15..8 */
+		if (x[b] & 0x80)
+			printf("      3D: Side-by-side (half, quincunx)\n");
+		if (x[b] & 0x01)
+			printf("      3D: Side-by-side (half, horizontal)\n");
+		/* 3D_Structure_ALL_7..0 */
+		b++;
+		if (x[b] & 0x40)
+			printf("      3D: Top-and-bottom\n");
+		if (x[b] & 0x20)
+			printf("      3D: L + depth + gfx + gfx-depth\n");
+		if (x[b] & 0x10)
+			printf("      3D: L + depth\n");
+		if (x[b] & 0x08)
+			printf("      3D: Side-by-side (full)\n");
+		if (x[b] & 0x04)
+			printf("      3D: Line-alternative\n");
+		if (x[b] & 0x02)
+			printf("      3D: Field-alternative\n");
+		if (x[b] & 0x01)
+			printf("      3D: Frame-packing\n");
+		b++;
+		len_3d -= 2;
 	}
+
+	if (mask) {
+		int max_idx = -1;
+		unsigned i;
+
+		printf("      3D VIC indices that support these capabilities:\n");
+		/* worst bit ordering ever */
+		for (i = 0; i < 8; i++)
+			if (x[b + 1] & (1 << i)) {
+				print_vic_index("        ", i, "");
+				max_idx = i;
+			}
+		for (i = 0; i < 8; i++)
+			if (x[b] & (1 << i)) {
+				print_vic_index("        ", i + 8, "");
+				max_idx = i + 8;
+			}
+		b += 2;
+		len_3d -= 2;
+		if (max_idx >= (int)preparsed_svds[0].size())
+			fail("HDMI 3D VIC indices max index %d > %u (#SVDs).\n",
+			     max_idx + 1, preparsed_svds[0].size());
+	}
+
+	/*
+	 * list of nibbles:
+	 * 2D_VIC_Order_X
+	 * 3D_Structure_X
+	 * (optionally: 3D_Detail_X and reserved)
+	 */
+	if (!len_3d)
+		return;
+
+	unsigned end = b + len_3d;
+	int max_idx = -1;
+
+	printf("      3D VIC indices with specific capabilities:\n");
+	while (b < end) {
+		unsigned char idx = x[b] >> 4;
+		std::string s;
+
+		if (idx > max_idx)
+			max_idx = idx;
+		switch (x[b] & 0x0f) {
+		case 0: s = "frame packing"; break;
+		case 1: s = "field alternative"; break;
+		case 2: s = "line alternative"; break;
+		case 3: s = "side-by-side (full)"; break;
+		case 4: s = "L + depth"; break;
+		case 5: s = "L + depth + gfx + gfx-depth"; break;
+		case 6: s = "top-and-bottom"; break;
+		case 8:
+			s = "side-by-side";
+			switch (x[b + 1] >> 4) {
+			case 0x00: break;
+			case 0x01: s += ", horizontal"; break;
+			case 0x02: case 0x03: case 0x04: case 0x05:
+				   s += ", not in use";
+				   fail("not-in-use 3D_Detail_X value 0x%02x.\n",
+					x[b + 1] >> 4);
+				   break;
+			case 0x06: s += ", all quincunx combinations"; break;
+			case 0x07: s += ", quincunx odd/left, odd/right"; break;
+			case 0x08: s += ", quincunx odd/left, even/right"; break;
+			case 0x09: s += ", quincunx even/left, odd/right"; break;
+			case 0x0a: s += ", quincunx even/left, even/right"; break;
+			default:
+				   s += ", reserved";
+				   fail("reserved 3D_Detail_X value 0x%02x.\n",
+					x[b + 1] >> 4);
+				   break;
+			}
+			break;
+		default:
+			s = "unknown (";
+			s += utohex(x[b] & 0x0f) + ")";
+			fail("Unknown 3D_Structure_X value 0x%02x.\n", x[b] & 0x0f);
+			break;
+		}
+		print_vic_index("        ", idx, s.c_str());
+		if ((x[b] & 0x0f) >= 8)
+			b++;
+		b++;
+	}
+	if (max_idx >= (int)preparsed_svds[0].size())
+		fail("HDMI 2D VIC indices max index %d > %u (#SVDs).\n",
+		     max_idx + 1, preparsed_svds[0].size());
 }
 
 static const char *max_frl_rates[] = {
