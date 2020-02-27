@@ -236,6 +236,14 @@ static inline void add_str(std::string &s, const std::string &add)
 void msg(bool is_warn, const char *fmt, ...);
 
 #define warn(fmt, args...) msg(true, fmt, ##args)
+#define warn_once(fmt, args...) \
+	do { \
+		static bool shown_warn; \
+		if (!shown_warn) { \
+			shown_warn = true; \
+			msg(true, fmt, ##args); \
+		} \
+	} while (0)
 #define fail(fmt, args...) msg(false, fmt, ##args)
 
 void do_checksum(const char *prefix, const unsigned char *x, size_t len);
