@@ -11,9 +11,11 @@ make install
 
 Patches and bug reports can be sent to the linux-media@vger.kernel.org
 mailinglist (see https://www.linuxtv.org/lists.php). Please make sure
-that 'edid-decode' appears in the subject line.
+that 'edid-decode' appears in the subject line and don't forget to
+add a 'Signed-off-by' line when submitting patches!
 
-Please add a 'Signed-off-by' line when submitting patches!
+If you don't know what that is, then see:
+https://elinux.org/Developer_Certificate_Of_Origin
 
 New sample EDIDs are welcome. Please note that these must be real
 EDIDs read from real hardware, so no artificially constructed EDIDs.
