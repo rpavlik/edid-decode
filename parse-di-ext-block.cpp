@@ -71,7 +71,7 @@ void edid_state::parse_digital_interface(const unsigned char *x)
 	       (v & 0x80) ? "" : "Not ");
 	if (v & 0x80)
 		printf("    Data Enable Signal %s\n",
-		       (v & 0x40) ? "Low" : "High");
+		       (v & 0x40) ? "High" : "Low");
 	else if (v & 0x40)
 		fail("Bit 6 of byte 0x07 should be 0.\n");
 	printf("    Edge of Shift Clock: ");
