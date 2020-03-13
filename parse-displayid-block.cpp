@@ -913,9 +913,9 @@ static void parse_displayid_tiled_display_topology(const unsigned char *x, bool 
 	default: printf("Reserved\n"); break;
 	}
 	if (caps & 0x80)
-		printf("    Tiled display consists of multiple physical display enclosures\n");
-	else
 		printf("    Tiled display consists of a single physical display enclosure\n");
+	else
+		printf("    Tiled display consists of multiple physical display enclosures\n");
 	printf("    Num horizontal tiles: %u Num vertical tiles: %u\n",
 	       num_h_tile + 1, num_v_tile + 1);
 	printf("    Tile location: %u, %u\n", tile_h_location, tile_v_location);
