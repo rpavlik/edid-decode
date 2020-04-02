@@ -90,6 +90,7 @@ struct edid_state {
 		supported_hdmi_vic_codes = supported_hdmi_vic_vsb_codes = 0;
 		memset(vics, 0, sizeof(vics));
 		memset(preparsed_has_vic, 0, sizeof(preparsed_has_vic));
+		preparsed_phys_addr = 0xffff;
 
 		// DisplayID block state
 		preparse_color_ids = preparse_xfer_ids = 0;
@@ -149,6 +150,7 @@ struct edid_state {
 	bool has_cta861_vic_1;
 	bool first_svd_might_be_preferred;
 	bool has_hdmi;
+	unsigned short preparsed_phys_addr;
 	int last_block_was_hdmi_vsdb;
 	int have_hf_vsdb, have_hf_scdb;
 	int first_block;

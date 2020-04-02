@@ -1830,8 +1830,10 @@ void edid_state::preparse_cta_block(const unsigned char *x)
 		switch ((x[i] & 0xe0) >> 5) {
 		case 0x03:
 			oui = (x[i + 3] << 16) + (x[i + 2] << 8) + x[i + 1];
-			if (oui == 0x000c03)
+			if (oui == 0x000c03) {
 				has_hdmi = true;
+				preparsed_phys_addr = (x[i + 4] << 8) | x[i + 5];
+			}
 			break;
 		case 0x07:
 			if (x[i + 1] != 0x0e)

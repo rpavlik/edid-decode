@@ -41,6 +41,7 @@ enum Option {
 	OptHelp = 'h',
 	OptOutputFormat = 'o',
 	OptPreferredTiming = 'p',
+	OptPhysicalAddress = 'P',
 	OptLongTimings = 'L',
 	OptShortTimings = 'S',
 	OptFBModeTimings = 'F',
@@ -58,6 +59,7 @@ static struct option long_options[] = {
 	{ "output-format", required_argument, 0, OptOutputFormat },
 	{ "extract", no_argument, 0, OptExtract },
 	{ "preferred-timing", no_argument, 0, OptPreferredTiming },
+	{ "physical-address", no_argument, 0, OptPhysicalAddress },
 	{ "skip-hex-dump", no_argument, 0, OptSkipHexDump },
 	{ "skip-sha", no_argument, 0, OptSkipSHA },
 	{ "check-inline", no_argument, 0, OptCheckInline },
@@ -89,6 +91,7 @@ static void usage(void)
 	       "  -C, --check-inline    check if the EDID conforms to the standards, failures and\n"
 	       "                        warnings are reported inline.\n"
 	       "  -p, --preferred-timing report the preferred timing\n"
+	       "  -P, --physical-address only report the CEC physical address\n"
 	       "  -S, --short-timings   report all video timings in a short format\n"
 	       "  -L, --long-timings    report all video timings in a long format\n"
 	       "  -X, --xmodeline       report all long video timings in Xorg.conf format\n"
@@ -1036,6 +1039,18 @@ void edid_state::parse_extension(const unsigned char *x)
 
 int edid_state::parse_edid()
 {
+	for (unsigned i = 1; i < num_blocks; i++)
+		preparse_extension(edid + i * EDID_PAGE_SIZE);
+
+	if (options[OptPhysicalAddress]) {
+		printf("%x.%x.%x.%x\n",
+		       (preparsed_phys_addr >> 12) & 0xf,
+		       (preparsed_phys_addr >> 8) & 0xf,
+		       (preparsed_phys_addr >> 4) & 0xf,
+		       preparsed_phys_addr & 0xf);
+		return 0;
+	}
+
 	if (!options[OptSkipHexDump]) {
 		printf("edid-decode (hex):\n\n");
 		for (unsigned i = 0; i < num_blocks; i++) {
@@ -1047,9 +1062,6 @@ int edid_state::parse_edid()
 
 	if (options[OptExtract])
 		dump_breakdown(edid);
-
-	for (unsigned i = 1; i < num_blocks; i++)
-		preparse_extension(edid + i * EDID_PAGE_SIZE);
 
 	block = block_name(0x00);
 	printf("Block %u, %s:\n", block_nr, block.c_str());
@@ -1215,6 +1227,10 @@ int main(int argc, char **argv)
 	else
 		ret = edid_from_file(argv[optind]);
 
+	if (ret && options[OptPhysicalAddress]) {
+		printf("f.f.f.f\n");
+		return 0;
+	}
 	if (optind < argc - 1)
 		return ret ? ret : edid_to_file(argv[optind + 1], out_fmt);
 
