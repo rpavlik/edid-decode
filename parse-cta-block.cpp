@@ -1693,6 +1693,29 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x0d: cta_vfpdb(x + 1, length); return;
 	case 0x0e: cta_svd(x + 1, length, true); return;
 	case 0x0f: cta_y420cmdb(x + 1, length); return;
+	case 0x11:
+		oui = (x[3] << 16) + (x[2] << 8) + x[1];
+		name = oui_name(oui);
+		if (!name) {
+			name = oui_name(oui, true);
+			if (name)
+				reverse = true;
+		}
+		if (!name) {
+			printf("  Vendor-Specific Audio Data Block, OUI %s:\n",
+			       ouitohex(oui).c_str());
+			hex_block("    ", x + 4, length - 3);
+			data_block.clear();
+			warn("Unknown Extended Vendor-Specific Audio Data Block, OUI %s.\n",
+			     ouitohex(oui).c_str());
+			return;
+		}
+		data_block = std::string("Vendor-Specific Audio Data Block (") + name + ")";
+		if (reverse)
+			fail((std::string("OUI ") + ouitohex(oui) + " is in the wrong byte order\n").c_str());
+		printf("  %s, OUI %s:\n", data_block.c_str(), ouitohex(oui).c_str());
+		hex_block("    ", x + 4, length - 3);
+		return;
 	case 0x12: cta_hdmi_audio_block(x + 1, length); return;
 	case 0x13: cta_rcdb(x + 1, length); return;
 	case 0x14: cta_sldb(x + 1, length); return;
