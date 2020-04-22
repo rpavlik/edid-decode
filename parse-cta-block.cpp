@@ -857,8 +857,8 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 	if (length <= 5)
 		return;
 
-	printf("    VRRmin: %d Hz\n", x[8] & 0x3f);
-	printf("    VRRmax: %d Hz\n", (x[8] & 0xc0) << 2 | x[9]);
+	printf("    VRRmin: %d Hz\n", x[5] & 0x3f);
+	printf("    VRRmax: %d Hz\n", (x[5] & 0xc0) << 2 | x[6]);
 
 	if (length <= 7)
 		return;
