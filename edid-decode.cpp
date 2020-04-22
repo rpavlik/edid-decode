@@ -512,7 +512,7 @@ const char *oui_name(unsigned oui, bool reverse)
 	case 0x000c6e: return "ASUS";
 	case 0x0010fa: return "Apple";
 	case 0x0014b9: return "MSTAR";
-	case 0x00d046: return "Dolby Vision";
+	case 0x00d046: return "Dolby";
 	case 0x00e047: return "InFocus";
 	case 0x3a0292: return "VESA";
 	case 0x90848b: return "HDR10+";
