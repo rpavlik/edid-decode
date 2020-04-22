@@ -838,7 +838,7 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 	if (x[3] & 0x01)
 		printf("    Supports 10-bits/component Deep Color 4:2:0 Pixel Encoding\n");
 
-	if (length <= 7)
+	if (length <= 4)
 		return;
 
 	if (x[4] & 0x20)
@@ -854,13 +854,13 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 	if (x[4] & 0x01)
 		printf("    Supports a FAPA in blanking after first active video line\n");
 
-	if (length <= 8)
+	if (length <= 5)
 		return;
 
 	printf("    VRRmin: %d Hz\n", x[8] & 0x3f);
 	printf("    VRRmax: %d Hz\n", (x[8] & 0xc0) << 2 | x[9]);
 
-	if (length <= 10)
+	if (length <= 7)
 		return;
 
 	if (x[7] & 0x80)
