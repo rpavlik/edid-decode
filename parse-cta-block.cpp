@@ -797,7 +797,7 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 	printf("    Version: %u\n", x[0]);
 	if (rate) {
 		printf("    Maximum TMDS Character Rate: %u MHz\n", rate);
-		if ((rate && rate <= 340) || rate > 600)
+		if (rate <= 340 || rate > 600)
 			fail("Max TMDS rate is > 0 and <= 340 or > 600.\n");
 	}
 	if (x[2] & 0x80)
@@ -922,7 +922,7 @@ static void cta_dolby_vision(const unsigned char *x, unsigned length)
 	if (version == 0) {
 		if (x[0] & 0x02)
 			printf("    Supports 2160p60\n");
-		if (x[0] & 0x02)
+		if (x[0] & 0x04)
 			printf("    Supports global dimming\n");
 		unsigned char dm_version = x[16];
 		printf("    DM Version: %u.%u\n", dm_version >> 4, dm_version & 0xf);

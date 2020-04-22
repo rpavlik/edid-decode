@@ -831,11 +831,6 @@ void edid_state::print_standard_timing(const char *prefix, unsigned char b1, uns
 		return;
 	}
 
-	if (b1 == 0) {
-		fail("Non-conformant standard timing (0 horiz).\n");
-		return;
-	}
-
 	t = find_std_id((b1 << 8) | b2, dmt_id);
 	if (t) {
 		char type[16];
@@ -1662,13 +1657,9 @@ void edid_state::parse_base_block(const unsigned char *x)
 		printf("    Maximum image size: %u cm x %u cm\n", x[0x15], x[0x16]);
 		max_display_width_mm = x[0x15] * 10;
 		max_display_height_mm = x[0x16] * 10;
-		if ((max_display_height_mm && !max_display_width_mm) ||
-		    (max_display_width_mm && !max_display_height_mm))
-			fail("Invalid maximum image size (%u cm x %u cm).\n",
-			     max_display_width_mm, max_display_height_mm);
-		else if (max_display_width_mm < 100 || max_display_height_mm < 100)
+		if (x[0x15] < 10 || x[0x16] < 10)
 			warn("Dubious maximum image size (%ux%u is smaller than 10x10 cm).\n",
-			     max_display_width_mm, max_display_height_mm);
+			     x[0x15], x[0x16]);
 	}
 	else if (edid_minor >= 4 && (x[0x15] || x[0x16])) {
 		if (x[0x15])
