@@ -897,12 +897,18 @@ static int edid_to_file(const char *to_file, enum output_format out_fmt)
 
 static int edid_from_file(const char *from_file)
 {
+#ifdef O_BINARY
+	// Windows compatibility
+	int flags = O_RDONLY | O_BINARY;
+#else
+	int flags = O_RDONLY;
+#endif
 	int fd;
 
 	if (!strcmp(from_file, "-")) {
 		from_file = "stdin";
 		fd = 0;
-	} else if ((fd = open(from_file, O_RDONLY)) == -1) {
+	} else if ((fd = open(from_file, flags)) == -1) {
 		perror(from_file);
 		return -1;
 	}
