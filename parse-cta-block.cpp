@@ -953,8 +953,8 @@ static void cta_dolby_vision(const unsigned char *x, unsigned length)
 		printf("    Colorimetry: %s\n", (x[2] & 0x01) ? "P3-D65" : "ITU-R BT.709");
 		printf("    Low Latency: %s\n", (x[3] & 0x01) ? "Only Standard" : "Standard + Low Latency");
 		printf("    Target Max Luminance: %u cd/m^2\n", 100 + (x[1] >> 1) * 50);
-		// Unclear what the mapping to cd/m^2 is
-		printf("    Target Min Luminance: %u\n", (x[2] >> 1));
+		double lm = (x[2] >> 1) / 127.0;
+		printf("    Target Min Luminance: %.8f cd/m^2\n", lm * lm);
 		if (length == 10) {
 			printf("    Rx, Ry: %.8f, %.8f\n", x[4] / 256.0, x[5] / 256.0);
 			printf("    Gx, Gy: %.8f, %.8f\n", x[6] / 256.0, x[7] / 256.0);
