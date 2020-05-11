@@ -237,16 +237,33 @@ static inline void add_str(std::string &s, const std::string &add)
 
 void msg(bool is_warn, const char *fmt, ...);
 
+#ifdef _WIN32
+
+#define warn(fmt, ...) msg(true, fmt, __VA_ARGS__)
+#define warn_once(fmt, ...)				\
+	do {						\
+		static bool shown_warn;			\
+		if (!shown_warn) {			\
+			shown_warn = true;		\
+			msg(true, fmt, __VA_ARGS__);	\
+		}					\
+	} while (0)
+#define fail(fmt, ...) msg(false, fmt, __VA_ARGS__)
+
+#else
+
 #define warn(fmt, args...) msg(true, fmt, ##args)
-#define warn_once(fmt, args...) \
-	do { \
-		static bool shown_warn; \
-		if (!shown_warn) { \
-			shown_warn = true; \
-			msg(true, fmt, ##args); \
-		} \
+#define warn_once(fmt, args...)				\
+	do {						\
+		static bool shown_warn;			\
+		if (!shown_warn) {			\
+			shown_warn = true;		\
+			msg(true, fmt, ##args);		\
+		}					\
 	} while (0)
 #define fail(fmt, args...) msg(false, fmt, ##args)
+
+#endif
 
 void do_checksum(const char *prefix, const unsigned char *x, size_t len);
 std::string utohex(unsigned char x);
