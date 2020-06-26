@@ -380,8 +380,7 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420)
 				break;
 			}
 			bool override_pref = i == 0 && !for_ycbcr420 &&
-				first_svd_might_be_preferred &&
-				!match_timings(*t, preferred_timings);
+				first_svd_might_be_preferred;
 
 			char type[16];
 			sprintf(type, "VIC %3u", vic);

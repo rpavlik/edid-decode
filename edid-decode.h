@@ -173,7 +173,6 @@ struct edid_state {
 	bool print_timings(const char *prefix, const struct timings *t,
 			   const char *type, const char *flags = "",
 			   bool detailed = false);
-	bool match_timings(const timings &t1, const timings &t2);
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
 	void edid_cvt_mode(unsigned refresh, struct timings &t);
 	void detailed_cvt_descriptor(const char *prefix, const unsigned char *x, bool first);
