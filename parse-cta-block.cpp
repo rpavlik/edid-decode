@@ -1351,10 +1351,11 @@ static void cta_sldb(const unsigned char *x, unsigned length)
 	}
 }
 
-static void cta_vcdb(const unsigned char *x, unsigned length)
+void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 {
 	unsigned char d = x[0];
 
+	has_vcdb = true;
 	if (length < 1) {
 		fail("Empty Data Block with length %u\n", length);
 		return;
@@ -1957,4 +1958,6 @@ void edid_state::parse_cta_block(const unsigned char *x)
 	if ((supported_hdmi_vic_vsb_codes & supported_hdmi_vic_codes) !=
 	    supported_hdmi_vic_codes)
 		fail("HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB.\n");
+	if (!has_vcdb)
+		warn("Missing VCDB, needed for Set Selectable RGB Quantization to avoid interop issues.\n");
 }

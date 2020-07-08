@@ -84,7 +84,8 @@ struct edid_state {
 
 		// CTA-861 block state
 		has_640x480p60_est_timing = has_cta861_vic_1 =
-			first_svd_might_be_preferred = has_hdmi = false;
+			first_svd_might_be_preferred = has_hdmi =
+			has_vcdb = false;
 		last_block_was_hdmi_vsdb = have_hf_vsdb = have_hf_scdb = 0;
 		first_block = 1;
 		supported_hdmi_vic_codes = supported_hdmi_vic_vsb_codes = 0;
@@ -150,6 +151,7 @@ struct edid_state {
 	bool has_cta861_vic_1;
 	bool first_svd_might_be_preferred;
 	bool has_hdmi;
+	bool has_vcdb;
 	unsigned short preparsed_phys_addr;
 	int last_block_was_hdmi_vsdb;
 	int have_hf_vsdb, have_hf_scdb;
@@ -185,6 +187,7 @@ struct edid_state {
 	void parse_base_block(const unsigned char *x);
 
 	void print_vic_index(const char *prefix, unsigned idx, const char *suffix, bool ycbcr420 = false);
+	void cta_vcdb(const unsigned char *x, unsigned length);
 	void cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420);
 	void cta_y420cmdb(const unsigned char *x, unsigned length);
 	void cta_vfpdb(const unsigned char *x, unsigned length);
