@@ -41,7 +41,7 @@ enum Option {
 	OptHelp = 'h',
 	OptNativeTimings = 'n',
 	OptOutputFormat = 'o',
-	OptPreferredTiming = 'p',
+	OptPreferredTimings = 'p',
 	OptPhysicalAddress = 'P',
 	OptLongTimings = 'L',
 	OptShortTimings = 'S',
@@ -60,7 +60,7 @@ static struct option long_options[] = {
 	{ "output-format", required_argument, 0, OptOutputFormat },
 	{ "extract", no_argument, 0, OptExtract },
 	{ "native-timings", no_argument, 0, OptNativeTimings },
-	{ "preferred-timing", no_argument, 0, OptPreferredTiming },
+	{ "preferred-timings", no_argument, 0, OptPreferredTimings },
 	{ "physical-address", no_argument, 0, OptPhysicalAddress },
 	{ "skip-hex-dump", no_argument, 0, OptSkipHexDump },
 	{ "skip-sha", no_argument, 0, OptSkipSHA },
@@ -93,7 +93,7 @@ static void usage(void)
 	       "  -C, --check-inline    check if the EDID conforms to the standards, failures and\n"
 	       "                        warnings are reported inline.\n"
 	       "  -n, --native-timings  report the native timings\n"
-	       "  -p, --preferred-timing report the preferred timing\n"
+	       "  -p, --preferred-timings report the preferred timings\n"
 	       "  -P, --physical-address only report the CEC physical address\n"
 	       "  -S, --short-timings   report all video timings in a short format\n"
 	       "  -L, --long-timings    report all video timings in a long format\n"
@@ -1136,7 +1136,7 @@ int edid_state::parse_edid()
 		     preferred_timings.hact, preferred_timings.vact);
 	}
 
-	if (options[OptPreferredTiming]) {
+	if (options[OptPreferredTimings]) {
 		printf("\n----------------\n");
 		printf("\nPreferred Video Timing:\n");
 		print_timings("  ", &preferred_timings,
