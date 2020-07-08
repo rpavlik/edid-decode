@@ -988,6 +988,8 @@ void edid_state::parse_extension(const unsigned char *x)
 	data_block.clear();
 
 	printf("\n");
+	if (block_nr && x[0] == 0)
+		block = "Unknown EDID Extension Block 0x00";
 	printf("Block %u, %s:\n", block_nr, block.c_str());
 
 	switch (x[0]) {
@@ -1015,7 +1017,6 @@ void edid_state::parse_extension(const unsigned char *x)
 			fail("Must be used in block 1 and 128.\n");
 		break;
 	default:
-		printf("%s\n", block.c_str());
 		hex_block("  ", x, EDID_PAGE_SIZE);
 		fail("Unknown Extension Block.\n");
 		break;
