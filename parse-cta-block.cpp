@@ -399,6 +399,29 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420)
 				preferred_flags = flags;
 				warn("VIC %u is the preferred timing, overriding the first detailed timings. Is this intended?\n", vic);
 			}
+			if (native) {
+				if (t->interlaced) {
+					if (native_interlaced_timing.hact &&
+					    (native_interlaced_timing.hact != t->hact ||
+					     native_interlaced_timing.vact != t->vact))
+						fail("Native VIC %u overrides earlier native interlaced timing.\n", vic);
+					if (!native_interlaced_timing.hact) {
+						native_interlaced_timing = *t;
+						native_interlaced_type = type;
+						native_interlaced_flags = flags;
+					}
+				} else {
+					if (native_timing.hact &&
+					    (native_timing.hact != t->hact ||
+					     native_timing.vact != t->vact))
+						fail("Native VIC %u overrides earlier native timing.\n", vic);
+					if (!native_timing.hact) {
+						native_timing = *t;
+						native_type = type;
+						native_flags = flags;
+					}
+				}
+			}
 		} else {
 			printf("    Unknown (VIC %3u)\n", vic);
 			fail("Unknown VIC %u.\n", vic);
@@ -1913,7 +1936,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 
 		if (version < 3 && ((offset - 4) / 8)) {
 			printf("  8-byte timing descriptors: %u\n", (offset - 4) / 8);
-			fail("8-byte descriptors are no longer used\n");
+			fail("8-byte descriptors were never used\n");
 		}
 
 		if (version >= 2) {
@@ -1932,8 +1955,20 @@ void edid_state::parse_cta_block(const unsigned char *x)
 //				msg(!has_hdmi, "If YCbCr support is indicated, then both 4:2:2 and 4:4:4 %s be supported.\n",
 //				    has_hdmi ? "shall" : "should");
 			printf("  Native detailed modes: %u\n", x[3] & 0x0f);
-			if (!(x[3] & 0x0f))
-				first_svd_might_be_preferred = true;
+			if (first_block)
+				cta_byte3 = x[3];
+			else if (x[3] != cta_byte3)
+				fail("Byte 3 must be the same for all CTA Extension Blocks.\n");
+			if (first_block) {
+				if (!(x[3] & 0x0f)) {
+					first_svd_might_be_preferred = true;
+					memset(&native_timing, 0, sizeof(native_timing));
+					memset(&native_interlaced_timing, 0,
+					       sizeof(native_interlaced_timing));
+				} else if ((x[3] & 0x0f) > 1) {
+					warn("More than one native DTD is unusual.\n");
+				}
+			}
 		}
 		if (version >= 3) {
 			unsigned i;

@@ -66,6 +66,8 @@ struct edid_state {
 		min_vert_freq_hz = 0xffffffff;
 		warnings = failures = 0;
 		memset(&preferred_timings, 0, sizeof(preferred_timings));
+		memset(&native_timing, 0, sizeof(native_timing));
+		memset(&native_interlaced_timing, 0, sizeof(native_interlaced_timing));
 		preparse_total_dtds = 0;
 
 		// Base block state
@@ -111,6 +113,12 @@ struct edid_state {
 	timings preferred_timings;
 	std::string preferred_type;
 	std::string preferred_flags;
+	timings native_timing;
+	std::string native_type;
+	std::string native_flags;
+	timings native_interlaced_timing;
+	std::string native_interlaced_type;
+	std::string native_interlaced_flags;
 	unsigned preparse_total_dtds;
 
 	unsigned min_hor_freq_hz;
@@ -150,6 +158,7 @@ struct edid_state {
 	bool has_640x480p60_est_timing;
 	bool has_cta861_vic_1;
 	bool first_svd_might_be_preferred;
+	unsigned char cta_byte3;
 	bool has_hdmi;
 	bool has_vcdb;
 	unsigned short preparsed_phys_addr;

@@ -39,6 +39,7 @@ enum Option {
 	OptCheckInline = 'C',
 	OptExtract = 'e',
 	OptHelp = 'h',
+	OptNativeTimings = 'n',
 	OptOutputFormat = 'o',
 	OptPreferredTiming = 'p',
 	OptPhysicalAddress = 'P',
@@ -58,6 +59,7 @@ static struct option long_options[] = {
 	{ "help", no_argument, 0, OptHelp },
 	{ "output-format", required_argument, 0, OptOutputFormat },
 	{ "extract", no_argument, 0, OptExtract },
+	{ "native-timings", no_argument, 0, OptNativeTimings },
 	{ "preferred-timing", no_argument, 0, OptPreferredTiming },
 	{ "physical-address", no_argument, 0, OptPhysicalAddress },
 	{ "skip-hex-dump", no_argument, 0, OptSkipHexDump },
@@ -90,6 +92,7 @@ static void usage(void)
 	       "                        warnings are reported at the end.\n"
 	       "  -C, --check-inline    check if the EDID conforms to the standards, failures and\n"
 	       "                        warnings are reported inline.\n"
+	       "  -n, --native-timings  report the native timings\n"
 	       "  -p, --preferred-timing report the preferred timing\n"
 	       "  -P, --physical-address only report the CEC physical address\n"
 	       "  -S, --short-timings   report all video timings in a short format\n"
@@ -1121,12 +1124,39 @@ int edid_state::parse_edid()
 		msg(!fail || edid_minor >= 4, "%s", err.c_str());
 	}
 
+	if (native_interlaced_timing.vact && !native_timing.vact)
+		fail("A native interlaced timing is present, but not a native progressive timing.\n");
+	if (native_interlaced_timing.vact && native_timing.vact &&
+	    native_interlaced_timing.vact != native_timing.vact)
+		warn("The native interlaced frame height differs from the native progressive frame height.\n");
+	if (native_timing.vact && preferred_timings.vact > native_timing.vact) {
+		warn("Native resolution of %ux%u is smaller than the preferred resolution %ux%u.\n",
+		     native_timing.hact, native_timing.vact,
+		     preferred_timings.hact, preferred_timings.vact);
+	}
+
 	if (options[OptPreferredTiming]) {
 		printf("\n----------------\n");
 		printf("\nPreferred Video Timing:\n");
 		print_timings("  ", &preferred_timings,
 			      preferred_type.c_str(),
 			      preferred_flags.c_str(), true);
+	}
+
+	if (options[OptNativeTimings] && (native_timing.vact || native_interlaced_timing.vact)) {
+		printf("\n----------------\n");
+		if (native_timing.vact) {
+			printf("\nNative Progressive Video Timing:\n");
+			print_timings("  ", &native_timing,
+				      native_type.c_str(),
+				      native_flags.c_str(), true);
+		}
+		if (native_interlaced_timing.vact) {
+			printf("\nNative Interlaced Video Timing:\n");
+			print_timings("  ", &native_interlaced_timing,
+				      native_interlaced_type.c_str(),
+				      native_interlaced_flags.c_str(), true);
+		}
 	}
 
 	if (!options[OptCheck] && !options[OptCheckInline])

@@ -1330,10 +1330,13 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x,
 	std::string s_type = base_or_cta ? dtd_type() : "DTD";
 	bool ok = print_timings(prefix, &t, s_type.c_str(), s_flags.c_str(), true);
 
-	if (block_nr == 0 && dtd_cnt == 1 && base_or_cta) {
+	if (block_nr == 0 && dtd_cnt == 1) {
 		preferred_timings = t;
 		preferred_type = s_type;
 		preferred_flags = s_flags;
+		native_timing = t;
+		native_type = s_type;
+		native_flags = s_flags;
 	}
 
 	if ((max_display_width_mm && !t.hsize_mm) ||
@@ -1723,15 +1726,18 @@ void edid_state::parse_base_block(const unsigned char *x)
 		if (memcmp(x + 0x19, srgb_chromaticity, sizeof(srgb_chromaticity)))
 			fail("sRGB is signaled, but the chromaticities do not match.\n");
 	}
-	if (x[0x18] & 0x02) {
-		if (edid_minor >= 4)
-			printf("    First detailed timing includes the native pixel format and preferred refresh rate\n");
-		else
-			printf("    First detailed timing is preferred timing\n");
-		has_preferred_timing = 1;
-	} else if (edid_minor >= 4) {
+	if (edid_minor >= 4) {
 		/* 1.4 always has a preferred timing and this bit means something else. */
 		has_preferred_timing = 1;
+		printf("    First detailed timing %s the native pixel format and preferred refresh rate\n",
+		       (x[0x18] & 0x02) ? "includes" : "does not include");
+	} else {
+		if (x[0x18] & 0x02) {
+			printf("    First detailed timing is the preferred timings\n");
+			has_preferred_timing = 1;
+		} else if (edid_minor == 3) {
+			fail("EDID 1.3 requires that the first detailed timing is the preferred timing\n");
+		}
 	}
 
 	if (x[0x18] & 0x01) {
