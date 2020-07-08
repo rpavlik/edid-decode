@@ -182,7 +182,8 @@ struct edid_state {
 				   bool gtf_only = false, unsigned vrefresh_offset = 60);
 	void detailed_display_range_limits(const unsigned char *x);
 	void detailed_epi(const unsigned char *x);
-	void detailed_timings(const char *prefix, const unsigned char *x);
+	void detailed_timings(const char *prefix, const unsigned char *x,
+			      bool base_or_cta = true);
 	void detailed_block(const unsigned char *x);
 	void parse_base_block(const unsigned char *x);
 

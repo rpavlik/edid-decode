@@ -26,7 +26,7 @@ void edid_state::parse_vtb_ext_block(const unsigned char *x)
 	if (num_dtd) {
 		printf("  Detailed Timing Descriptors:\n");
 		for (unsigned i = 0; i < num_dtd; i++, x += 18)
-			detailed_timings("    ", x);
+			detailed_timings("    ", x, false);
 	}
 	if (num_cvt) {
 		printf("  Coordinated Video Timings:\n");

@@ -1205,13 +1205,16 @@ void edid_state::detailed_epi(const unsigned char *x)
 	printf("      EPI Version: %u.%u\n", (x[17] & 0xf0) >> 4, x[17] & 0x0f);
 }
 
-void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
+void edid_state::detailed_timings(const char *prefix, const unsigned char *x,
+				  bool base_or_cta)
 {
 	struct timings t = {};
 	unsigned hbl, vbl;
 	std::string s_sync, s_flags;
 
-	dtd_cnt++;
+	// Only count DTDs in base block 0 or CTA extension blocks
+	if (base_or_cta)
+		dtd_cnt++;
 	data_block = "Detailed Timing Descriptor #" + std::to_string(dtd_cnt);
 	t.pixclk_khz = (x[0] + (x[1] << 8)) * 10;
 	if (t.pixclk_khz < 10000) {
@@ -1324,11 +1327,12 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x)
 
 	calc_ratio(&t);
 
-	bool ok = print_timings(prefix, &t, dtd_type().c_str(), s_flags.c_str(), true);
+	std::string s_type = base_or_cta ? dtd_type() : "DTD";
+	bool ok = print_timings(prefix, &t, s_type.c_str(), s_flags.c_str(), true);
 
-	if (block_nr == 0 && dtd_cnt == 1) {
+	if (block_nr == 0 && dtd_cnt == 1 && base_or_cta) {
 		preferred_timings = t;
-		preferred_type = dtd_type();
+		preferred_type = s_type;
 		preferred_flags = s_flags;
 	}
 

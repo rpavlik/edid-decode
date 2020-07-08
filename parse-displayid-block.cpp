@@ -302,8 +302,7 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 	if (x[3] & 0x80)
 		s += ", preferred";
 
-	dtd_cnt++;
-	print_timings("    ", &t, dtd_type().c_str(), s.c_str(), true);
+	print_timings("    ", &t, "DTD", s.c_str(), true);
 }
 
 // tag 0x04
@@ -359,8 +358,7 @@ void edid_state::parse_displayid_type_2_timing(const unsigned char *x)
 	if (x[3] & 0x80)
 		s += ", preferred";
 
-	dtd_cnt++;
-	print_timings("    ", &t, dtd_type().c_str(), s.c_str(), true);
+	print_timings("    ", &t, "DTD", s.c_str(), true);
 }
 
 // tag 0x05
@@ -1007,8 +1005,7 @@ void edid_state::parse_displayid_type_6_timing(const unsigned char *x)
 	if (x[2] & 0x80)
 		s += ", preferred";
 
-	dtd_cnt++;
-	print_timings("    ", &t, dtd_type().c_str(), s.c_str(), true);
+	print_timings("    ", &t, "DTD", s.c_str(), true);
 }
 
 static std::string ieee7542d(unsigned short fp)
