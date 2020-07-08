@@ -1659,6 +1659,11 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	switch (x[0]) {
 	case 0x00: cta_vcdb(x + 1, length); return;
 	case 0x01:
+		if (length < 3) {
+			data_block = std::string("Vendor-Specific Video Data Block");
+			fail("Invalid length %u < 3\n", length);
+			return;
+		}
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
 		name = oui_name(oui);
 		if (!name) {
@@ -1694,6 +1699,11 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x0e: cta_svd(x + 1, length, true); return;
 	case 0x0f: cta_y420cmdb(x + 1, length); return;
 	case 0x11:
+		if (length < 3) {
+			data_block = std::string("Vendor-Specific Audio Data Block");
+			fail("Invalid length %u < 3\n", length);
+			return;
+		}
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
 		name = oui_name(oui);
 		if (!name) {
@@ -1731,6 +1741,11 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 			fail("HDMI Forum SCDB did not immediately follow the HDMI VSDB.\n");
 		if (have_hf_scdb || have_hf_vsdb)
 			fail("Duplicate HDMI Forum VSDB/SCDB.\n");
+		if (length < 2) {
+			data_block = std::string("HDMI Forum SCDB");
+			fail("Invalid length %u < 2\n", length);
+			return;
+		}
 		if (x[1] || x[2])
 			printf("  Non-zero SCDB reserved fields!\n");
 		cta_hf_scdb(x + 3, length - 2);
