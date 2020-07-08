@@ -394,31 +394,31 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420)
 				print_timings("    ", t, type, flags);
 			}
 			if (override_pref) {
-				preferred_timings = *t;
-				preferred_type = type;
-				preferred_flags = flags;
+				preferred_timings.t = *t;
+				preferred_timings.type = type;
+				preferred_timings.flags = flags;
 				warn("VIC %u is the preferred timing, overriding the first detailed timings. Is this intended?\n", vic);
 			}
 			if (native) {
 				if (t->interlaced) {
-					if (native_interlaced_timing.hact &&
-					    (native_interlaced_timing.hact != t->hact ||
-					     native_interlaced_timing.vact != t->vact))
+					if (native_interlaced_timing.t.hact &&
+					    (native_interlaced_timing.t.hact != t->hact ||
+					     native_interlaced_timing.t.vact != t->vact))
 						fail("Native VIC %u overrides earlier native interlaced timing.\n", vic);
-					if (!native_interlaced_timing.hact) {
-						native_interlaced_timing = *t;
-						native_interlaced_type = type;
-						native_interlaced_flags = flags;
+					if (!native_interlaced_timing.t.hact) {
+						native_interlaced_timing.t = *t;
+						native_interlaced_timing.type = type;
+						native_interlaced_timing.flags = flags;
 					}
 				} else {
-					if (native_timing.hact &&
-					    (native_timing.hact != t->hact ||
-					     native_timing.vact != t->vact))
+					if (native_timing.t.hact &&
+					    (native_timing.t.hact != t->hact ||
+					     native_timing.t.vact != t->vact))
 						fail("Native VIC %u overrides earlier native timing.\n", vic);
-					if (!native_timing.hact) {
-						native_timing = *t;
-						native_type = type;
-						native_flags = flags;
+					if (!native_timing.t.hact) {
+						native_timing.t = *t;
+						native_timing.type = type;
+						native_timing.flags = flags;
 					}
 				}
 			}
@@ -1962,9 +1962,9 @@ void edid_state::parse_cta_block(const unsigned char *x)
 			if (first_block) {
 				if (!(x[3] & 0x0f)) {
 					first_svd_might_be_preferred = true;
-					memset(&native_timing, 0, sizeof(native_timing));
-					memset(&native_interlaced_timing, 0,
-					       sizeof(native_interlaced_timing));
+					memset(&native_timing.t, 0, sizeof(native_timing.t));
+					memset(&native_interlaced_timing.t, 0,
+					       sizeof(native_interlaced_timing.t));
 				} else if ((x[3] & 0x0f) > 1) {
 					warn("More than one native DTD is unusual.\n");
 				}

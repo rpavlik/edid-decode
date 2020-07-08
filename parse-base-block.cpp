@@ -1331,12 +1331,12 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x,
 	bool ok = print_timings(prefix, &t, s_type.c_str(), s_flags.c_str(), true);
 
 	if (block_nr == 0 && dtd_cnt == 1) {
-		preferred_timings = t;
-		preferred_type = s_type;
-		preferred_flags = s_flags;
-		native_timing = t;
-		native_type = s_type;
-		native_flags = s_flags;
+		preferred_timings.t = t;
+		preferred_timings.type = s_type;
+		preferred_timings.flags = s_flags;
+		native_timing.t = t;
+		native_timing.type = s_type;
+		native_timing.flags = s_flags;
 	}
 
 	if ((max_display_width_mm && !t.hsize_mm) ||

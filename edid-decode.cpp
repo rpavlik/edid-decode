@@ -1125,38 +1125,33 @@ int edid_state::parse_edid()
 		msg(!fail || edid_minor >= 4, "%s", err.c_str());
 	}
 
-	if (native_interlaced_timing.vact && !native_timing.vact)
+	if (native_interlaced_timing.t.vact && !native_timing.t.vact)
 		fail("A native interlaced timing is present, but not a native progressive timing.\n");
-	if (native_interlaced_timing.vact && native_timing.vact &&
-	    native_interlaced_timing.vact != native_timing.vact)
+	if (native_interlaced_timing.t.vact && native_timing.t.vact &&
+	    native_interlaced_timing.t.vact != native_timing.t.vact)
 		warn("The native interlaced frame height differs from the native progressive frame height.\n");
-	if (native_timing.vact && preferred_timings.vact > native_timing.vact) {
+	if (native_timing.t.vact && preferred_timings.t.vact > native_timing.t.vact) {
 		warn("Native resolution of %ux%u is smaller than the preferred resolution %ux%u.\n",
-		     native_timing.hact, native_timing.vact,
-		     preferred_timings.hact, preferred_timings.vact);
+		     native_timing.t.hact, native_timing.t.vact,
+		     preferred_timings.t.hact, preferred_timings.t.vact);
 	}
 
 	if (options[OptPreferredTimings]) {
 		printf("\n----------------\n");
 		printf("\nPreferred Video Timing:\n");
-		print_timings("  ", &preferred_timings,
-			      preferred_type.c_str(),
-			      preferred_flags.c_str(), true);
+		print_timings("  ", preferred_timings, true);
 	}
 
-	if (options[OptNativeTimings] && (native_timing.vact || native_interlaced_timing.vact)) {
+	if (options[OptNativeTimings] &&
+	    (native_timing.t.vact || native_interlaced_timing.t.vact)) {
 		printf("\n----------------\n");
-		if (native_timing.vact) {
+		if (native_timing.t.vact) {
 			printf("\nNative Progressive Video Timing:\n");
-			print_timings("  ", &native_timing,
-				      native_type.c_str(),
-				      native_flags.c_str(), true);
+			print_timings("  ", native_timing, true);
 		}
-		if (native_interlaced_timing.vact) {
+		if (native_interlaced_timing.t.vact) {
 			printf("\nNative Interlaced Video Timing:\n");
-			print_timings("  ", &native_interlaced_timing,
-				      native_interlaced_type.c_str(),
-				      native_interlaced_flags.c_str(), true);
+			print_timings("  ", native_interlaced_timing, true);
 		}
 	}
 

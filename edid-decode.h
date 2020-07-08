@@ -56,6 +56,17 @@ struct timings {
 	bool ycbcr420; // YCbCr 4:2:0 encoding
 };
 
+struct timings_ext {
+	timings_ext()
+	{
+		memset(&t, 0, sizeof(t));
+	}
+
+	timings t;
+	std::string type;
+	std::string flags;
+};
+
 struct edid_state {
 	edid_state()
 	{
@@ -65,9 +76,6 @@ struct edid_state {
 		min_hor_freq_hz = 0xffffff;
 		min_vert_freq_hz = 0xffffffff;
 		warnings = failures = 0;
-		memset(&preferred_timings, 0, sizeof(preferred_timings));
-		memset(&native_timing, 0, sizeof(native_timing));
-		memset(&native_interlaced_timing, 0, sizeof(native_interlaced_timing));
 		preparse_total_dtds = 0;
 
 		// Base block state
@@ -110,15 +118,9 @@ struct edid_state {
 	unsigned block_nr;
 	std::string block;
 	std::string data_block;
-	timings preferred_timings;
-	std::string preferred_type;
-	std::string preferred_flags;
-	timings native_timing;
-	std::string native_type;
-	std::string native_flags;
-	timings native_interlaced_timing;
-	std::string native_interlaced_type;
-	std::string native_interlaced_flags;
+	timings_ext preferred_timings;
+	timings_ext native_timing;
+	timings_ext native_interlaced_timing;
 	unsigned preparse_total_dtds;
 
 	unsigned min_hor_freq_hz;
@@ -184,6 +186,11 @@ struct edid_state {
 	bool print_timings(const char *prefix, const struct timings *t,
 			   const char *type, const char *flags = "",
 			   bool detailed = false);
+	bool print_timings(const char *prefix, const struct timings_ext &t,
+			   bool detailed = false)
+	{
+		return print_timings(prefix, &t.t, t.type.c_str(), t.flags.c_str(), detailed);
+	};
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
 	void edid_cvt_mode(unsigned refresh, struct timings &t);
 	void detailed_cvt_descriptor(const char *prefix, const unsigned char *x, bool first);
