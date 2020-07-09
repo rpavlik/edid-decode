@@ -40,12 +40,17 @@ static void print_flags(const char *label, unsigned char flag_byte,
 	printf("\n");
 }
 
-static void check_displayid_datablock_revision(const unsigned char *x)
+static void check_displayid_datablock_revision(const unsigned char *x,
+					       unsigned char valid_flags = 0,
+					       unsigned char rev = 0)
 {
-	unsigned char revisionflags = x[1];
+	unsigned char revision = x[1] & 7;
+	unsigned char flags = x[1] & ~7 & ~valid_flags;
 
-	if (revisionflags)
-		warn("Unexpected revision and flags (0x%02x != 0).\n", revisionflags);
+	if (revision != rev)
+		warn("Unexpected revision (%u != %u).\n", revision, rev);
+	if (flags)
+		warn("Unexpected flags (0x%02x).\n", flags);
 }
 
 static bool check_displayid_datablock_length(const unsigned char *x,
@@ -169,7 +174,7 @@ static double fp2d(unsigned short fp)
 
 void edid_state::parse_displayid_color_characteristics(const unsigned char *x)
 {
-	check_displayid_datablock_revision(x);
+	check_displayid_datablock_revision(x, 0xf8, 1);
 
 	unsigned cie_year = (x[1] & 0x80) ? 1976 : 1931;
 	unsigned xfer_id = (x[1] >> 3) & 0x0f;
@@ -618,7 +623,7 @@ static void parse_displayid_intf_power_sequencing(const unsigned char *x)
 
 void edid_state::parse_displayid_transfer_characteristics(const unsigned char *x)
 {
-	check_displayid_datablock_revision(x);
+	check_displayid_datablock_revision(x, 0xf0, 1);
 
 	unsigned xfer_id = x[1] >> 4;
 	bool first_is_white = x[3] & 0x80;
@@ -746,7 +751,7 @@ static void parse_displayid_display_intf(const unsigned char *x)
 
 void edid_state::parse_displayid_stereo_display_intf(const unsigned char *x)
 {
-	check_displayid_datablock_revision(x);
+	check_displayid_datablock_revision(x, 0xc0, 1);
 
 	switch (x[1] >> 6) {
 	case 0x00: printf("    Timings that explicitly report 3D capability\n"); break;
@@ -1534,22 +1539,27 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x01: parse_displayid_parameters(x + offset); break;
 		case 0x02: parse_displayid_color_characteristics(x + offset); break;
 		case 0x03:
+			   check_displayid_datablock_revision(x + offset, 0, x[offset + 1] & 1);
 			   for (i = 0; i < len / 20; i++)
 				   parse_displayid_type_1_7_timing(&x[offset + 3 + (i * 20)], false);
 			   break;
 		case 0x04:
+			   check_displayid_datablock_revision(x + offset);
 			   for (i = 0; i < len / 11; i++)
 				   parse_displayid_type_2_timing(&x[offset + 3 + (i * 11)]);
 			   break;
 		case 0x05:
+			   check_displayid_datablock_revision(x + offset, 0, x[offset + 1] & 1);
 			   for (i = 0; i < len / 3; i++)
 				   parse_displayid_type_3_timing(&x[offset + 3 + (i * 3)]);
 			   break;
 		case 0x06:
+			   check_displayid_datablock_revision(x + offset, 0xc0, 1);
 			   for (i = 0; i < len; i++)
 				   parse_displayid_type_4_8_timing((x[offset + 1] & 0xc0) >> 6, x[offset + 3 + i]);
 			   break;
 		case 0x07:
+			   check_displayid_datablock_revision(x + offset);
 			   for (i = 0; i < min(len, 10) * 8; i++)
 				   if (x[offset + 3 + i / 8] & (1 << (i % 8))) {
 					   char type[16];
@@ -1558,6 +1568,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 				   }
 			   break;
 		case 0x08:
+			   check_displayid_datablock_revision(x + offset);
 			   for (i = 0; i < min(len, 8) * 8; i++)
 				   if (x[offset + 3 + i / 8] & (1 << (i % 8))) {
 					   char type[16];
@@ -1574,23 +1585,30 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x0f: parse_displayid_display_intf(x + offset); break;
 		case 0x10: parse_displayid_stereo_display_intf(x + offset); break;
 		case 0x11:
+			   check_displayid_datablock_revision(x + offset);
 			   for (i = 0; i < len / 7; i++)
 				   parse_displayid_type_5_timing(&x[offset + 3 + (i * 7)]);
 			   break;
 		case 0x12: parse_displayid_tiled_display_topology(x + offset, false); break;
 		case 0x13:
+			   check_displayid_datablock_revision(x + offset);
 			   for (i = 0; i < len; i += (x[offset + 3 + i + 2] & 0x40) ? 17 : 14)
 				   parse_displayid_type_6_timing(&x[offset + 3 + i]);
 			   break;
 		case 0x20: parse_displayid_product_id(x + offset, true); break;
 		case 0x21: parse_displayid_parameters_v2(x + offset); break;
 		case 0x22:
+			   if (x[offset + 1] & 0x07)
+				   check_displayid_datablock_revision(x + offset, 0x08, 1);
+			   else
+				   check_displayid_datablock_revision(x + offset);
 			   if ((x[offset + 1] & 0x07) >= 1 && (x[offset + 1] & 0x08))
 				   printf("    These timings support DSC pass-through\n");
 			   for (i = 0; i < len / 20; i++)
 				   parse_displayid_type_1_7_timing(&x[offset + 3 + i * 20], true);
 			   break;
 		case 0x23:
+			   check_displayid_datablock_revision(x + offset, 0xc8);
 			   if (x[offset + 1] & 0x08) {
 				   for (i = 0; i < len / 2; i++)
 					   parse_displayid_type_4_8_timing((x[offset + 1] & 0xc0) >> 6,
@@ -1603,6 +1621,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			   }
 			   break;
 		case 0x24:
+			   check_displayid_datablock_revision(x + offset);
 			   for (i = 0; i < len / 6; i++)
 				   parse_displayid_type_9_timing(&x[offset + 3 + i * 6]);
 			   break;
