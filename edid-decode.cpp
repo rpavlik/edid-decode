@@ -190,11 +190,11 @@ void calc_ratio(struct timings *t)
 	t->vratio = t->vact / d;
 }
 
-std::string edid_state::dtd_type()
+std::string edid_state::dtd_type(unsigned cnt)
 {
 	unsigned len = std::to_string(preparse_total_dtds).length();
 	char buf[16];
-	sprintf(buf, "DTD %*u", len, dtd_cnt);
+	sprintf(buf, "DTD %*u", len, cnt);
 	return buf;
 }
 
@@ -1122,34 +1122,103 @@ int edid_state::parse_edid()
 		msg(!fail || edid_minor >= 4, "%s", err.c_str());
 	}
 
-	if (native_interlaced_timing.t.vact && !native_timing.t.vact)
+	unsigned max_pref_prog_hact = 0;
+	unsigned max_pref_prog_vact = 0;
+	unsigned max_pref_ilace_hact = 0;
+	unsigned max_pref_ilace_vact = 0;
+
+	for (vec_timings_ext::iterator iter = preferred_timings.begin(); iter != preferred_timings.end(); ++iter) {
+		if (iter->t.hact >= 129 && !iter->t.vact) {
+			iter->flags = vec_dtds[iter->t.hact - 129].flags;
+			iter->t = vec_dtds[iter->t.hact - 129].t;
+		}
+		if (iter->t.interlaced &&
+		    (iter->t.vact > max_pref_ilace_vact ||
+		     (iter->t.vact == max_pref_ilace_vact && iter->t.hact >= max_pref_ilace_hact))) {
+			max_pref_ilace_hact = iter->t.hact;
+			max_pref_ilace_vact = iter->t.vact;
+		}
+		if (!iter->t.interlaced &&
+		    (iter->t.vact > max_pref_prog_vact ||
+		     (iter->t.vact == max_pref_prog_vact && iter->t.hact >= max_pref_prog_hact))) {
+			max_pref_prog_hact = iter->t.hact;
+			max_pref_prog_vact = iter->t.vact;
+		}
+	}
+
+	unsigned native_prog = 0;
+	unsigned native_prog_hact = 0;
+	unsigned native_prog_vact = 0;
+	bool native_prog_mixed_resolutions = false;
+	unsigned native_ilace = 0;
+	unsigned native_ilace_hact = 0;
+	unsigned native_ilace_vact = 0;
+	bool native_ilace_mixed_resolutions = false;
+
+	for (vec_timings_ext::iterator iter = native_timings.begin(); iter != native_timings.end(); ++iter) {
+		if (iter->t.hact >= 129 && !iter->t.vact) {
+			iter->flags = vec_dtds[iter->t.hact - 129].flags;
+			iter->t = vec_dtds[iter->t.hact - 129].t;
+		}
+		if (iter->t.interlaced) {
+			native_ilace++;
+			if (!native_ilace_hact) {
+				native_ilace_hact = iter->t.hact;
+				native_ilace_vact = iter->t.vact;
+			} else if (native_ilace_hact != iter->t.hact ||
+				   native_ilace_vact != iter->t.vact) {
+				native_ilace_mixed_resolutions = true;
+			}
+		} else {
+			native_prog++;
+			if (!native_prog_hact) {
+				native_prog_hact = iter->t.hact;
+				native_prog_vact = iter->t.vact;
+			} else if (native_prog_hact != iter->t.hact ||
+				   native_prog_vact != iter->t.vact) {
+				native_prog_mixed_resolutions = true;
+			}
+		}
+	}
+
+	if (native_prog_mixed_resolutions)
+		fail("Native progressive timings are a mix of several resolutions.\n");
+	if (native_ilace_mixed_resolutions)
+		fail("Native interlaced timings are a mix of several resolutions.\n");
+	if (native_ilace && !native_prog)
 		fail("A native interlaced timing is present, but not a native progressive timing.\n");
-	if (native_interlaced_timing.t.vact && native_timing.t.vact &&
-	    native_interlaced_timing.t.vact != native_timing.t.vact)
-		warn("The native interlaced frame height differs from the native progressive frame height.\n");
-	if (native_timing.t.vact && preferred_timings.t.vact > native_timing.t.vact) {
-		warn("Native resolution of %ux%u is smaller than the preferred resolution %ux%u.\n",
-		     native_timing.t.hact, native_timing.t.vact,
-		     preferred_timings.t.hact, preferred_timings.t.vact);
+	if (!native_prog_mixed_resolutions && native_prog > 1)
+		warn("Multiple native progressive timings are defined.\n");
+	if (!native_ilace_mixed_resolutions && native_ilace > 1)
+		warn("Multiple native interlaced timings are defined.\n");
+
+	if (!native_prog_mixed_resolutions && native_prog_vact &&
+	    (max_pref_prog_vact > native_prog_vact ||
+	     (max_pref_prog_vact == native_prog_vact && max_pref_prog_hact > native_prog_hact)))
+		warn("Native progressive resolution of %ux%u is smaller than the max preferred progressive resolution %ux%u.\n",
+		     native_prog_hact, native_prog_vact,
+		     max_pref_prog_hact, max_pref_prog_vact);
+	if (!native_ilace_mixed_resolutions && native_ilace_vact &&
+	    (max_pref_ilace_vact > native_ilace_vact ||
+	     (max_pref_ilace_vact == native_ilace_vact && max_pref_ilace_hact > native_ilace_hact)))
+		warn("Native interlaced resolution of %ux%u is smaller than the max preferred interlaced resolution %ux%u.\n",
+		     native_ilace_hact, native_ilace_vact,
+		     max_pref_ilace_hact, max_pref_ilace_vact);
+
+	if (options[OptPreferredTimings] && !preferred_timings.empty()) {
+		printf("\n----------------\n");
+		printf("\nPreferred Video Timing%s:\n",
+		       preferred_timings.size() > 1 ? "s" : "");
+		for (vec_timings_ext::iterator iter = preferred_timings.begin(); iter != preferred_timings.end(); ++iter)
+			print_timings("  ", *iter, true);
 	}
 
-	if (options[OptPreferredTimings]) {
+	if (options[OptNativeTimings] && !native_timings.empty()) {
 		printf("\n----------------\n");
-		printf("\nPreferred Video Timing:\n");
-		print_timings("  ", preferred_timings, true);
-	}
-
-	if (options[OptNativeTimings] &&
-	    (native_timing.t.vact || native_interlaced_timing.t.vact)) {
-		printf("\n----------------\n");
-		if (native_timing.t.vact) {
-			printf("\nNative Progressive Video Timing:\n");
-			print_timings("  ", native_timing, true);
-		}
-		if (native_interlaced_timing.t.vact) {
-			printf("\nNative Interlaced Video Timing:\n");
-			print_timings("  ", native_interlaced_timing, true);
-		}
+		printf("\nNative Video Timing%s:\n",
+		       native_timings.size() > 1 ? "s" : "");
+		for (vec_timings_ext::iterator iter = native_timings.begin(); iter != native_timings.end(); ++iter)
+			print_timings("  ", *iter, true);
 	}
 
 	if (!options[OptCheck] && !options[OptCheckInline])

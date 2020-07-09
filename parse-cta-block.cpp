@@ -394,34 +394,11 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420)
 				print_timings("    ", t, type, flags);
 			}
 			if (override_pref) {
-				preferred_timings.t = *t;
-				preferred_timings.type = type;
-				preferred_timings.flags = flags;
+				preferred_timings.push_back(timings_ext(*t, type, flags));
 				warn("VIC %u is the preferred timing, overriding the first detailed timings. Is this intended?\n", vic);
 			}
-			if (native) {
-				if (t->interlaced) {
-					if (native_interlaced_timing.t.hact &&
-					    (native_interlaced_timing.t.hact != t->hact ||
-					     native_interlaced_timing.t.vact != t->vact))
-						fail("Native VIC %u overrides earlier native interlaced timing.\n", vic);
-					if (!native_interlaced_timing.t.hact) {
-						native_interlaced_timing.t = *t;
-						native_interlaced_timing.type = type;
-						native_interlaced_timing.flags = flags;
-					}
-				} else {
-					if (native_timing.t.hact &&
-					    (native_timing.t.hact != t->hact ||
-					     native_timing.t.vact != t->vact))
-						fail("Native VIC %u overrides earlier native timing.\n", vic);
-					if (!native_timing.t.hact) {
-						native_timing.t = *t;
-						native_timing.type = type;
-						native_timing.flags = flags;
-					}
-				}
-			}
+			if (native)
+				native_timings.push_back(timings_ext(*t, type, flags));
 		} else {
 			printf("    Unknown (VIC %3u)\n", vic);
 			fail("Unknown VIC %u.\n", vic);
@@ -510,11 +487,12 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 		fail("Empty Data Block with length %u\n", length);
 		return;
 	}
+	preferred_timings.clear();
 	for (i = 0; i < length; i++)  {
 		unsigned char svr = x[i];
+		char suffix[16];
 
 		if ((svr > 0 && svr < 128) || (svr > 192 && svr < 254)) {
-			char suffix[16];
 			const struct timings *t;
 			unsigned char vic = svr;
 
@@ -523,13 +501,23 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 			t = find_vic_id(vic);
 			if (t) {
 				print_timings("    ", t, suffix);
+				preferred_timings.push_back(timings_ext(*t, suffix, ""));
 			} else {
-				printf("    Unknown (VIC %3u)\n", vic);
+				printf("    %s: Unknown\n", suffix);
 				fail("Unknown VIC %u.\n", vic);
 			}
 
-		} else if (svr > 128 && svr < 145) {
-			printf("    DTD %u\n", svr - 128);
+		} else if (svr >= 129 && svr <= 144) {
+			struct timings t = { svr, 0 };
+
+			sprintf(suffix, "DTD %3u", svr - 128);
+			if (svr >= preparse_total_dtds + 129) {
+				printf("    %s: Invalid\n", suffix);
+				fail("Invalid DTD %u.\n", svr - 128);
+			} else {
+				printf("    %s\n", suffix);
+				preferred_timings.push_back(timings_ext(t, suffix, ""));
+			}
 		}
 	}
 }
@@ -1960,13 +1948,25 @@ void edid_state::parse_cta_block(const unsigned char *x)
 			else if (x[3] != cta_byte3)
 				fail("Byte 3 must be the same for all CTA Extension Blocks.\n");
 			if (first_block) {
-				if (!(x[3] & 0x0f)) {
+				unsigned native_dtds = x[3] & 0x0f;
+
+				native_timings.clear();
+				if (!native_dtds) {
 					first_svd_might_be_preferred = true;
-					memset(&native_timing.t, 0, sizeof(native_timing.t));
-					memset(&native_interlaced_timing.t, 0,
-					       sizeof(native_interlaced_timing.t));
-				} else if ((x[3] & 0x0f) > 1) {
-					warn("More than one native DTD is unusual.\n");
+				} else if (native_dtds > preparse_total_dtds) {
+					fail("There are more Native DTDs (%u) than DTDs (%u).\n",
+					     native_dtds, preparse_total_dtds);
+				}
+				if (native_dtds > preparse_total_dtds)
+					native_dtds = preparse_total_dtds;
+				for (unsigned i = 0; i < native_dtds; i++) {
+					timings_ext te;
+					char type[16];
+
+					te.t.hact = i + 129;
+					sprintf(type, "DTD %3u", i + 1);
+					te.type = type;
+					native_timings.push_back(te);
 				}
 			}
 		}

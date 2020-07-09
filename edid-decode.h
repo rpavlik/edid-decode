@@ -61,11 +61,19 @@ struct timings_ext {
 	{
 		memset(&t, 0, sizeof(t));
 	}
+	timings_ext(const timings &_t, const std::string &_type, const std::string &_flags)
+	{
+		t = _t;
+		type = _type;
+		flags = _flags;
+	}
 
 	timings t;
 	std::string type;
 	std::string flags;
 };
+
+typedef std::vector<timings_ext> vec_timings_ext;
 
 struct edid_state {
 	edid_state()
@@ -118,10 +126,10 @@ struct edid_state {
 	unsigned block_nr;
 	std::string block;
 	std::string data_block;
-	timings_ext preferred_timings;
-	timings_ext native_timing;
-	timings_ext native_interlaced_timing;
 	unsigned preparse_total_dtds;
+	vec_timings_ext vec_dtds;
+	vec_timings_ext preferred_timings;
+	vec_timings_ext native_timings;
 
 	unsigned min_hor_freq_hz;
 	unsigned max_hor_freq_hz;
@@ -182,7 +190,8 @@ struct edid_state {
 	// Block Map block state
 	bool saw_block_1;
 
-	std::string dtd_type();
+	std::string dtd_type(unsigned dtd);
+	std::string dtd_type() { return dtd_type(dtd_cnt); }
 	bool print_timings(const char *prefix, const struct timings *t,
 			   const char *type, const char *flags = "",
 			   bool detailed = false);
