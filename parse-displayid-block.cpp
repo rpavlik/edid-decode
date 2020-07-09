@@ -1385,19 +1385,6 @@ void edid_state::preparse_displayid_block(const unsigned char *x)
 		case 0x0e:
 			preparse_xfer_ids |= 1 << ((x[offset + 1] >> 4) & 0x0f);
 			break;
-		case 0x03:
-			preparse_total_dtds += len / 20;
-			break;
-		case 0x04:
-			preparse_total_dtds += len / 11;
-			break;
-		case 0x13:
-			for (unsigned i = 0; i < len; i += (x[offset + 3 + i + 2] & 0x40) ? 17 : 14)
-				preparse_total_dtds++;
-			break;
-		case 0x22:
-			preparse_total_dtds += len / 20;
-			break;
 		default:
 			break;
 		}

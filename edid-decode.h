@@ -234,7 +234,6 @@ struct edid_state {
 	void parse_displayid_block(const unsigned char *x);
 	void parse_displayid_cta_data_block(const unsigned char *x);
 
-	void preparse_vtb_ext_block(const unsigned char *x);
 	void parse_vtb_ext_block(const unsigned char *x);
 
 	void parse_ls_ext_block(const unsigned char *x);
