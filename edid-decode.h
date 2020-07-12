@@ -74,6 +74,7 @@ struct timings_ext {
 		flags = _flags;
 	}
 
+	bool is_valid() const { return t.hact; }
 	timings t;
 	std::string type;
 	std::string flags;
@@ -90,6 +91,7 @@ struct edid_state {
 		min_hor_freq_hz = 0xffffff;
 		min_vert_freq_hz = 0xffffffff;
 		warnings = failures = 0;
+		has_cta = has_dispid = false;
 
 		// Base block state
 		base.edid_minor = 0;
@@ -98,7 +100,8 @@ struct edid_state {
 			base.supports_continuous_freq = base.supports_gtf =
 			base.supports_cvt = base.uses_gtf = base.uses_cvt =
 			base.has_640x480p60_est_timing = base.has_spwg =
-			base.seen_non_detailed_descriptor = false;
+			base.seen_non_detailed_descriptor =
+			base.preferred_is_also_native = false;
 		base.detailed_block_cnt = base.dtd_cnt = 0;
 
 		base.min_display_hor_freq_hz = base.max_display_hor_freq_hz =
@@ -132,6 +135,8 @@ struct edid_state {
 	unsigned block_nr;
 	std::string block;
 	std::string data_block;
+	bool has_cta;
+	bool has_dispid;
 
 	unsigned min_hor_freq_hz;
 	unsigned max_hor_freq_hz;
@@ -159,6 +164,8 @@ struct edid_state {
 		unsigned dtd_cnt;
 		bool seen_non_detailed_descriptor;
 		bool has_640x480p60_est_timing;
+		bool preferred_is_also_native;
+		timings_ext preferred_timing;
 
 		unsigned min_display_hor_freq_hz;
 		unsigned max_display_hor_freq_hz;
@@ -197,6 +204,7 @@ struct edid_state {
 		unsigned short preparse_xfer_ids;
 		unsigned preparse_displayid_blocks;
 		bool displayid_base_block;
+		vec_timings_ext preferred_timings;
 	} dispid;
 
 	// Block Map block state

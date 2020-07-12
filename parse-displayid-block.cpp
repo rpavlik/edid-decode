@@ -264,7 +264,8 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 		break;
 	default:
 		s += "undefined";
-		fail("Unknown aspect 0x%02x.\n", x[3] & 0xf);
+		if ((x[3] & 0xf) > 8)
+			fail("Unknown aspect 0x%02x.\n", x[3] & 0xf);
 		break;
 	}
 	switch ((x[3] >> 5) & 0x3) {
@@ -304,8 +305,10 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 		t.vsync /= 2;
 		t.vbp /= 2;
 	}
-	if (x[3] & 0x80)
+	if (x[3] & 0x80) {
 		s += ", preferred";
+		dispid.preferred_timings.push_back(timings_ext(t, "DTD", s));
+	}
 
 	print_timings("    ", &t, "DTD", s.c_str(), true);
 }
@@ -360,8 +363,10 @@ void edid_state::parse_displayid_type_2_timing(const unsigned char *x)
 		fail("Reserved stereo 0x03.\n");
 		break;
 	}
-	if (x[3] & 0x80)
+	if (x[3] & 0x80) {
 		s += ", preferred";
+		dispid.preferred_timings.push_back(timings_ext(t, "DTD", s));
+	}
 
 	print_timings("    ", &t, "DTD", s.c_str(), true);
 }
@@ -415,7 +420,8 @@ void edid_state::parse_displayid_type_3_timing(const unsigned char *x)
 		break;
 	default:
 		s += "undefined";
-		fail("Unknown aspect 0x%02x.\n", x[3] & 0xf);
+		if ((x[3] & 0xf) > 8)
+			fail("Unknown aspect 0x%02x.\n", x[3] & 0xf);
 		break;
 	}
 
@@ -425,8 +431,10 @@ void edid_state::parse_displayid_type_3_timing(const unsigned char *x)
 
 	edid_cvt_mode(1 + (x[2] & 0x7f), t);
 
-	if (x[0] & 0x80)
+	if (x[0] & 0x80) {
 		s += ", preferred";
+		dispid.preferred_timings.push_back(timings_ext(t, "CVT", s));
+	}
 
 	print_timings("    ", &t, "CVT", s.c_str());
 }
@@ -868,8 +876,6 @@ void edid_state::parse_displayid_type_5_timing(const unsigned char *x)
 	}
 	if (x[0] & 0x10)
 		s += ", refresh rate * (1000/1001) supported";
-	if (x[0] & 0x80)
-		s += ", preferred";
 
 	switch (x[0] & 0x03) {
 	case 0: t.rb = 2; break;
@@ -878,6 +884,11 @@ void edid_state::parse_displayid_type_5_timing(const unsigned char *x)
 	}
 
 	edid_cvt_mode(1 + x[6], t);
+
+	if (x[0] & 0x80) {
+		s += ", preferred";
+		dispid.preferred_timings.push_back(timings_ext(t, "CVT", s));
+	}
 
 	print_timings("    ", &t, "CVT", s.c_str());
 }
@@ -1007,8 +1018,10 @@ void edid_state::parse_displayid_type_6_timing(const unsigned char *x)
 		break;
 	}
 
-	if (x[2] & 0x80)
+	if (x[2] & 0x80) {
 		s += ", preferred";
+		dispid.preferred_timings.push_back(timings_ext(t, "DTD", s));
+	}
 
 	print_timings("    ", &t, "DTD", s.c_str(), true);
 }

@@ -971,9 +971,11 @@ void edid_state::preparse_extension(const unsigned char *x)
 {
 	switch (x[0]) {
 	case 0x02:
+		has_cta = true;
 		preparse_cta_block(x);
 		break;
 	case 0x70:
+		has_dispid = true;
 		preparse_displayid_block(x);
 		break;
 	}
@@ -1207,9 +1209,25 @@ int edid_state::parse_edid()
 		     native_ilace_hact, native_ilace_vact,
 		     max_pref_ilace_hact, max_pref_ilace_vact);
 
+	if (has_dispid && dispid.preferred_timings.empty())
+		fail("DisplayID expects at least one preferred timing.\n");
+
+	if (options[OptPreferredTimings] && base.preferred_timing.is_valid()) {
+		printf("\n----------------\n");
+		printf("\nPreferred Video Timing (Block 0):\n");
+		print_timings("  ", base.preferred_timing, true);
+	}
+
+	if (options[OptNativeTimings] &&
+	    base.preferred_timing.is_valid() && base.preferred_is_also_native) {
+		printf("\n----------------\n");
+		printf("\nNative Video Timing (Block 0):\n");
+		print_timings("  ", base.preferred_timing, true);
+	}
+
 	if (options[OptPreferredTimings] && !cta.preferred_timings.empty()) {
 		printf("\n----------------\n");
-		printf("\nPreferred Video Timing%s:\n",
+		printf("\nPreferred Video Timing%s (CTA-861):\n",
 		       cta.preferred_timings.size() > 1 ? "s" : "");
 		for (vec_timings_ext::iterator iter = cta.preferred_timings.begin();
 		     iter != cta.preferred_timings.end(); ++iter)
@@ -1218,10 +1236,19 @@ int edid_state::parse_edid()
 
 	if (options[OptNativeTimings] && !cta.native_timings.empty()) {
 		printf("\n----------------\n");
-		printf("\nNative Video Timing%s:\n",
+		printf("\nNative Video Timing%s (CTA-861):\n",
 		       cta.native_timings.size() > 1 ? "s" : "");
 		for (vec_timings_ext::iterator iter = cta.native_timings.begin();
 		     iter != cta.native_timings.end(); ++iter)
+			print_timings("  ", *iter, true);
+	}
+
+	if (options[OptPreferredTimings] && !dispid.preferred_timings.empty()) {
+		printf("\n----------------\n");
+		printf("\nPreferred Video Timing%s (DisplayID):\n",
+		       dispid.preferred_timings.size() > 1 ? "s" : "");
+		for (vec_timings_ext::iterator iter = dispid.preferred_timings.begin();
+		     iter != dispid.preferred_timings.end(); ++iter)
 			print_timings("  ", *iter, true);
 	}
 

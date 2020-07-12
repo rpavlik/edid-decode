@@ -1333,6 +1333,7 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x,
 
 	if (block_nr == 0 && base.dtd_cnt == 1) {
 		te.type = "DTD   1";
+		base.preferred_timing = te;
 		cta.preferred_timings.push_back(te);
 		cta.native_timings.push_back(te);
 	}
@@ -1538,7 +1539,6 @@ void edid_state::parse_base_block(const unsigned char *x)
 	int analog, i;
 	unsigned col_x, col_y;
 	bool has_preferred_timing = false;
-	bool has_native_timing = false;
 
 	data_block = "EDID Structure Version & Revision";
 	printf("  %s: %hhu.%hhu\n", data_block.c_str(), x[0x12], x[0x13]);
@@ -1730,9 +1730,9 @@ void edid_state::parse_base_block(const unsigned char *x)
 	if (base.edid_minor >= 4) {
 		/* 1.4 always has a preferred timing and this bit means something else. */
 		has_preferred_timing = true;
-		has_native_timing = x[0x18] & 0x02;
+		base.preferred_is_also_native = x[0x18] & 0x02;
 		printf("    First detailed timing %s the native pixel format and preferred refresh rate\n",
-		       has_native_timing ? "includes" : "does not include");
+		       base.preferred_is_also_native ? "includes" : "does not include");
 	} else {
 		if (x[0x18] & 0x02) {
 			printf("    First detailed timing is the preferred timing\n");
@@ -1741,7 +1741,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 			// native timing, but it is not a requirement.
 			// That said, we continue with the assumption that it actually
 			// is the native timing.
-			has_native_timing = true;
+			base.preferred_is_also_native = true;
 		} else if (base.edid_minor == 3) {
 			fail("EDID 1.3 requires that the first detailed timing is the preferred timing\n");
 		}
@@ -1839,8 +1839,10 @@ void edid_state::parse_base_block(const unsigned char *x)
 	detailed_block(x + 0x5a);
 	detailed_block(x + 0x6c);
 	base.has_spwg = false;
-	if (!has_native_timing)
+	if (!base.preferred_is_also_native) {
 		cta.native_timings.clear();
+		base.preferred_timing = timings_ext();
+	}
 
 	data_block = block;
 	if (x[0x7e])
