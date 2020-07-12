@@ -1698,3 +1698,19 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 	}
 	dispid.is_base_block = false;
 }
+
+void edid_state::check_displayid_blocks()
+{
+	data_block = "DisplayID";
+	if (!dispid.has_product_identification)
+		fail("Missing DisplayID Product Identification Data Block.\n");
+	if (dispid.is_display && !dispid.has_display_parameters)
+		fail("Missing DisplayID Display Parameters Data Block.\n");
+	if (dispid.is_display && !dispid.has_display_interface_features)
+		fail("Missing DisplayID Display Interface Features Data Block.\n");
+	if (dispid.is_display && !dispid.has_type_1_7)
+		fail("Missing DisplayID Type %s Detailed Timing Data Block.\n",
+		     dispid.version >= 0x20 ? "VII" : "I");
+	if (dispid.preferred_timings.empty())
+		fail("DisplayID expects at least one preferred timing.\n");
+}

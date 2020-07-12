@@ -2006,3 +2006,105 @@ void edid_state::parse_cta_block(const unsigned char *x)
 	if (!cta.has_vcdb)
 		warn("Missing VCDB, needed for Set Selectable RGB Quantization to avoid interop issues.\n");
 }
+
+void edid_state::cta_resolve_svr(vec_timings_ext::iterator iter)
+{
+	iter->flags = cta.vec_dtds[iter->svr() - 129].flags;
+	iter->t = cta.vec_dtds[iter->svr() - 129].t;
+}
+
+void edid_state::cta_resolve_svrs()
+{
+	for (vec_timings_ext::iterator iter = cta.preferred_timings.begin();
+	     iter != cta.preferred_timings.end(); ++iter) {
+		if (iter->has_svr())
+			cta_resolve_svr(iter);
+	}
+
+	for (vec_timings_ext::iterator iter = cta.native_timings.begin();
+	     iter != cta.native_timings.end(); ++iter) {
+		if (iter->has_svr())
+			cta_resolve_svr(iter);
+	}
+}
+
+void edid_state::check_cta_blocks()
+{
+	unsigned max_pref_prog_hact = 0;
+	unsigned max_pref_prog_vact = 0;
+	unsigned max_pref_ilace_hact = 0;
+	unsigned max_pref_ilace_vact = 0;
+
+	data_block = "CTA-861";
+	for (vec_timings_ext::iterator iter = cta.preferred_timings.begin();
+	     iter != cta.preferred_timings.end(); ++iter) {
+		if (iter->t.interlaced &&
+		    (iter->t.vact > max_pref_ilace_vact ||
+		     (iter->t.vact == max_pref_ilace_vact && iter->t.hact >= max_pref_ilace_hact))) {
+			max_pref_ilace_hact = iter->t.hact;
+			max_pref_ilace_vact = iter->t.vact;
+		}
+		if (!iter->t.interlaced &&
+		    (iter->t.vact > max_pref_prog_vact ||
+		     (iter->t.vact == max_pref_prog_vact && iter->t.hact >= max_pref_prog_hact))) {
+			max_pref_prog_hact = iter->t.hact;
+			max_pref_prog_vact = iter->t.vact;
+		}
+	}
+
+	unsigned native_prog = 0;
+	unsigned native_prog_hact = 0;
+	unsigned native_prog_vact = 0;
+	bool native_prog_mixed_resolutions = false;
+	unsigned native_ilace = 0;
+	unsigned native_ilace_hact = 0;
+	unsigned native_ilace_vact = 0;
+	bool native_ilace_mixed_resolutions = false;
+
+	for (vec_timings_ext::iterator iter = cta.native_timings.begin();
+	     iter != cta.native_timings.end(); ++iter) {
+		if (iter->t.interlaced) {
+			native_ilace++;
+			if (!native_ilace_hact) {
+				native_ilace_hact = iter->t.hact;
+				native_ilace_vact = iter->t.vact;
+			} else if (native_ilace_hact != iter->t.hact ||
+				   native_ilace_vact != iter->t.vact) {
+				native_ilace_mixed_resolutions = true;
+			}
+		} else {
+			native_prog++;
+			if (!native_prog_hact) {
+				native_prog_hact = iter->t.hact;
+				native_prog_vact = iter->t.vact;
+			} else if (native_prog_hact != iter->t.hact ||
+				   native_prog_vact != iter->t.vact) {
+				native_prog_mixed_resolutions = true;
+			}
+		}
+	}
+
+	if (native_prog_mixed_resolutions)
+		fail("Native progressive timings are a mix of several resolutions.\n");
+	if (native_ilace_mixed_resolutions)
+		fail("Native interlaced timings are a mix of several resolutions.\n");
+	if (native_ilace && !native_prog)
+		fail("A native interlaced timing is present, but not a native progressive timing.\n");
+	if (!native_prog_mixed_resolutions && native_prog > 1)
+		warn("Multiple native progressive timings are defined.\n");
+	if (!native_ilace_mixed_resolutions && native_ilace > 1)
+		warn("Multiple native interlaced timings are defined.\n");
+
+	if (!native_prog_mixed_resolutions && native_prog_vact &&
+	    (max_pref_prog_vact > native_prog_vact ||
+	     (max_pref_prog_vact == native_prog_vact && max_pref_prog_hact > native_prog_hact)))
+		warn("Native progressive resolution of %ux%u is smaller than the max preferred progressive resolution %ux%u.\n",
+		     native_prog_hact, native_prog_vact,
+		     max_pref_prog_hact, max_pref_prog_vact);
+	if (!native_ilace_mixed_resolutions && native_ilace_vact &&
+	    (max_pref_ilace_vact > native_ilace_vact ||
+	     (max_pref_ilace_vact == native_ilace_vact && max_pref_ilace_hact > native_ilace_hact)))
+		warn("Native interlaced resolution of %ux%u is smaller than the max preferred interlaced resolution %ux%u.\n",
+		     native_ilace_hact, native_ilace_vact,
+		     max_pref_ilace_hact, max_pref_ilace_vact);
+}

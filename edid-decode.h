@@ -75,6 +75,8 @@ struct timings_ext {
 	}
 
 	bool is_valid() const { return t.hact; }
+	bool has_svr() const { return t.hact && !t.vact; }
+	unsigned svr() const { return t.hact; }
 	timings t;
 	std::string type;
 	std::string flags;
@@ -243,6 +245,7 @@ struct edid_state {
 			      bool base_or_cta = true);
 	void detailed_block(const unsigned char *x);
 	void parse_base_block(const unsigned char *x);
+	void check_base_block();
 
 	void print_vic_index(const char *prefix, unsigned idx, const char *suffix, bool ycbcr420 = false);
 	void cta_vcdb(const unsigned char *x, unsigned length);
@@ -254,6 +257,9 @@ struct edid_state {
 	void cta_block(const unsigned char *x);
 	void preparse_cta_block(const unsigned char *x);
 	void parse_cta_block(const unsigned char *x);
+	void cta_resolve_svr(vec_timings_ext::iterator iter);
+	void cta_resolve_svrs();
+	void check_cta_blocks();
 
 	void parse_digital_interface(const unsigned char *x);
 	void parse_display_device(const unsigned char *x);
@@ -280,6 +286,7 @@ struct edid_state {
 	void preparse_displayid_block(const unsigned char *x);
 	void parse_displayid_block(const unsigned char *x);
 	void parse_displayid_cta_data_block(const unsigned char *x);
+	void check_displayid_blocks();
 
 	void parse_vtb_ext_block(const unsigned char *x);
 
