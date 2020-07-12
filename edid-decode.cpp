@@ -192,7 +192,7 @@ void calc_ratio(struct timings *t)
 
 std::string edid_state::dtd_type(unsigned cnt)
 {
-	unsigned len = std::to_string(preparse_total_dtds).length();
+	unsigned len = std::to_string(cta.preparse_total_dtds).length();
 	char buf[16];
 	sprintf(buf, "DTD %*u", len, cnt);
 	return buf;
@@ -448,19 +448,19 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		fail("0 or negative horizontal back porch.\n");
 	if (t->vbp <= 0)
 		fail("0 or negative vertical back porch.\n");
-	if ((!max_display_width_mm && t->hsize_mm) ||
-	    (!max_display_height_mm && t->vsize_mm)) {
+	if ((!base.max_display_width_mm && t->hsize_mm) ||
+	    (!base.max_display_height_mm && t->vsize_mm)) {
 		fail("Mismatch of image size vs display size: image size is set, but not display size.\n");
 	} else if (!t->hsize_mm && !t->vsize_mm) {
 		/* this is valid */
-	} else if (t->hsize_mm > max_display_width_mm + 9 ||
-		   t->vsize_mm > max_display_height_mm + 9) {
+	} else if (t->hsize_mm > base.max_display_width_mm + 9 ||
+		   t->vsize_mm > base.max_display_height_mm + 9) {
 		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm.\n",
-		     t->hsize_mm, t->vsize_mm, max_display_width_mm, max_display_height_mm);
-	} else if (t->hsize_mm < max_display_width_mm - 9 &&
-		   t->vsize_mm < max_display_height_mm - 9) {
+		     t->hsize_mm, t->vsize_mm, base.max_display_width_mm, base.max_display_height_mm);
+	} else if (t->hsize_mm < base.max_display_width_mm - 9 &&
+		   t->vsize_mm < base.max_display_height_mm - 9) {
 		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm.\n",
-		     t->hsize_mm, t->vsize_mm, max_display_width_mm, max_display_height_mm);
+		     t->hsize_mm, t->vsize_mm, base.max_display_width_mm, base.max_display_height_mm);
 	}
 	if (refresh) {
 		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
@@ -942,8 +942,8 @@ void edid_state::parse_block_map(const unsigned char *x)
 
 	printf("%s\n", block.c_str());
 	if (block_nr == 1)
-		saw_block_1 = true;
-	else if (!saw_block_1)
+		block_map.saw_block_1 = true;
+	else if (!block_map.saw_block_1)
 		fail("No EDID Block Map Extension found in block 1.\n");
 
 	if (block_nr > 1)
@@ -1030,10 +1030,10 @@ int edid_state::parse_edid()
 
 	if (options[OptPhysicalAddress]) {
 		printf("%x.%x.%x.%x\n",
-		       (preparsed_phys_addr >> 12) & 0xf,
-		       (preparsed_phys_addr >> 8) & 0xf,
-		       (preparsed_phys_addr >> 4) & 0xf,
-		       preparsed_phys_addr & 0xf);
+		       (cta.preparsed_phys_addr >> 12) & 0xf,
+		       (cta.preparsed_phys_addr >> 8) & 0xf,
+		       (cta.preparsed_phys_addr >> 4) & 0xf,
+		       cta.preparsed_phys_addr & 0xf);
 		return 0;
 	}
 
@@ -1061,54 +1061,54 @@ int edid_state::parse_edid()
 
 	block = "";
 	block_nr = EDID_MAX_BLOCKS;
-	if (uses_gtf && !supports_gtf)
+	if (base.uses_gtf && !base.supports_gtf)
 		fail("GTF timings are used, but the EDID does not signal GTF support.\n");
-	if (uses_cvt && !supports_cvt)
+	if (base.uses_cvt && !base.supports_cvt)
 		fail("CVT timings are used, but the EDID does not signal CVT support.\n");
 	/*
 	 * Allow for regular rounding of vertical and horizontal frequencies.
 	 * The spec says that the pixelclock shall be rounded up, so there is
 	 * no need to take rounding into account.
 	 */
-	if (has_display_range_descriptor &&
-	    (min_vert_freq_hz + 0.5 < min_display_vert_freq_hz ||
-	     (max_vert_freq_hz >= max_display_vert_freq_hz + 0.5 && max_display_vert_freq_hz) ||
-	     min_hor_freq_hz + 500 < min_display_hor_freq_hz ||
-	     (max_hor_freq_hz >= max_display_hor_freq_hz + 500 && max_display_hor_freq_hz) ||
-	     (max_pixclk_khz > max_display_pixclk_khz && max_display_pixclk_khz))) {
+	if (base.has_display_range_descriptor &&
+	    (min_vert_freq_hz + 0.5 < base.min_display_vert_freq_hz ||
+	     (max_vert_freq_hz >= base.max_display_vert_freq_hz + 0.5 && base.max_display_vert_freq_hz) ||
+	     min_hor_freq_hz + 500 < base.min_display_hor_freq_hz ||
+	     (max_hor_freq_hz >= base.max_display_hor_freq_hz + 500 && base.max_display_hor_freq_hz) ||
+	     (max_pixclk_khz > base.max_display_pixclk_khz && base.max_display_pixclk_khz))) {
 		/*
 		 * Check if it is really out of range, or if it could be a rounding error.
 		 * The EDID spec is not very clear about rounding.
 		 */
 		bool fail =
-			min_vert_freq_hz + 1.0 <= min_display_vert_freq_hz ||
-			(max_vert_freq_hz >= max_display_vert_freq_hz + 1.0 && max_display_vert_freq_hz) ||
-			min_hor_freq_hz + 1000 <= min_display_hor_freq_hz ||
-			(max_hor_freq_hz >= max_display_hor_freq_hz + 1000 && max_display_hor_freq_hz) ||
-			(max_pixclk_khz >= max_display_pixclk_khz + 10000 && max_display_pixclk_khz);
+			min_vert_freq_hz + 1.0 <= base.min_display_vert_freq_hz ||
+			(max_vert_freq_hz >= base.max_display_vert_freq_hz + 1.0 && base.max_display_vert_freq_hz) ||
+			min_hor_freq_hz + 1000 <= base.min_display_hor_freq_hz ||
+			(max_hor_freq_hz >= base.max_display_hor_freq_hz + 1000 && base.max_display_hor_freq_hz) ||
+			(max_pixclk_khz >= base.max_display_pixclk_khz + 10000 && base.max_display_pixclk_khz);
 
 		std::string err("Some timings are out of range of the Monitor Ranges:\n");
 		char buf[512];
 
-		if (min_vert_freq_hz + 0.5 < min_display_vert_freq_hz ||
-		    (max_vert_freq_hz >= max_display_vert_freq_hz + 0.5 && max_display_vert_freq_hz)) {
+		if (min_vert_freq_hz + 0.5 < base.min_display_vert_freq_hz ||
+		    (max_vert_freq_hz >= base.max_display_vert_freq_hz + 0.5 && base.max_display_vert_freq_hz)) {
 			sprintf(buf, "    Vertical Freq: %.3f - %.3f Hz (Monitor: %u.000 - %u.000 Hz)\n",
 				min_vert_freq_hz, max_vert_freq_hz,
-				min_display_vert_freq_hz, max_display_vert_freq_hz);
+				base.min_display_vert_freq_hz, base.max_display_vert_freq_hz);
 			err += buf;
 		}
 
-		if (min_hor_freq_hz + 500 < min_display_hor_freq_hz ||
-		    (max_hor_freq_hz >= max_display_hor_freq_hz + 500 && max_display_hor_freq_hz)) {
+		if (min_hor_freq_hz + 500 < base.min_display_hor_freq_hz ||
+		    (max_hor_freq_hz >= base.max_display_hor_freq_hz + 500 && base.max_display_hor_freq_hz)) {
 			sprintf(buf, "    Horizontal Freq: %.3f - %.3f kHz (Monitor: %.3f - %.3f kHz)\n",
 				min_hor_freq_hz / 1000.0, max_hor_freq_hz / 1000.0,
-				min_display_hor_freq_hz / 1000.0, max_display_hor_freq_hz / 1000.0);
+				base.min_display_hor_freq_hz / 1000.0, base.max_display_hor_freq_hz / 1000.0);
 			err += buf;
 		}
 
-		if (max_pixclk_khz >= max_display_pixclk_khz && max_display_pixclk_khz) {
+		if (max_pixclk_khz >= base.max_display_pixclk_khz && base.max_display_pixclk_khz) {
 			sprintf(buf, "    Maximum Clock: %.3f MHz (Monitor: %.3f MHz)\n",
-				max_pixclk_khz / 1000.0, max_display_pixclk_khz / 1000.0);
+				max_pixclk_khz / 1000.0, base.max_display_pixclk_khz / 1000.0);
 			err += buf;
 		}
 
@@ -1119,7 +1119,7 @@ int edid_state::parse_edid()
 		 * EDID 1.4 states (in an Errata) that explicitly defined
 		 * timings supersede the monitor range definition.
 		 */
-		msg(!fail || edid_minor >= 4, "%s", err.c_str());
+		msg(!fail || base.edid_minor >= 4, "%s", err.c_str());
 	}
 
 	unsigned max_pref_prog_hact = 0;
@@ -1127,10 +1127,11 @@ int edid_state::parse_edid()
 	unsigned max_pref_ilace_hact = 0;
 	unsigned max_pref_ilace_vact = 0;
 
-	for (vec_timings_ext::iterator iter = preferred_timings.begin(); iter != preferred_timings.end(); ++iter) {
+	for (vec_timings_ext::iterator iter = cta.preferred_timings.begin();
+	     iter != cta.preferred_timings.end(); ++iter) {
 		if (iter->t.hact >= 129 && !iter->t.vact) {
-			iter->flags = vec_dtds[iter->t.hact - 129].flags;
-			iter->t = vec_dtds[iter->t.hact - 129].t;
+			iter->flags = cta.vec_dtds[iter->t.hact - 129].flags;
+			iter->t = cta.vec_dtds[iter->t.hact - 129].t;
 		}
 		if (iter->t.interlaced &&
 		    (iter->t.vact > max_pref_ilace_vact ||
@@ -1155,10 +1156,11 @@ int edid_state::parse_edid()
 	unsigned native_ilace_vact = 0;
 	bool native_ilace_mixed_resolutions = false;
 
-	for (vec_timings_ext::iterator iter = native_timings.begin(); iter != native_timings.end(); ++iter) {
+	for (vec_timings_ext::iterator iter = cta.native_timings.begin();
+	     iter != cta.native_timings.end(); ++iter) {
 		if (iter->t.hact >= 129 && !iter->t.vact) {
-			iter->flags = vec_dtds[iter->t.hact - 129].flags;
-			iter->t = vec_dtds[iter->t.hact - 129].t;
+			iter->flags = cta.vec_dtds[iter->t.hact - 129].flags;
+			iter->t = cta.vec_dtds[iter->t.hact - 129].t;
 		}
 		if (iter->t.interlaced) {
 			native_ilace++;
@@ -1205,19 +1207,21 @@ int edid_state::parse_edid()
 		     native_ilace_hact, native_ilace_vact,
 		     max_pref_ilace_hact, max_pref_ilace_vact);
 
-	if (options[OptPreferredTimings] && !preferred_timings.empty()) {
+	if (options[OptPreferredTimings] && !cta.preferred_timings.empty()) {
 		printf("\n----------------\n");
 		printf("\nPreferred Video Timing%s:\n",
-		       preferred_timings.size() > 1 ? "s" : "");
-		for (vec_timings_ext::iterator iter = preferred_timings.begin(); iter != preferred_timings.end(); ++iter)
+		       cta.preferred_timings.size() > 1 ? "s" : "");
+		for (vec_timings_ext::iterator iter = cta.preferred_timings.begin();
+		     iter != cta.preferred_timings.end(); ++iter)
 			print_timings("  ", *iter, true);
 	}
 
-	if (options[OptNativeTimings] && !native_timings.empty()) {
+	if (options[OptNativeTimings] && !cta.native_timings.empty()) {
 		printf("\n----------------\n");
 		printf("\nNative Video Timing%s:\n",
-		       native_timings.size() > 1 ? "s" : "");
-		for (vec_timings_ext::iterator iter = native_timings.begin(); iter != native_timings.end(); ++iter)
+		       cta.native_timings.size() > 1 ? "s" : "");
+		for (vec_timings_ext::iterator iter = cta.native_timings.begin();
+		     iter != cta.native_timings.end(); ++iter)
 			print_timings("  ", *iter, true);
 	}
 

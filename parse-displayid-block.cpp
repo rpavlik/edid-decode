@@ -187,7 +187,7 @@ void edid_state::parse_displayid_color_characteristics(const unsigned char *x)
 	printf("    Uses %u CIE (x, y) coordinates\n", cie_year);
 	if (xfer_id) {
 		printf("    Associated with Transfer Characteristics Data Block with Identifier %u\n", xfer_id);
-		if (!(preparse_xfer_ids & (1 << xfer_id)))
+		if (!(dispid.preparse_xfer_ids & (1 << xfer_id)))
 			fail("Missing Transfer Characteristics Data Block with Identifier %u.\n", xfer_id);
 	}
 	if (!num_primaries) {
@@ -631,7 +631,7 @@ void edid_state::parse_displayid_transfer_characteristics(const unsigned char *x
 
 	if (xfer_id) {
 		printf("    Transfer Characteristics Data Block Identifier: %u\n", xfer_id);
-		if (!(preparse_color_ids & (1 << xfer_id)))
+		if (!(dispid.preparse_color_ids & (1 << xfer_id)))
 			fail("Missing Color Characteristics Data Block using Identifier %u.\n", xfer_id);
 	}
 	if (first_is_white)
@@ -1378,17 +1378,17 @@ void edid_state::preparse_displayid_block(const unsigned char *x)
 
 	unsigned offset = 5;
 
-	preparse_displayid_blocks++;
+	dispid.preparse_displayid_blocks++;
 	while (length > 0) {
 		unsigned tag = x[offset];
 		unsigned len = x[offset + 2];
 
 		switch (tag) {
 		case 0x02:
-			preparse_color_ids |= 1 << ((x[offset + 1] >> 3) & 0x0f);
+			dispid.preparse_color_ids |= 1 << ((x[offset + 1] >> 3) & 0x0f);
 			break;
 		case 0x0e:
-			preparse_xfer_ids |= 1 << ((x[offset + 1] >> 4) & 0x0f);
+			dispid.preparse_xfer_ids |= 1 << ((x[offset + 1] >> 4) & 0x0f);
 			break;
 		default:
 			break;
@@ -1419,15 +1419,15 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 	printf("  Version: %u.%u\n  Extension Count: %u\n",
 	       version >> 4, version & 0xf, ext_count);
 
-	if (displayid_base_block) {
+	if (dispid.displayid_base_block) {
 		printf("  %s: %s\n", product_type(version, prod_type, true).c_str(),
 		       product_type(version, prod_type, false).c_str());
-		displayid_base_block = false;
+		dispid.displayid_base_block = false;
 		if (!prod_type)
 			fail("DisplayID Base Block has no product type.\n");
-		if (ext_count != preparse_displayid_blocks - 1)
+		if (ext_count != dispid.preparse_displayid_blocks - 1)
 			fail("Expected %u DisplayID Extension Blocks, but got %u\n",
-			     preparse_displayid_blocks - 1, ext_count);
+			     dispid.preparse_displayid_blocks - 1, ext_count);
 	} else {
 		if (prod_type)
 			fail("Product Type should be 0 in extension block.\n");

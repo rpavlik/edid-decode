@@ -84,40 +84,40 @@ struct edid_state {
 		min_hor_freq_hz = 0xffffff;
 		min_vert_freq_hz = 0xffffffff;
 		warnings = failures = 0;
-		preparse_total_dtds = 0;
 
 		// Base block state
-		edid_minor = 0;
-		has_name_descriptor = has_display_range_descriptor =
-			has_serial_number = has_serial_string =
-			supports_continuous_freq = supports_gtf =
-			supports_cvt = uses_gtf = uses_cvt = has_spwg =
-			seen_non_detailed_descriptor = false;
-		detailed_block_cnt = dtd_cnt = 0;
+		base.edid_minor = 0;
+		base.has_name_descriptor = base.has_display_range_descriptor =
+			base.has_serial_number = base.has_serial_string =
+			base.supports_continuous_freq = base.supports_gtf =
+			base.supports_cvt = base.uses_gtf = base.uses_cvt =
+			base.has_640x480p60_est_timing = base.has_spwg =
+			base.seen_non_detailed_descriptor = false;
+		base.detailed_block_cnt = base.dtd_cnt = 0;
 
-		min_display_hor_freq_hz = max_display_hor_freq_hz =
-			min_display_vert_freq_hz = max_display_vert_freq_hz =
-			max_display_pixclk_khz = max_display_width_mm =
-			max_display_height_mm = 0;
+		base.min_display_hor_freq_hz = base.max_display_hor_freq_hz =
+			base.min_display_vert_freq_hz = base.max_display_vert_freq_hz =
+			base.max_display_pixclk_khz = base.max_display_width_mm =
+			base.max_display_height_mm = 0;
 
 		// CTA-861 block state
-		has_640x480p60_est_timing = has_cta861_vic_1 =
-			first_svd_might_be_preferred = has_hdmi =
-			has_vcdb = false;
-		last_block_was_hdmi_vsdb = have_hf_vsdb = have_hf_scdb = 0;
-		first_block = 1;
-		supported_hdmi_vic_codes = supported_hdmi_vic_vsb_codes = 0;
-		memset(vics, 0, sizeof(vics));
-		memset(preparsed_has_vic, 0, sizeof(preparsed_has_vic));
-		preparsed_phys_addr = 0xffff;
+		cta.has_vic_1 = cta.first_svd_might_be_preferred =
+			cta.has_hdmi = cta.has_vcdb = false;
+		cta.last_block_was_hdmi_vsdb = cta.have_hf_vsdb = cta.have_hf_scdb = 0;
+		cta.first_block = 1;
+		cta.supported_hdmi_vic_codes = cta.supported_hdmi_vic_vsb_codes = 0;
+		memset(cta.vics, 0, sizeof(cta.vics));
+		memset(cta.preparsed_has_vic, 0, sizeof(cta.preparsed_has_vic));
+		cta.preparsed_phys_addr = 0xffff;
+		cta.preparse_total_dtds = 0;
 
 		// DisplayID block state
-		preparse_color_ids = preparse_xfer_ids = 0;
-		preparse_displayid_blocks = 0;
-		displayid_base_block = true;
+		dispid.preparse_color_ids = dispid.preparse_xfer_ids = 0;
+		dispid.preparse_displayid_blocks = 0;
+		dispid.displayid_base_block = true;
 
 		// Block Map block state
-		saw_block_1 = false;
+		block_map.saw_block_1 = false;
 	}
 
 	// Global state
@@ -126,10 +126,6 @@ struct edid_state {
 	unsigned block_nr;
 	std::string block;
 	std::string data_block;
-	unsigned preparse_total_dtds;
-	vec_timings_ext vec_dtds;
-	vec_timings_ext preferred_timings;
-	vec_timings_ext native_timings;
 
 	unsigned min_hor_freq_hz;
 	unsigned max_hor_freq_hz;
@@ -141,57 +137,69 @@ struct edid_state {
 	unsigned failures;
 
 	// Base block state
-	unsigned edid_minor;
-	bool has_name_descriptor;
-	bool has_display_range_descriptor;
-	bool has_serial_number;
-	bool has_serial_string;
-	bool supports_continuous_freq;
-	bool supports_gtf;
-	bool supports_cvt;
-	bool uses_gtf;
-	bool uses_cvt;
-	bool has_spwg;
-	unsigned detailed_block_cnt;
-	unsigned dtd_cnt;
-	bool seen_non_detailed_descriptor;
+	struct {
+		unsigned edid_minor;
+		bool has_name_descriptor;
+		bool has_display_range_descriptor;
+		bool has_serial_number;
+		bool has_serial_string;
+		bool supports_continuous_freq;
+		bool supports_gtf;
+		bool supports_cvt;
+		bool uses_gtf;
+		bool uses_cvt;
+		bool has_spwg;
+		unsigned detailed_block_cnt;
+		unsigned dtd_cnt;
+		bool seen_non_detailed_descriptor;
+		bool has_640x480p60_est_timing;
 
-	unsigned min_display_hor_freq_hz;
-	unsigned max_display_hor_freq_hz;
-	unsigned min_display_vert_freq_hz;
-	unsigned max_display_vert_freq_hz;
-	unsigned max_display_pixclk_khz;
-	unsigned max_display_width_mm;
-	unsigned max_display_height_mm;
+		unsigned min_display_hor_freq_hz;
+		unsigned max_display_hor_freq_hz;
+		unsigned min_display_vert_freq_hz;
+		unsigned max_display_vert_freq_hz;
+		unsigned max_display_pixclk_khz;
+		unsigned max_display_width_mm;
+		unsigned max_display_height_mm;
+	} base;
 
 	// CTA-861 block state
-	bool has_640x480p60_est_timing;
-	bool has_cta861_vic_1;
-	bool first_svd_might_be_preferred;
-	unsigned char cta_byte3;
-	bool has_hdmi;
-	bool has_vcdb;
-	unsigned short preparsed_phys_addr;
-	int last_block_was_hdmi_vsdb;
-	int have_hf_vsdb, have_hf_scdb;
-	int first_block;
-	unsigned supported_hdmi_vic_codes;
-	unsigned supported_hdmi_vic_vsb_codes;
-	unsigned short vics[256][2];
-	bool preparsed_has_vic[2][256];
-	std::vector<unsigned char> preparsed_svds[2];
+	struct {
+		unsigned preparse_total_dtds;
+		vec_timings_ext vec_dtds;
+		vec_timings_ext preferred_timings;
+		vec_timings_ext native_timings;
+		bool has_vic_1;
+		bool first_svd_might_be_preferred;
+		unsigned char byte3;
+		bool has_hdmi;
+		bool has_vcdb;
+		unsigned short preparsed_phys_addr;
+		int last_block_was_hdmi_vsdb;
+		int have_hf_vsdb, have_hf_scdb;
+		int first_block;
+		unsigned supported_hdmi_vic_codes;
+		unsigned supported_hdmi_vic_vsb_codes;
+		unsigned short vics[256][2];
+		bool preparsed_has_vic[2][256];
+		std::vector<unsigned char> preparsed_svds[2];
+	} cta;
 
 	// DisplayID block state
-	unsigned short preparse_color_ids;
-	unsigned short preparse_xfer_ids;
-	unsigned preparse_displayid_blocks;
-	bool displayid_base_block;
+	struct {
+		unsigned short preparse_color_ids;
+		unsigned short preparse_xfer_ids;
+		unsigned preparse_displayid_blocks;
+		bool displayid_base_block;
+	} dispid;
 
 	// Block Map block state
-	bool saw_block_1;
+	struct {
+		bool saw_block_1;
+	} block_map;
 
 	std::string dtd_type(unsigned dtd);
-	std::string dtd_type() { return dtd_type(dtd_cnt); }
+	std::string dtd_type() { return dtd_type(base.dtd_cnt); }
 	bool print_timings(const char *prefix, const struct timings *t,
 			   const char *type, const char *flags = "",
 			   bool detailed = false);
