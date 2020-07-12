@@ -61,6 +61,12 @@ struct timings_ext {
 	{
 		memset(&t, 0, sizeof(t));
 	}
+	timings_ext(unsigned svr, const std::string &_type)
+	{
+		memset(&t, 0, sizeof(t));
+		t.hact = svr;
+		type = _type;
+	}
 	timings_ext(const timings &_t, const std::string &_type, const std::string &_flags)
 	{
 		t = _t;

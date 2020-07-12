@@ -508,15 +508,13 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 			}
 
 		} else if (svr >= 129 && svr <= 144) {
-			struct timings t = { svr, 0 };
-
 			sprintf(suffix, "DTD %3u", svr - 128);
 			if (svr >= cta.preparse_total_dtds + 129) {
 				printf("    %s: Invalid\n", suffix);
 				fail("Invalid DTD %u.\n", svr - 128);
 			} else {
 				printf("    %s\n", suffix);
-				cta.preferred_timings.push_back(timings_ext(t, suffix, ""));
+				cta.preferred_timings.push_back(timings_ext(svr, suffix));
 			}
 		}
 	}
@@ -1960,13 +1958,10 @@ void edid_state::parse_cta_block(const unsigned char *x)
 				if (native_dtds > cta.preparse_total_dtds)
 					native_dtds = cta.preparse_total_dtds;
 				for (unsigned i = 0; i < native_dtds; i++) {
-					timings_ext te;
 					char type[16];
 
-					te.t.hact = i + 129;
 					sprintf(type, "DTD %3u", i + 1);
-					te.type = type;
-					cta.native_timings.push_back(te);
+					cta.native_timings.push_back(timings_ext(i + 129, type));
 				}
 			}
 		}
