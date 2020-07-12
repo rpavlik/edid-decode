@@ -76,11 +76,12 @@ static bool check_displayid_datablock_length(const unsigned char *x,
 
 // tag 0x00 and 0x20
 
-static void parse_displayid_product_id(const unsigned char *x, bool is_v2)
+void edid_state::parse_displayid_product_id(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 
-	if (is_v2) {
+	dispid.has_product_identification = true;
+	if (dispid.version >= 0x20) {
 		unsigned oui = (x[3] << 16) | (x[4] << 8) | x[5];
 		printf("    Vendor OUI %s\n", ouitohex(oui).c_str());
 	} else {
@@ -131,13 +132,14 @@ static void print_flag_lines(const char *indent, const char *label,
 	}
 }
 
-static void parse_displayid_parameters(const unsigned char *x)
+void edid_state::parse_displayid_parameters(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 
 	if (!check_displayid_datablock_length(x, 12, 12))
 		return;
 
+	dispid.has_display_parameters = true;
 	printf("    Image size: %.1f mm x %.1f mm\n",
 	       ((x[4] << 8) + x[3]) / 10.0,
 	       ((x[6] << 8) + x[5]) / 10.0);
@@ -221,6 +223,7 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 	unsigned hbl, vbl;
 	std::string s("aspect ");
 
+	dispid.has_type_1_7 = true;
 	t.pixclk_khz = (type7 ? 1 : 10) * (1 + (x[0] + (x[1] << 8) + (x[2] << 16)));
 	switch (x[3] & 0xf) {
 	case 0:
@@ -674,13 +677,14 @@ void edid_state::parse_displayid_transfer_characteristics(const unsigned char *x
 
 // tag 0x0f
 
-static void parse_displayid_display_intf(const unsigned char *x)
+void edid_state::parse_displayid_display_intf(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 
 	if (!check_displayid_datablock_length(x, 10, 10))
 		return;
 
+	dispid.has_display_interface_features = true;
 	printf("    Interface Type: ");
 	switch (x[3] >> 4) {
 	case 0x00:
@@ -1040,7 +1044,7 @@ static std::string ieee7542d(unsigned short fp)
 
 // tag 0x21
 
-static void parse_displayid_parameters_v2(const unsigned char *x)
+void edid_state::parse_displayid_parameters_v2(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 
@@ -1050,6 +1054,7 @@ static void parse_displayid_parameters_v2(const unsigned char *x)
 	unsigned hor_size = (x[4] << 8) + x[3];
 	unsigned vert_size = (x[6] << 8) + x[5];
 
+	dispid.has_display_parameters = true;
 	if (x[1] & 0x80)
 		printf("    Image size: %u mm x %u mm\n",
 		       hor_size, vert_size);
@@ -1214,13 +1219,14 @@ static const char *eotfs[] = {
 	"Custom"
 };
 
-static void parse_displayid_interface_features(const unsigned char *x)
+void edid_state::parse_displayid_interface_features(const unsigned char *x)
 {
 	check_displayid_datablock_revision(x);
 
 	if (!check_displayid_datablock_length(x, 9))
 		return;
 
+	dispid.has_display_interface_features = true;
 	unsigned len = x[2];
 	if (len > 0) print_flags("    Supported bpc for RGB encoding", x[3], bpc444);
 	if (len > 1) print_flags("    Supported bpc for YCbCr 4:4:4 encoding", x[4], bpc444);
@@ -1345,13 +1351,14 @@ void edid_state::parse_displayid_cta_data_block(const unsigned char *x)
 
 // DisplayID main
 
-static std::string product_type(unsigned version, unsigned char x, bool heading)
+std::string edid_state::product_type(unsigned char x, bool heading)
 {
 	std::string headingstr;
 
-	if (version < 0x20) {
+	if (dispid.version < 0x20) {
 		headingstr = "Display Product Type";
 		if (heading) return headingstr;
+		dispid.is_display = x == 2 || x == 3 || x == 4 || x == 6;
 		switch (x) {
 		case 0: return "Extension Section";
 		case 1: return "Test Structure; test equipment only";
@@ -1365,6 +1372,7 @@ static std::string product_type(unsigned version, unsigned char x, bool heading)
 	} else {
 		headingstr = "Display Product Primary Use Case";
 		if (heading) return headingstr;
+		dispid.is_display = x >= 2 && x <= 8;
 		switch (x) {
 		case 0: return "Same primary use case as the base section";
 		case 1: return "Test Structure; test equipment only";
@@ -1432,20 +1440,26 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 	printf("  Version: %u.%u\n  Extension Count: %u\n",
 	       version >> 4, version & 0xf, ext_count);
 
-	if (dispid.displayid_base_block) {
-		printf("  %s: %s\n", product_type(version, prod_type, true).c_str(),
-		       product_type(version, prod_type, false).c_str());
-		dispid.displayid_base_block = false;
+	if (dispid.is_base_block) {
+		dispid.version = version;
+		printf("  %s: %s\n", product_type(prod_type, true).c_str(),
+		       product_type(prod_type, false).c_str());
 		if (!prod_type)
 			fail("DisplayID Base Block has no product type.\n");
 		if (ext_count != dispid.preparse_displayid_blocks - 1)
-			fail("Expected %u DisplayID Extension Blocks, but got %u\n",
-			     dispid.preparse_displayid_blocks - 1, ext_count);
+			fail("Expected %u DisplayID Extension Block%s, but got %u\n",
+			     dispid.preparse_displayid_blocks - 1,
+			     dispid.preparse_displayid_blocks == 2 ? "" : "s",
+			     ext_count);
 	} else {
 		if (prod_type)
 			fail("Product Type should be 0 in extension block.\n");
 		if (ext_count)
 			fail("Extension Count should be 0 in extension block.\n");
+		if (version != dispid.version)
+			fail("Got version %u.%u, expected %u.%u.\n",
+			     version >> 4, version & 0xf,
+			     dispid.version >> 4, dispid.version & 0xf);
 	}
 
 	if (length > 121) {
@@ -1454,6 +1468,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 	}
 
 	unsigned offset = 5;
+	bool first_data_block = true;
 	while (length > 0) {
 		unsigned tag = x[offset];
 		unsigned oui = 0;
@@ -1522,6 +1537,13 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		default:   data_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")"; break;
 		}
 
+		if (version >= 0x20 && (tag < 0x20 || tag == 0x7f))
+			fail("Use of DisplayID v1.x tag for DisplayID v%u.%u.\n",
+			     version >> 4, version & 0xf);
+		if (version < 0x20 && tag >= 0x20 && tag <= 0x7e)
+			fail("Use of DisplayID v2.0 tag for DisplayID v%u.%u.\n",
+			     version >> 4, version & 0xf);
+
 		if (length < 3) {
 			// report a problem when the remaining bytes are not 0.
 			if (tag || x[offset + 1]) {
@@ -1548,7 +1570,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		printf("  %s:\n", data_block.c_str());
 
 		switch (tag) {
-		case 0x00: parse_displayid_product_id(x + offset, false); break;
+		case 0x00: parse_displayid_product_id(x + offset); break;
 		case 0x01: parse_displayid_parameters(x + offset); break;
 		case 0x02: parse_displayid_color_characteristics(x + offset); break;
 		case 0x03:
@@ -1608,7 +1630,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			   for (i = 0; i < len; i += (x[offset + 3 + i + 2] & 0x40) ? 17 : 14)
 				   parse_displayid_type_6_timing(&x[offset + 3 + i]);
 			   break;
-		case 0x20: parse_displayid_product_id(x + offset, true); break;
+		case 0x20: parse_displayid_product_id(x + offset); break;
 		case 0x21: parse_displayid_parameters_v2(x + offset); break;
 		case 0x22:
 			   if (x[offset + 1] & 0x07)
@@ -1652,8 +1674,14 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			// fall-through
 		default: hex_block("    ", x + offset + 3, len); break;
 		}
+
+		if ((tag == 0x00 || tag == 0x20) &&
+		    (!dispid.is_base_block || !first_data_block))
+			fail("%s is required to be the first DisplayID Data Block.\n",
+			     data_block.c_str());
 		length -= len + 3;
 		offset += len + 3;
+		first_data_block = false;
 	}
 
 	/*
@@ -1668,4 +1696,5 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		data_block = "Padding";
 		fail("DisplayID padding contains non-zero bytes.\n");
 	}
+	dispid.is_base_block = false;
 }

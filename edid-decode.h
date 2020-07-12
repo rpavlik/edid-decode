@@ -121,9 +121,13 @@ struct edid_state {
 		cta.preparse_total_dtds = 0;
 
 		// DisplayID block state
+		dispid.version = 0;
 		dispid.preparse_color_ids = dispid.preparse_xfer_ids = 0;
 		dispid.preparse_displayid_blocks = 0;
-		dispid.displayid_base_block = true;
+		dispid.is_base_block = true;
+		dispid.is_display = dispid.has_product_identification =
+			dispid.has_display_parameters = dispid.has_type_1_7 =
+			dispid.has_display_interface_features = false;
 
 		// Block Map block state
 		block_map.saw_block_1 = false;
@@ -200,10 +204,16 @@ struct edid_state {
 
 	// DisplayID block state
 	struct {
+		unsigned char version;
 		unsigned short preparse_color_ids;
 		unsigned short preparse_xfer_ids;
 		unsigned preparse_displayid_blocks;
-		bool displayid_base_block;
+		bool is_base_block;
+		bool is_display;
+		bool has_product_identification;
+		bool has_display_parameters;
+		bool has_type_1_7;
+		bool has_display_interface_features;
 		vec_timings_ext preferred_timings;
 	} dispid;
 
@@ -251,6 +261,12 @@ struct edid_state {
 	void parse_display_xfer(const unsigned char *x);
 	void parse_di_ext_block(const unsigned char *x);
 
+	void parse_displayid_product_id(const unsigned char *x);
+	std::string product_type(unsigned char x, bool heading);
+	void parse_displayid_interface_features(const unsigned char *x);
+	void parse_displayid_parameters(const unsigned char *x);
+	void parse_displayid_parameters_v2(const unsigned char *x);
+	void parse_displayid_display_intf(const unsigned char *x);
 	void parse_displayid_color_characteristics(const unsigned char *x);
 	void parse_displayid_transfer_characteristics(const unsigned char *x);
 	void parse_displayid_stereo_display_intf(const unsigned char *x);

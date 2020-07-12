@@ -1124,6 +1124,16 @@ int edid_state::parse_edid()
 		msg(!fail || base.edid_minor >= 4, "%s", err.c_str());
 	}
 
+	if (has_dispid && !dispid.has_product_identification)
+		fail("Missing DisplayID Product Identification Data Block.\n");
+	if (dispid.is_display && !dispid.has_display_parameters)
+		fail("Missing DisplayID Display Parameters Data Block.\n");
+	if (dispid.is_display && !dispid.has_display_interface_features)
+		fail("Missing DisplayID Display Interface Features Data Block.\n");
+	if (dispid.is_display && !dispid.has_type_1_7)
+		fail("Missing DisplayID Type %s Detailed Timing Data Block.\n",
+		     dispid.version >= 0x20 ? "VII" : "I");
+
 	unsigned max_pref_prog_hact = 0;
 	unsigned max_pref_prog_vact = 0;
 	unsigned max_pref_ilace_hact = 0;
