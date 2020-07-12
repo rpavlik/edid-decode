@@ -1468,7 +1468,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		case 0x05: data_block = "Video Timing Modes Type 3 - Short Timings Data Block"; break;
 		case 0x06: data_block = "Video Timing Modes Type 4 - DMT Timings Data Block"; break;
 		case 0x07: data_block = "Supported Timing Modes Type 1 - VESA DMT Timings Data Block"; break;
-		case 0x08: data_block = "Supported Timing Modes Type 2 - CTA Timings Data Block"; break;
+		case 0x08: data_block = "Supported Timing Modes Type 2 - CTA-861 Timings Data Block"; break;
 		case 0x09: data_block = "Video Timing Range Data Block"; break;
 		case 0x0a: data_block = "Product Serial Number Data Block"; break;
 		case 0x0b: data_block = "GP ASCII String Data Block"; break;
@@ -1517,7 +1517,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			}
 			break;
 			   // 0x80 RESERVED
-		case 0x81: data_block = "CTA DisplayID Data Block (" + utohex(tag) + ")"; break;
+		case 0x81: data_block = "CTA-861 DisplayID Data Block (" + utohex(tag) + ")"; break;
 		// 0x82 .. 0xff RESERVED
 		default:   data_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")"; break;
 		}

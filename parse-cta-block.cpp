@@ -274,7 +274,7 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 	unsigned i, format, ext_format = 0;
 
 	if (length % 3) {
-		fail("Broken CTA audio block length %d\n", length);
+		fail("Broken CTA-861 audio block length %d\n", length);
 		return;
 	}
 
@@ -1636,7 +1636,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x0d: data_block = "Video Format Preference Data Block"; break;
 	case 0x0e: data_block = "YCbCr 4:2:0 Video Data Block"; break;
 	case 0x0f: data_block = "YCbCr 4:2:0 Capability Map Data Block"; break;
-	case 0x10: data_block = "Reserved for CTA Miscellaneous Audio Fields"; break;
+	case 0x10: data_block = "Reserved for CTA-861 Miscellaneous Audio Fields"; break;
 	case 0x11: data_block = "Vendor-Specific Audio Data Block"; break;
 	case 0x12: data_block = "HDMI Audio Data Block"; break;
 	case 0x13: data_block = "Room Configuration Data Block"; break;
@@ -1648,17 +1648,17 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x79: data_block = "HDMI Forum Sink Capability Data Block"; break;
 	default:
 		if (x[0] <= 12)
-			printf("  Unknown CTA Video-Related");
+			printf("  Unknown CTA-861 Video-Related");
 		else if (x[0] <= 31)
-			printf("  Unknown CTA Audio-Related");
+			printf("  Unknown CTA-861 Audio-Related");
 		else if (x[0] >= 120 && x[0] <= 127)
-			printf("  Unknown CTA HDMI-Related");
+			printf("  Unknown CTA-861 HDMI-Related");
 		else
-			printf("  Unknown CTA");
+			printf("  Unknown CTA-861");
 		printf(" Data Block (extended tag 0x%02x, length %u)\n", x[0], length);
 		hex_block("    ", x + 1, length);
 		data_block.clear();
-		warn("Unknown Extended CTA Data Block 0x%02x.\n", x[0]);
+		warn("Unknown Extended CTA-861 Data Block 0x%02x.\n", x[0]);
 		return;
 	}
 
@@ -1741,7 +1741,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x20: cta_ifdb(x + 1, length); return;
 	case 0x78:
 		cta_hf_eeodb(x + 1, length);
-		// This must be the first CTA block
+		// This must be the first CTA-861 block
 		if (!cta.first_block)
 			fail("Block starts at a wrong offset.\n");
 		return;
@@ -1839,10 +1839,10 @@ void edid_state::cta_block(const unsigned char *x)
 		unsigned tag = (*x & 0xe0) >> 5;
 		unsigned length = *x & 0x1f;
 
-		printf("  Unknown CTA tag 0x%02x, length %u\n", tag, length);
+		printf("  Unknown CTA-861 tag 0x%02x, length %u\n", tag, length);
 		hex_block("    ", x + 1, length);
 		data_block.clear();
-		warn("Unknown CTA Data Block %u.\n", tag);
+		warn("Unknown CTA-861 Data Block %u.\n", tag);
 		break;
 	}
 	}
@@ -1909,9 +1909,9 @@ void edid_state::parse_cta_block(const unsigned char *x)
 
 	printf("  Revision: %u\n", version);
 	if (version == 0)
-		fail("Invalid CTA Extension revision 0\n");
+		fail("Invalid CTA-861 Extension revision 0\n");
 	if (version > 3)
-		warn("Unknown CTA Extension revision %u\n", version);
+		warn("Unknown CTA-861 Extension revision %u\n", version);
 
 	if (version >= 1) do {
 		if (version == 1 && x[3] != 0)
@@ -1944,7 +1944,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 			if (cta.first_block)
 				cta.byte3 = x[3];
 			else if (x[3] != cta.byte3)
-				fail("Byte 3 must be the same for all CTA Extension Blocks.\n");
+				fail("Byte 3 must be the same for all CTA-861 Extension Blocks.\n");
 			if (cta.first_block) {
 				unsigned native_dtds = x[3] & 0x0f;
 

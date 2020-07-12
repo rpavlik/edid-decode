@@ -1212,7 +1212,7 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x,
 	unsigned hbl, vbl;
 	std::string s_sync, s_flags;
 
-	// Only count DTDs in base block 0 or CTA extension blocks
+	// Only count DTDs in base block 0 or CTA-861 extension blocks
 	if (base_or_cta)
 		base.dtd_cnt++;
 	data_block = "Detailed Timing Descriptor #" + std::to_string(base.dtd_cnt);
