@@ -267,7 +267,7 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x, bool ty
 		break;
 	default:
 		s += "undefined";
-		if ((x[3] & 0xf) > 8)
+		if ((x[3] & 0xf) > (dispid.version <= 0x12 ? 7 : 8))
 			fail("Unknown aspect 0x%02x.\n", x[3] & 0xf);
 		break;
 	}
@@ -423,7 +423,7 @@ void edid_state::parse_displayid_type_3_timing(const unsigned char *x)
 		break;
 	default:
 		s += "undefined";
-		if ((x[3] & 0xf) > 8)
+		if ((x[3] & 0xf) > (dispid.version <= 0x12 ? 7 : 8))
 			fail("Unknown aspect 0x%02x.\n", x[3] & 0xf);
 		break;
 	}
