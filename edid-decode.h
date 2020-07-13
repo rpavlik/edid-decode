@@ -113,7 +113,7 @@ struct edid_state {
 
 		// CTA-861 block state
 		cta.has_vic_1 = cta.first_svd_might_be_preferred =
-			cta.has_hdmi = cta.has_vcdb = false;
+			cta.has_hdmi = cta.has_vcdb = cta.has_vfpdb = false;
 		cta.last_block_was_hdmi_vsdb = cta.have_hf_vsdb = cta.have_hf_scdb = 0;
 		cta.first_block = 1;
 		cta.supported_hdmi_vic_codes = cta.supported_hdmi_vic_vsb_codes = 0;
@@ -193,6 +193,7 @@ struct edid_state {
 		unsigned char byte3;
 		bool has_hdmi;
 		bool has_vcdb;
+		bool has_vfpdb;
 		unsigned short preparsed_phys_addr;
 		int last_block_was_hdmi_vsdb;
 		int have_hf_vsdb, have_hf_scdb;

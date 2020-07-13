@@ -394,8 +394,10 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420)
 				print_timings("    ", t, type, flags);
 			}
 			if (override_pref) {
+				cta.preferred_timings.clear();
 				cta.preferred_timings.push_back(timings_ext(*t, type, flags));
 				warn("VIC %u is the preferred timing, overriding the first detailed timings. Is this intended?\n", vic);
+				cta.first_svd_might_be_preferred = false;
 			}
 			if (native)
 				cta.native_timings.push_back(timings_ext(*t, type, flags));
@@ -1883,6 +1885,8 @@ void edid_state::preparse_cta_block(const unsigned char *x)
 			}
 			break;
 		case 0x07:
+			if (x[i + 1] == 0x0d)
+				cta.has_vfpdb = true;
 			if (x[i + 1] != 0x0e)
 				continue;
 			for_ycbcr420 = true;
@@ -1949,7 +1953,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 				unsigned native_dtds = x[3] & 0x0f;
 
 				cta.native_timings.clear();
-				if (!native_dtds) {
+				if (!native_dtds && !cta.has_vfpdb) {
 					cta.first_svd_might_be_preferred = true;
 				} else if (native_dtds > cta.preparse_total_dtds) {
 					fail("There are more Native DTDs (%u) than DTDs (%u).\n",
