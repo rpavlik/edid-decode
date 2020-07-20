@@ -379,8 +379,8 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420)
 				cta.supported_hdmi_vic_vsb_codes |= 1 << 3;
 				break;
 			}
-			bool override_pref = i == 0 && !for_ycbcr420 &&
-				cta.first_svd_might_be_preferred;
+			bool first_svd = cta.first_svd && !for_ycbcr420;
+			bool override_pref = first_svd && cta.first_svd_might_be_preferred;
 
 			char type[16];
 			sprintf(type, "VIC %3u", vic);
@@ -394,9 +394,14 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420)
 				print_timings("    ", t, type, flags);
 			}
 			if (override_pref) {
-				cta.preferred_timings.clear();
-				cta.preferred_timings.push_back(timings_ext(*t, type, flags));
+				cta.preferred_timings.insert(cta.preferred_timings.begin(),
+							     timings_ext(*t, type, flags));
 				warn("VIC %u is the preferred timing, overriding the first detailed timings. Is this intended?\n", vic);
+			} else if (first_svd) {
+				cta.preferred_timings.push_back(timings_ext(*t, type, flags));
+			}
+			if (first_svd) {
+				cta.first_svd = false;
 				cta.first_svd_might_be_preferred = false;
 			}
 			if (native)
