@@ -1099,7 +1099,7 @@ void edid_state::detailed_display_range_limits(const unsigned char *x)
 			fail("Byte 11 is 0x%02x instead of 0x0a.\n", x[11]);
 		for (unsigned i = 12; i <= 17; i++) {
 			if (x[i] != 0x20) {
-				fail("Byte %u is 0x%02x instead of 0x20.\n", i, x[i]);
+				fail("Bytes 12-17 must be 0x20.\n");
 				break;
 			}
 		}
