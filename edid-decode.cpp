@@ -573,12 +573,12 @@ static bool extract_edid_quantumdata(const char *start)
 				return false;
 		start = strstr(start, "<BLOCK");
 	} while (start);
-	return state.edid_size && !(state.edid_size % EDID_PAGE_SIZE);
+	return state.edid_size;
 }
 
 static const char *ignore_chars = ",:;";
 
-static bool extract_edid_hex(const char *s)
+static bool extract_edid_hex(const char *s, bool require_two_digits = true)
 {
 	for (; *s; s++) {
 		if (isspace(*s) || strchr(ignore_chars, *s))
@@ -595,12 +595,14 @@ static bool extract_edid_hex(const char *s)
 				break;
 			return false;
 		}
+		if (require_two_digits && !isxdigit(s[1]))
+			return false;
 		if (!edid_add_byte(s, isxdigit(s[1])))
 			return false;
 		if (isxdigit(s[1]))
 			s++;
 	}
-	return state.edid_size && !(state.edid_size % EDID_PAGE_SIZE);
+	return state.edid_size;
 }
 
 static bool extract_edid_xrandr(const char *start)
@@ -646,7 +648,7 @@ static bool extract_edid_xrandr(const char *start)
 				return false;
 		}
 	}
-	return state.edid_size && !(state.edid_size % EDID_PAGE_SIZE);
+	return state.edid_size;
 }
 
 static bool extract_edid_xorg(const char *start)
@@ -680,10 +682,10 @@ static bool extract_edid_xorg(const char *start)
 			start++;
 		}
 	}
-	return state.edid_size && !(state.edid_size % EDID_PAGE_SIZE);
+	return state.edid_size;
 }
 
-static bool extract_edid(int fd)
+static bool extract_edid(int fd, FILE *error)
 {
 	std::vector<char> edid_data;
 	char buf[EDID_PAGE_SIZE];
@@ -714,7 +716,7 @@ static bool extract_edid(int fd)
 	/* Look for C-array */
 	start = strstr(data, "unsigned char edid[] = {");
 	if (start)
-		return extract_edid_hex(strchr(start, '{') + 1);
+		return extract_edid_hex(strchr(start, '{') + 1, false);
 
 	/* Look for QuantumData EDID output */
 	start = strstr(data, "<BLOCK");
@@ -745,8 +747,11 @@ static bool extract_edid(int fd)
 		return extract_edid_hex(data);
 
 	/* Assume binary */
-	if (edid_data.size() % EDID_PAGE_SIZE || edid_data.size() > sizeof(edid))
+	if (edid_data.size() > sizeof(edid)) {
+		fprintf(error, "Binary EDID length %zu is greater than %zu\n",
+			edid_data.size(), sizeof(edid));
 		return false;
+	}
 	memcpy(edid, data, edid_data.size());
 	state.edid_size = edid_data.size();
 	return true;
@@ -877,7 +882,7 @@ static int edid_to_file(const char *to_file, enum output_format out_fmt)
 	return 0;
 }
 
-static int edid_from_file(const char *from_file)
+static int edid_from_file(const char *from_file, FILE *error)
 {
 #ifdef O_BINARY
 	// Windows compatibility
@@ -895,8 +900,13 @@ static int edid_from_file(const char *from_file)
 		return -1;
 	}
 
-	if (!extract_edid(fd)) {
-		fprintf(stderr, "EDID extract of '%s' failed\n", from_file);
+	if (!extract_edid(fd, error)) {
+		fprintf(error, "EDID extract of '%s' failed (unknown format)\n", from_file);
+		return -1;
+	}
+	if (state.edid_size % EDID_PAGE_SIZE) {
+		fprintf(error, "EDID length %u is not a multiple of %u\n",
+			state.edid_size, EDID_PAGE_SIZE);
 		return -1;
 	}
 	state.num_blocks = state.edid_size / EDID_PAGE_SIZE;
@@ -904,7 +914,7 @@ static int edid_from_file(const char *from_file)
 		close(fd);
 
 	if (memcmp(edid, "\x00\xFF\xFF\xFF\xFF\xFF\xFF\x00", 8)) {
-		fprintf(stderr, "No EDID header found in '%s'\n", from_file);
+		fprintf(error, "No EDID header found in '%s'\n", from_file);
 		return -1;
 	}
 	return 0;
@@ -1188,9 +1198,9 @@ int main(int argc, char **argv)
 		}
 	}
 	if (optind == argc)
-		ret = edid_from_file("-");
+		ret = edid_from_file("-", stdout);
 	else
-		ret = edid_from_file(argv[optind]);
+		ret = edid_from_file(argv[optind], argv[optind + 1] ? stderr : stdout);
 
 	if (ret && options[OptPhysicalAddress]) {
 		printf("f.f.f.f\n");
