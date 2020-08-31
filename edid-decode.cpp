@@ -21,6 +21,7 @@
 static edid_state state;
 
 static unsigned char edid[EDID_PAGE_SIZE * EDID_MAX_BLOCKS];
+static bool odd_hex_digits;
 
 enum output_format {
 	OUT_FMT_DEFAULT,
@@ -595,8 +596,10 @@ static bool extract_edid_hex(const char *s, bool require_two_digits = true)
 				break;
 			return false;
 		}
-		if (require_two_digits && !isxdigit(s[1]))
+		if (require_two_digits && !isxdigit(s[1])) {
+			odd_hex_digits = true;
 			return false;
+		}
 		if (!edid_add_byte(s, isxdigit(s[1])))
 			return false;
 		if (isxdigit(s[1]))
@@ -900,8 +903,13 @@ static int edid_from_file(const char *from_file, FILE *error)
 		return -1;
 	}
 
+	odd_hex_digits = false;
 	if (!extract_edid(fd, error)) {
-		fprintf(error, "EDID extract of '%s' failed (unknown format)\n", from_file);
+		fprintf(error, "EDID extract of '%s' failed ", from_file);
+		if (odd_hex_digits)
+			fprintf(error, "(odd number of hexadecimal digits)\n");
+		else
+			fprintf(error, "(unknown format)\n");
 		return -1;
 	}
 	if (state.edid_size % EDID_PAGE_SIZE) {
