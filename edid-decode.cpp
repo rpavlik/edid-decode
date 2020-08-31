@@ -153,7 +153,7 @@ void do_checksum(const char *prefix, const unsigned char *x, size_t len)
 	unsigned char sum = 0;
 	unsigned i;
 
-	printf("%sChecksum: 0x%hhx", prefix, check);
+	printf("%sChecksum: 0x%02hhx", prefix, check);
 
 	for (i = 0; i < len-1; i++)
 		sum += x[i];
