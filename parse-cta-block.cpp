@@ -1683,8 +1683,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	}
 
 	if (audio_block && !(cta.byte3 & 0x40))
-		fail("%s is present, but bit 6 of Byte 3 indicates no Basic Audio support.\n",
-		     data_block.c_str());
+		fail("audio information is present, but bit 6 of Byte 3 indicates no Basic Audio support.\n");
 
 	if (data_block.length())
 		printf("  %s:\n", data_block.c_str());
@@ -1875,8 +1874,7 @@ void edid_state::cta_block(const unsigned char *x)
 	}
 
 	if (audio_block && !(cta.byte3 & 0x40))
-		fail("%s is present, but bit 6 of Byte 3 indicates no Basic Audio support.\n",
-		     data_block.c_str());
+		fail("audio information is present, but bit 6 of Byte 3 indicates no Basic Audio support.\n");
 	cta.first_block = 0;
 	cta.last_block_was_hdmi_vsdb = 0;
 }
