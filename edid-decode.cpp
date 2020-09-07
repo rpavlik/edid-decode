@@ -1233,6 +1233,8 @@ extern "C" int parse_edid(const char *input)
 		s_msgs[i][1].clear();
 	}
 	options[OptCheck] = 1;
+	options[OptPreferredTimings] = 1;
+	options[OptNativeTimings] = 1;
 	state = edid_state();
 	int ret = edid_from_file(input);
 	return ret ? ret : state.parse_edid();
