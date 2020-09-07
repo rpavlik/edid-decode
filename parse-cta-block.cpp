@@ -1641,6 +1641,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	const char *name;
 	unsigned oui;
 	bool reverse = false;
+	bool audio_block = false;
 
 	switch (x[0]) {
 	case 0x00: data_block = "Video Capability Data Block"; break;
@@ -1656,10 +1657,10 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x0e: data_block = "YCbCr 4:2:0 Video Data Block"; break;
 	case 0x0f: data_block = "YCbCr 4:2:0 Capability Map Data Block"; break;
 	case 0x10: data_block = "Reserved for CTA-861 Miscellaneous Audio Fields"; break;
-	case 0x11: data_block = "Vendor-Specific Audio Data Block"; break;
-	case 0x12: data_block = "HDMI Audio Data Block"; break;
-	case 0x13: data_block = "Room Configuration Data Block"; break;
-	case 0x14: data_block = "Speaker Location Data Block"; break;
+	case 0x11: data_block = "Vendor-Specific Audio Data Block"; audio_block = true; break;
+	case 0x12: data_block = "HDMI Audio Data Block"; audio_block = true; break;
+	case 0x13: data_block = "Room Configuration Data Block"; audio_block = true; break;
+	case 0x14: data_block = "Speaker Location Data Block"; audio_block = true; break;
 
 	case 0x20: data_block = "InfoFrame Data Block"; break;
 
@@ -1680,6 +1681,10 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 		warn("Unknown Extended CTA-861 Data Block 0x%02x.\n", x[0]);
 		return;
 	}
+
+	if (audio_block && !(cta.byte3 & 0x40))
+		fail("%s is present, but bit 6 of Byte 3 indicates no Basic Audio support.\n",
+		     data_block.c_str());
 
 	if (data_block.length())
 		printf("  %s:\n", data_block.c_str());
@@ -1790,12 +1795,14 @@ void edid_state::cta_block(const unsigned char *x)
 	const char *name;
 	unsigned oui;
 	bool reverse = false;
+	bool audio_block = false;
 
 	switch ((x[0] & 0xe0) >> 5) {
 	case 0x01:
 		data_block = "Audio Data Block";
 		printf("  %s:\n", data_block.c_str());
 		cta_audio_block(x + 1, length);
+		audio_block = true;
 		break;
 	case 0x02:
 		data_block = "Video Data Block";
@@ -1845,6 +1852,7 @@ void edid_state::cta_block(const unsigned char *x)
 		data_block = "Speaker Allocation Data Block";
 		printf("  %s:\n", data_block.c_str());
 		cta_sadb(x + 1, length);
+		audio_block = true;
 		break;
 	case 0x05:
 		data_block = "VESA Display Transfer Characteristics Data Block";
@@ -1866,6 +1874,9 @@ void edid_state::cta_block(const unsigned char *x)
 	}
 	}
 
+	if (audio_block && !(cta.byte3 & 0x40))
+		fail("%s is present, but bit 6 of Byte 3 indicates no Basic Audio support.\n",
+		     data_block.c_str());
 	cta.first_block = 0;
 	cta.last_block_was_hdmi_vsdb = 0;
 }
