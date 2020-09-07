@@ -1413,12 +1413,12 @@ void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 	case 1:
 		printf("Always Overscanned\n");
 		if (cta.byte3 & 0x80)
-			fail("IT video formats are always overscanned, but bit 7 of Byte 3 is 1.\n");
+			fail("IT video formats are always overscanned, but bit 7 of Byte 3 is set to underscanned.\n");
 		break;
 	case 2:
 		printf("Always Underscanned\n");
 		if (!(cta.byte3 & 0x80))
-			fail("IT video formats are always underscanned, but bit 7 of Byte 3 is 0.\n");
+			fail("IT video formats are always underscanned, but bit 7 of Byte 3 is set to overscanned.\n");
 		break;
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
