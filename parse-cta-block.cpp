@@ -1410,10 +1410,20 @@ void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 	printf("    IT scan behavior: ");
 	switch ((d >> 6) & 0x03) {
 	case 0: printf("IT video formats not supported\n"); break;
-	case 1: printf("Always Overscanned\n"); break;
-	case 2: printf("Always Underscanned\n"); break;
+	case 1:
+		printf("Always Overscanned\n");
+		if (cta.byte3 & 0x80)
+			fail("IT video formats are always overscanned, but bit 7 of Byte 3 is 1.\n");
+		break;
+	case 2:
+		printf("Always Underscanned\n");
+		if (!(cta.byte3 & 0x80))
+			fail("IT video formats are always underscanned, but bit 7 of Byte 3 is 0.\n");
+		break;
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
+	if (((d >> 6) & 0x03) < 2)
+		warn("IT scan behavior is expected to support underscanned.\n");
 	printf("    CE scan behavior: ");
 	switch (d & 0x03) {
 	case 0: printf("CE video formats not supported\n"); break;
@@ -1421,6 +1431,8 @@ void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 	case 2: printf("Always Underscanned\n"); break;
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
+	if ((d & 0x03) == 0)
+		warn("'CE video formats not supported' makes no sense.\n");
 }
 
 static const char *colorimetry_map[] = {
