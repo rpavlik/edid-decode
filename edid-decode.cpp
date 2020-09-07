@@ -1236,7 +1236,7 @@ extern "C" int parse_edid(const char *input)
 	options[OptPreferredTimings] = 1;
 	options[OptNativeTimings] = 1;
 	state = edid_state();
-	int ret = edid_from_file(input);
+	int ret = edid_from_file(input, stderr);
 	return ret ? ret : state.parse_edid();
 }
 #endif
