@@ -1087,20 +1087,20 @@ int edid_state::parse_edid()
 
 	if (options[OptPreferredTimings] && base.preferred_timing.is_valid()) {
 		printf("\n----------------\n");
-		printf("\nPreferred Video Timing (Block 0):\n");
+		printf("\nPreferred Video Timing if only Block 0 is parsed:\n");
 		print_timings("  ", base.preferred_timing, true);
 	}
 
 	if (options[OptNativeTimings] &&
 	    base.preferred_timing.is_valid() && base.preferred_is_also_native) {
 		printf("\n----------------\n");
-		printf("\nNative Video Timing (Block 0):\n");
+		printf("\nNative Video Timing if only Block 0 is parsed:\n");
 		print_timings("  ", base.preferred_timing, true);
 	}
 
 	if (options[OptPreferredTimings] && !cta.preferred_timings.empty()) {
 		printf("\n----------------\n");
-		printf("\nPreferred Video Timing%s (CTA-861):\n",
+		printf("\nPreferred Video Timing%s if Block 0 and CTA-861 Blocks are parsed:\n",
 		       cta.preferred_timings.size() > 1 ? "s" : "");
 		for (vec_timings_ext::iterator iter = cta.preferred_timings.begin();
 		     iter != cta.preferred_timings.end(); ++iter)
@@ -1109,7 +1109,7 @@ int edid_state::parse_edid()
 
 	if (options[OptNativeTimings] && !cta.native_timings.empty()) {
 		printf("\n----------------\n");
-		printf("\nNative Video Timing%s (CTA-861):\n",
+		printf("\nNative Video Timing%s if Block 0 and CTA-861 Blocks are parsed:\n",
 		       cta.native_timings.size() > 1 ? "s" : "");
 		for (vec_timings_ext::iterator iter = cta.native_timings.begin();
 		     iter != cta.native_timings.end(); ++iter)
@@ -1118,7 +1118,7 @@ int edid_state::parse_edid()
 
 	if (options[OptPreferredTimings] && !dispid.preferred_timings.empty()) {
 		printf("\n----------------\n");
-		printf("\nPreferred Video Timing%s (DisplayID):\n",
+		printf("\nPreferred Video Timing%s if Block 0 and DisplayID Blocks are parsed:\n",
 		       dispid.preferred_timings.size() > 1 ? "s" : "");
 		for (vec_timings_ext::iterator iter = dispid.preferred_timings.begin();
 		     iter != dispid.preferred_timings.end(); ++iter)

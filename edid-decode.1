@@ -172,10 +172,15 @@ Check if the EDID conforms to the standards. Warnings and failures are
 reported as they happen.
 .TP
 \fB\-n\fR, \fB\-\-native\-timings\fR
-Report the native timings at the end.
+Report the native timings at the end. There may be multiple native timing reports
+depending on whether the Source only parses Block 0 (e.g. DVI outputs) or Block 0
+and the CTA-861 Extension Blocks (HDMI).
 .TP
 \fB\-p\fR, \fB\-\-preferred\-timings\fR
-Report the preferred timings at the end.
+Report the preferred timings at the end. There may be multiple native timing reports
+depending on whether the Source only parses Block 0 (e.g. DVI outputs), or Block 0
+and the CTA-861 Extension Blocks (HDMI), or Block 0 and the DisplayID Extension Blocks
+(typical for DisplayPort).
 .TP
 \fB\-P\fR, \fB\-\-physical\-address\fR
 Just report the HDMI Source Physical Address and nothing else. Reports f.f.f.f
