@@ -1524,10 +1524,20 @@ static void cta_hdr_dyn_metadata_block(const unsigned char *x, unsigned length)
 		printf("    HDR Dynamic Metadata Type %u\n", type);
 		switch (type) {
 		case 1:
-		case 2:
 		case 4:
 			if (type_len > 2)
 				printf("      Version: %u\n", x[3] & 0xf);
+			break;
+		case 2:
+			if (type_len > 2) {
+				unsigned version = x[3] & 0xf;
+				printf("      Version: %u\n", version);
+				if (version >= 1) {
+					if (x[3] & 0x10) printf("      Supports SL-HDR1 (ETSI TS 103 433-1)\n");
+					if (x[3] & 0x20) printf("      Supports SL-HDR2 (ETSI TS 103 433-2)\n");
+					if (x[3] & 0x40) printf("      Supports SL-HDR3 (ETSI TS 103 433-3)\n");
+				}
+			}
 			break;
 		default:
 			break;
