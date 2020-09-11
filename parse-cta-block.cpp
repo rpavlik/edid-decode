@@ -1897,7 +1897,7 @@ void edid_state::preparse_cta_block(const unsigned char *x)
 	if (offset >= 4) {
 		const unsigned char *detailed;
 
-		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18) {
+		for (detailed = x + offset; detailed + 17 < x + 127; detailed += 18) {
 			if (memchk(detailed, 18))
 				break;
 			if (detailed[0] || detailed[1])
@@ -2019,7 +2019,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 		data_block = "Detailed Timing Descriptors";
 		base.seen_non_detailed_descriptor = false;
 		bool first = true;
-		for (detailed = x + offset; detailed + 18 < x + 127; detailed += 18) {
+		for (detailed = x + offset; detailed + 17 < x + 127; detailed += 18) {
 			if (memchk(detailed, 18))
 				break;
 			if (first) {
@@ -2028,7 +2028,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 			}
 			detailed_block(detailed);
 		}
-		if (!memchk(detailed, x + 0x7f - detailed)) {
+		if (!memchk(detailed, x + 127 - detailed)) {
 			data_block = "Padding";
 			fail("CTA-861 padding contains non-zero bytes.\n");
 		}
