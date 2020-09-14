@@ -1165,7 +1165,7 @@ void edid_state::parse_displayid_type_9_timing(const unsigned char *x)
 
 static void parse_displayid_dynamic_video_timings_range_limits(const unsigned char *x)
 {
-	check_displayid_datablock_revision(x);
+	check_displayid_datablock_revision(x, 0, (x[1] & 7) == 1);
 
 	if (!check_displayid_datablock_length(x, 9, 9))
 		return;
@@ -1175,7 +1175,10 @@ static void parse_displayid_dynamic_video_timings_range_limits(const unsigned ch
 	printf("    Maximum Pixel Clock: %u kHz\n",
 	       1 + (x[6] | (x[7] << 8) | (x[8] << 16)));
 	printf("    Minimum Vertical Refresh Rate: %u Hz\n", x[9]);
-	printf("    Maximum Vertical Refresh Rate: %u Hz\n", x[10]);
+	if (x[1] & 7)
+		printf("    Maximum Vertical Refresh Rate: %u Hz\n", x[10] + ((x[11] & 3) << 8));
+	else
+		printf("    Maximum Vertical Refresh Rate: %u Hz\n", x[10]);
 	printf("    Seamless Dynamic Video Timing Support: %s\n",
 	       (x[11] & 0x80) ? "Yes" : "No");
 }
