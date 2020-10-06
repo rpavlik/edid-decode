@@ -1413,12 +1413,12 @@ void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 	case 1:
 		printf("Always Overscanned\n");
 		if (cta.byte3 & 0x80)
-			fail("IT video formats are always overscanned, but bit 7 of Byte 3 is set to underscanned.\n");
+			fail("IT video formats are always overscanned, but bit 7 of Byte 3 of the CTA-861 Extension is set to underscanned.\n");
 		break;
 	case 2:
 		printf("Always Underscanned\n");
 		if (!(cta.byte3 & 0x80))
-			fail("IT video formats are always underscanned, but bit 7 of Byte 3 is set to overscanned.\n");
+			fail("IT video formats are always underscanned, but bit 7 of Byte 3 of the CTA-861 Extension is set to overscanned.\n");
 		break;
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
@@ -1693,7 +1693,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	}
 
 	if (audio_block && !(cta.byte3 & 0x40))
-		fail("audio information is present, but bit 6 of Byte 3 indicates no Basic Audio support.\n");
+		fail("audio information is present, but bit 6 of Byte 3 of the CTA-861 Extension indicates no Basic Audio support.\n");
 
 	if (data_block.length())
 		printf("  %s:\n", data_block.c_str());
@@ -1884,7 +1884,7 @@ void edid_state::cta_block(const unsigned char *x)
 	}
 
 	if (audio_block && !(cta.byte3 & 0x40))
-		fail("audio information is present, but bit 6 of Byte 3 indicates no Basic Audio support.\n");
+		fail("audio information is present, but bit 6 of Byte 3 of the CTA-861 Extension indicates no Basic Audio support.\n");
 	cta.first_block = 0;
 	cta.last_block_was_hdmi_vsdb = 0;
 }
