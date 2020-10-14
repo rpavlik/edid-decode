@@ -1974,6 +1974,8 @@ void edid_state::parse_cta_block(const unsigned char *x)
 		if (version >= 2) {
 			if (x[3] & 0x80)
 				printf("  Underscans IT Video Formats by default\n");
+			else
+				warn("IT Video Formats are overscanned by default, but normally this should be underscanned.\n");
 			if (x[3] & 0x40)
 				printf("  Basic audio support\n");
 			if (x[3] & 0x20)
