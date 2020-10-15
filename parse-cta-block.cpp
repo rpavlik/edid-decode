@@ -1408,7 +1408,7 @@ void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
 	printf("    IT scan behavior: ");
-	switch ((d >> 6) & 0x03) {
+	switch ((d >> 2) & 0x03) {
 	case 0: printf("IT video formats not supported\n"); break;
 	case 1:
 		printf("Always Overscanned\n");
@@ -1424,7 +1424,7 @@ void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 		break;
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
-	if (((d >> 6) & 0x03) < 2)
+	if (((d >> 2) & 0x03) < 2)
 		warn("IT scan behavior is expected to support underscanned.\n");
 	printf("    CE scan behavior: ");
 	switch (d & 0x03) {
