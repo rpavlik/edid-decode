@@ -1136,10 +1136,10 @@ int edid_state::parse_edid()
 
 	printf("\n----------------\n");
 
-	if (!options[OptSkipSHA]) {
 #define STR(x) #x
 #define STRING(x) STR(x)
-		printf("\nedid-decode SHA: %s\n", STRING(SHA));
+	if (!options[OptSkipSHA] && strlen(STRING(SHA))) {
+		printf("\nedid-decode SHA: %s %s\n", STRING(SHA), STRING(DATE));
 	}
 
 	if (options[OptCheck]) {
