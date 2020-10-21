@@ -18,6 +18,9 @@
 
 #include "edid-decode.h"
 
+#define STR(x) #x
+#define STRING(x) STR(x)
+
 static edid_state state;
 
 static unsigned char edid[EDID_PAGE_SIZE * EDID_MAX_BLOCKS];
@@ -51,6 +54,7 @@ enum Option {
 	OptV4L2Timings = 'V',
 	OptSkipHexDump = 's',
 	OptSkipSHA = 128,
+	OptVersion,
 	OptLast = 256
 };
 
@@ -65,6 +69,7 @@ static struct option long_options[] = {
 	{ "physical-address", no_argument, 0, OptPhysicalAddress },
 	{ "skip-hex-dump", no_argument, 0, OptSkipHexDump },
 	{ "skip-sha", no_argument, 0, OptSkipSHA },
+	{ "version", no_argument, 0, OptVersion },
 	{ "check-inline", no_argument, 0, OptCheckInline },
 	{ "check", no_argument, 0, OptCheck },
 	{ "short-timings", no_argument, 0, OptShortTimings },
@@ -103,6 +108,7 @@ static void usage(void)
 	       "  -V, --v4l2-timings    report all long video timings in v4l2-dv-timings.h format\n"
 	       "  -s, --skip-hex-dump   skip the initial hex dump of the EDID\n"
 	       "  --skip-sha            skip the SHA report\n"
+	       "  --version             show the edid-decode version (SHA)\n"
 	       "  -e, --extract         extract the contents of the first block in hex values\n"
 	       "  -h, --help            display this help message\n");
 }
@@ -1136,8 +1142,6 @@ int edid_state::parse_edid()
 
 	printf("\n----------------\n");
 
-#define STR(x) #x
-#define STRING(x) STR(x)
 	if (!options[OptSkipSHA] && strlen(STRING(SHA))) {
 		printf("\nedid-decode SHA: %s %s\n", STRING(SHA), STRING(DATE));
 	}
@@ -1205,6 +1209,14 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	}
+	if (optind == argc && options[OptVersion]) {
+		if (strlen(STRING(SHA)))
+			printf("edid-decode SHA: %s %s\n", STRING(SHA), STRING(DATE));
+		else
+			printf("edid-decode SHA: not available\n");
+		return 0;
+	}
+
 	if (optind == argc)
 		ret = edid_from_file("-", stdout);
 	else
