@@ -1671,9 +1671,9 @@ void edid_state::parse_base_block(const unsigned char *x)
 	}
 	else if (base.edid_minor >= 4 && (x[0x15] || x[0x16])) {
 		if (x[0x15])
-			printf("    Aspect ratio: %f (landscape)\n", (x[0x15] + 99) / 100.0);
+			printf("    Aspect ratio: %.2f (landscape)\n", (x[0x15] + 99) / 100.0);
 		else
-			printf("    Aspect ratio: %f (portrait)\n", 100.0 / (x[0x16] + 99));
+			printf("    Aspect ratio: %.2f (portrait)\n", 100.0 / (x[0x16] + 99));
 	} else {
 		/* Either or both can be zero for 1.3 and before */
 		printf("    Image size is variable\n");
