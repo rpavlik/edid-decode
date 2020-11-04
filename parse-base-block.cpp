@@ -531,8 +531,6 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings &t)
 
 /*
  * Copied from xserver/hw/xfree86/modes/xf86cvt.c
- *
- * TODO: add support for reduced blanking v2 and interlacing
  */
 void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 {
@@ -905,10 +903,7 @@ void edid_state::detailed_display_range_limits(const unsigned char *x)
 	data_block = "Display Range Limits";
 	printf("  %s:\n", data_block.c_str());
 	base.has_display_range_descriptor = 1;
-	/* 
-	 * XXX todo: implement feature flags, vtd blocks
-	 * XXX check: ranges are well-formed; block termination if no vtd
-	 */
+
 	if (base.edid_minor >= 4) {
 		if (x[4] & 0x02) {
 			v_max_offset = 255;
@@ -1554,7 +1549,6 @@ void edid_state::parse_base_block(const unsigned char *x)
 
 	data_block = "Vendor & Product Identification";
 	printf("  %s:\n", data_block.c_str());
-	/* XXX need manufacturer ID table */
 	printf("    Manufacturer: %s\n    Model: %u\n",
 	       manufacturer_name(x + 0x08),
 	       (unsigned short)(x[0x0a] + (x[0x0b] << 8)));
@@ -1639,19 +1633,10 @@ void edid_state::parse_base_block(const unsigned char *x)
 		       voltage == 1 ? "0.714/0.286" :
 		       "0.7/0.3");
 
-		if (base.edid_minor >= 4) {
-			if (x[0x14] & 0x10)
-				printf("    Blank-to-black setup/pedestal\n");
-			else
-				printf("    Blank level equals black level\n");
-		} else if (x[0x14] & 0x10) {
-			/*
-			 * XXX this is just the X text.  1.3 says "if set, display expects
-			 * a blank-to-black setup or pedestal per appropriate Signal
-			 * Level Standard".  Whatever _that_ means.
-			 */
-			printf("    Configurable signal levels\n");
-		}
+		if (x[0x14] & 0x10)
+			printf("    Blank-to-black setup/pedestal\n");
+		else
+			printf("    Blank level equals black level\n");
 
 		if (sync)
 			printf("    Sync:%s%s%s%s\n",
@@ -1679,13 +1664,10 @@ void edid_state::parse_base_block(const unsigned char *x)
 		printf("    Image size is variable\n");
 	}
 
-	if (x[0x17] == 0xff) {
-		if (base.edid_minor >= 4)
-			printf("    Gamma is defined in an extension block\n");
-		else
-			/* XXX Technically 1.3 doesn't say this... */
-			printf("    Gamma: 1.0\n");
-	} else printf("    Gamma: %.2f\n", ((x[0x17] + 100.0) / 100.0));
+	if (x[0x17] == 0xff)
+		printf("    Gamma is defined in an extension block\n");
+	else
+		printf("    Gamma: %.2f\n", ((x[0x17] + 100.0) / 100.0));
 
 	if (x[0x18] & 0xe0) {
 		printf("    DPMS levels:");
