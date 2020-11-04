@@ -526,7 +526,7 @@ void edid_state::edid_gtf_mode(unsigned refresh, struct timings &t)
 	t.pos_pol_hsync = false;
 	t.pos_pol_vsync = true;
 	t.interlaced = false;
-	t.rb = false;
+	t.rb = 0;
 }
 
 /*
@@ -771,7 +771,7 @@ void edid_state::detailed_cvt_descriptor(const char *prefix, const unsigned char
 		print_timings(prefix, &cvt_t, "CVT", preferred == 3 ? s_pref : "");
 	}
 	if (x[2] & 0x01) {
-		cvt_t.rb = true;
+		cvt_t.rb = 1;
 		edid_cvt_mode(60, cvt_t);
 		print_timings(prefix, &cvt_t, "CVT", preferred == 4 ? s_pref : "");
 	}
