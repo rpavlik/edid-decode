@@ -1616,6 +1616,62 @@ static void cta_ifdb(const unsigned char *x, unsigned length)
 	}
 }
 
+void edid_state::cta_displayid_type_7(const unsigned char *x, unsigned length)
+{
+	check_displayid_datablock_revision(x[0], 0x00, 2);
+
+	if (length < 21U + ((x[0] & 0x70) >> 4)) {
+		fail("Empty Data Block with length %u.\n", length);
+		return;
+	}
+	parse_displayid_type_1_7_timing(x + 1, true, 2, true);
+}
+
+void edid_state::cta_displayid_type_8(const unsigned char *x, unsigned length)
+{
+	check_displayid_datablock_revision(x[0], 0xe8, 1);
+	if (length < ((x[0] & 0x08) ? 3 : 2)) {
+		fail("Empty Data Block with length %u.\n", length);
+		return;
+	}
+
+	unsigned sz = (x[0] & 0x08) ? 2 : 1;
+	unsigned type = x[0] >> 6;
+
+	if (type) {
+		fail("Only code type 0 is supported.\n");
+		return;
+	}
+
+	if (x[0] & 0x20)
+		printf("    Also supports YCbCr 4:2:0\n");
+
+	x++;
+	length--;
+	for (unsigned i = 0; i < length / sz; i++) {
+		unsigned id = x[i * sz];
+
+		if (sz == 2)
+			id |= x[i * sz + 1] << 8;
+		parse_displayid_type_4_8_timing(type, id, true);
+	}
+}
+
+void edid_state::cta_displayid_type_10(const unsigned char *x, unsigned length)
+{
+	check_displayid_datablock_revision(x[0], 0x70);
+	if (length < 7U + ((x[0] & 0x70) >> 4)) {
+		fail("Empty Data Block with length %u.\n", length);
+		return;
+	}
+
+	unsigned sz = 6U + ((x[0] & 0x70) >> 4);
+	x++;
+	length--;
+	for (unsigned i = 0; i < length / sz; i++)
+		parse_displayid_type_10_timing(x + i * sz, true);
+}
+
 static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 {
 	unsigned num_descs;
@@ -1709,6 +1765,10 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x14: data_block = "Speaker Location Data Block"; audio_block = true; break;
 
 	case 0x20: data_block = "InfoFrame Data Block"; break;
+
+	case 0x34: data_block = "DisplayID Type VII Video Timing Data Block"; break;
+	case 0x35: data_block = "DisplayID Type VIII Video Timing Data Block"; break;
+	case 0x42: data_block = "DisplayID Type X Video Timing Data Block"; break;
 
 	case 0x78: data_block = "HDMI Forum EDID Extension Override Data Block"; break;
 	case 0x79: data_block = "HDMI Forum Sink Capability Data Block"; break;
@@ -1812,6 +1872,9 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x13: cta_rcdb(x + 1, length); return;
 	case 0x14: cta_sldb(x + 1, length); return;
 	case 0x20: cta_ifdb(x + 1, length); return;
+	case 0x34: cta_displayid_type_7(x + 1, length); return;
+	case 0x35: cta_displayid_type_8(x + 1, length); return;
+	case 0x42: cta_displayid_type_10(x + 1, length); return;
 	case 0x78:
 		cta_hf_eeodb(x + 1, length);
 		// This must be the first CTA-861 block

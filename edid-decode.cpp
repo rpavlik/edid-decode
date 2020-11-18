@@ -418,6 +418,8 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		s = "RB";
 		if (t->rb == 2)
 			s += "v2";
+		else if (t->rb == 3)
+			s += "v3";
 	}
 	add_str(s, flags);
 	if (t->hsize_mm || t->vsize_mm)

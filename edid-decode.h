@@ -259,6 +259,9 @@ struct edid_state {
 	void cta_y420cmdb(const unsigned char *x, unsigned length);
 	void cta_vfpdb(const unsigned char *x, unsigned length);
 	void cta_hdmi_block(const unsigned char *x, unsigned length);
+	void cta_displayid_type_7(const unsigned char *x, unsigned length);
+	void cta_displayid_type_8(const unsigned char *x, unsigned length);
+	void cta_displayid_type_10(const unsigned char *x, unsigned length);
 	void cta_ext_block(const unsigned char *x, unsigned length);
 	void cta_block(const unsigned char *x);
 	void preparse_cta_block(const unsigned char *x);
@@ -285,10 +288,11 @@ struct edid_state {
 	void parse_displayid_color_characteristics(const unsigned char *x);
 	void parse_displayid_transfer_characteristics(const unsigned char *x);
 	void parse_displayid_stereo_display_intf(const unsigned char *x);
-	void parse_displayid_type_1_7_timing(const unsigned char *x, bool type7);
+	void parse_displayid_type_1_7_timing(const unsigned char *x,
+					     bool type7, unsigned block_rev, bool is_cta = false);
 	void parse_displayid_type_2_timing(const unsigned char *x);
 	void parse_displayid_type_3_timing(const unsigned char *x);
-	void parse_displayid_type_4_8_timing(unsigned char type, unsigned short id);
+	void parse_displayid_type_4_8_timing(unsigned char type, unsigned short id, bool is_cta = false);
 	void parse_displayid_video_timing_range_limits(const unsigned char *x);
 	void parse_displayid_string(const unsigned char *x);
 	void parse_displayid_display_device(const unsigned char *x);
@@ -299,6 +303,7 @@ struct edid_state {
 	void parse_displayid_type_9_timing(const unsigned char *x);
 	void parse_displayid_dynamic_video_timings_range_limits(const unsigned char *x);
 	void parse_displayid_ContainerID(const unsigned char *x);
+	void parse_displayid_type_10_timing(const unsigned char *x, bool is_cta = false);
 	void preparse_displayid_block(const unsigned char *x);
 	void parse_displayid_block(const unsigned char *x);
 	void parse_displayid_vesa(const unsigned char *x);
