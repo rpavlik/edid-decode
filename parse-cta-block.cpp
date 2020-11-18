@@ -540,6 +540,24 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 				printf("    %s\n", suffix);
 				cta.preferred_timings.push_back(timings_ext(svr, suffix));
 			}
+		} else if (svr >= 145 && svr <= 160) {
+			sprintf(suffix, "VTDB %3u", svr - 144);
+			if (svr >= cta.preparse_total_vtdbs + 145) {
+				printf("    %s: Invalid\n", suffix);
+				fail("Invalid VTDB %u.\n", svr - 144);
+			} else {
+				printf("    %s\n", suffix);
+				cta.preferred_timings.push_back(timings_ext(svr, suffix));
+			}
+		} else if (svr == 254) {
+			sprintf(suffix, "T8VTDB");
+			if (!cta.preparse_has_t8vtdb) {
+				printf("    %s: Invalid\n", suffix);
+				fail("Invalid T8VTDB.\n");
+			} else {
+				printf("    %s\n", suffix);
+				cta.preferred_timings.push_back(timings_ext(svr, suffix));
+			}
 		}
 	}
 }
@@ -2031,6 +2049,13 @@ void edid_state::preparse_cta_block(const unsigned char *x)
 		case 0x07:
 			if (x[i + 1] == 0x0d)
 				cta.has_vfpdb = true;
+			if (x[i + 1] == 0x22)
+				cta.preparse_total_vtdbs++;
+			if (x[i + 1] == 0x23)
+				cta.preparse_has_t8vtdb = true;
+			if (x[i + 1] == 0x32)
+				cta.preparse_total_vtdbs +=
+					((x[i] & 0x1f) - 2) / (6 + ((x[i + 2] & 0x70) >> 4));
 			if (x[i + 1] != 0x0e)
 				continue;
 			for_ycbcr420 = true;
@@ -2167,8 +2192,16 @@ void edid_state::parse_cta_block(const unsigned char *x)
 
 void edid_state::cta_resolve_svr(vec_timings_ext::iterator iter)
 {
-	iter->flags = cta.vec_dtds[iter->svr() - 129].flags;
-	iter->t = cta.vec_dtds[iter->svr() - 129].t;
+	if (iter->svr() == 254) {
+		iter->flags = cta.t8vtdb.flags;
+		iter->t = cta.t8vtdb.t;
+	} else if (iter->svr() <= 144) {
+		iter->flags = cta.vec_dtds[iter->svr() - 129].flags;
+		iter->t = cta.vec_dtds[iter->svr() - 129].t;
+	} else {
+		iter->flags = cta.vec_vtdbs[iter->svr() - 145].flags;
+		iter->t = cta.vec_vtdbs[iter->svr() - 145].t;
+	}
 }
 
 void edid_state::cta_resolve_svrs()

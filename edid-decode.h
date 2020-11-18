@@ -122,6 +122,8 @@ struct edid_state {
 		memset(cta.preparsed_has_vic, 0, sizeof(cta.preparsed_has_vic));
 		cta.preparsed_phys_addr = 0xffff;
 		cta.preparse_total_dtds = 0;
+		cta.preparse_total_vtdbs = 0;
+		cta.preparse_has_t8vtdb = false;
 
 		// DisplayID block state
 		dispid.version = 0;
@@ -189,7 +191,11 @@ struct edid_state {
 	struct {
 		unsigned preparse_total_dtds;
 		vec_timings_ext vec_dtds;
+		unsigned preparse_total_vtdbs;
+		vec_timings_ext vec_vtdbs;
 		vec_timings_ext preferred_timings;
+		bool preparse_has_t8vtdb;
+		timings_ext t8vtdb;
 		vec_timings_ext native_timings;
 		bool has_vic_1;
 		bool first_svd_might_be_preferred;

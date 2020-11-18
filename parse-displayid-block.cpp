@@ -321,6 +321,10 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x,
 	}
 
 	print_timings("    ", &t, "DTD", s.c_str(), true);
+	if (is_cta) {
+		timings_ext te(t, "DTD", s);
+		cta.vec_vtdbs.push_back(te);
+	}
 }
 
 // tag 0x04
@@ -464,6 +468,10 @@ void edid_state::parse_displayid_type_4_8_timing(unsigned char type, unsigned sh
 	}
 	if (t)
 		print_timings("    ", t, type_name);
+	if (t && is_cta && !cta.t8vtdb.is_valid()) {
+		timings_ext te(*t, type_name, "");
+		cta.t8vtdb = te;
+	}
 }
 
 // tag 0x09
@@ -1355,6 +1363,10 @@ void edid_state::parse_displayid_type_10_timing(const unsigned char *x, bool is_
 	edid_cvt_mode(1 + x[5], t);
 
 	print_timings("    ", &t, "CVT", s.c_str());
+	if (is_cta) {
+		timings_ext te(t, "CVT", s);
+		cta.vec_vtdbs.push_back(te);
+	}
 }
 
 // tag 0x7e, OUI 3A-02-92 (VESA)
