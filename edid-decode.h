@@ -273,6 +273,9 @@ struct edid_state {
 	void parse_display_xfer(const unsigned char *x);
 	void parse_di_ext_block(const unsigned char *x);
 
+	void check_displayid_datablock_revision(unsigned char hdr,
+						unsigned char valid_flags = 0,
+						unsigned char rev = 0);
 	void parse_displayid_product_id(const unsigned char *x);
 	std::string product_type(unsigned char x, bool heading);
 	void parse_displayid_interface_features(const unsigned char *x);
@@ -286,12 +289,19 @@ struct edid_state {
 	void parse_displayid_type_2_timing(const unsigned char *x);
 	void parse_displayid_type_3_timing(const unsigned char *x);
 	void parse_displayid_type_4_8_timing(unsigned char type, unsigned short id);
+	void parse_displayid_video_timing_range_limits(const unsigned char *x);
+	void parse_displayid_string(const unsigned char *x);
+	void parse_displayid_display_device(const unsigned char *x);
+	void parse_displayid_intf_power_sequencing(const unsigned char *x);
 	void parse_displayid_type_5_timing(const unsigned char *x);
 	void parse_displayid_tiled_display_topology(const unsigned char *x, bool is_v2);
 	void parse_displayid_type_6_timing(const unsigned char *x);
 	void parse_displayid_type_9_timing(const unsigned char *x);
+	void parse_displayid_dynamic_video_timings_range_limits(const unsigned char *x);
+	void parse_displayid_ContainerID(const unsigned char *x);
 	void preparse_displayid_block(const unsigned char *x);
 	void parse_displayid_block(const unsigned char *x);
+	void parse_displayid_vesa(const unsigned char *x);
 	void parse_displayid_cta_data_block(const unsigned char *x);
 	void check_displayid_blocks();
 
