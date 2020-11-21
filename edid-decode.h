@@ -94,6 +94,7 @@ struct edid_state {
 		min_vert_freq_hz = 0xffffffff;
 		warnings = failures = 0;
 		has_cta = has_dispid = false;
+		hide_serial_numbers = false;
 
 		// Base block state
 		base.edid_minor = 0;
@@ -144,6 +145,7 @@ struct edid_state {
 	std::string data_block;
 	bool has_cta;
 	bool has_dispid;
+	bool hide_serial_numbers;
 
 	unsigned min_hor_freq_hz;
 	unsigned max_hor_freq_hz;
@@ -285,6 +287,7 @@ struct edid_state {
 	void parse_displayid_type_3_timing(const unsigned char *x);
 	void parse_displayid_type_4_8_timing(unsigned char type, unsigned short id);
 	void parse_displayid_type_5_timing(const unsigned char *x);
+	void parse_displayid_tiled_display_topology(const unsigned char *x, bool is_v2);
 	void parse_displayid_type_6_timing(const unsigned char *x);
 	void parse_displayid_type_9_timing(const unsigned char *x);
 	void preparse_displayid_block(const unsigned char *x);
@@ -294,6 +297,7 @@ struct edid_state {
 
 	void parse_vtb_ext_block(const unsigned char *x);
 
+	void parse_string_table(const unsigned char *x);
 	void parse_ls_ext_block(const unsigned char *x);
 
 	void parse_block_map(const unsigned char *x);

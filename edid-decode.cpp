@@ -55,6 +55,7 @@ enum Option {
 	OptV4L2Timings = 'V',
 	OptSkipHexDump = 's',
 	OptSkipSHA = 128,
+	OptHideSerialNumbers,
 	OptVersion,
 	OptLast = 256
 };
@@ -70,6 +71,7 @@ static struct option long_options[] = {
 	{ "physical-address", no_argument, 0, OptPhysicalAddress },
 	{ "skip-hex-dump", no_argument, 0, OptSkipHexDump },
 	{ "skip-sha", no_argument, 0, OptSkipSHA },
+	{ "hide-serial-numbers", no_argument, 0, OptHideSerialNumbers },
 	{ "version", no_argument, 0, OptVersion },
 	{ "check-inline", no_argument, 0, OptCheckInline },
 	{ "check", no_argument, 0, OptCheck },
@@ -110,6 +112,7 @@ static void usage(void)
 	       "  -V, --v4l2-timings    report all long video timings in v4l2-dv-timings.h format\n"
 	       "  -s, --skip-hex-dump   skip the initial hex dump of the EDID\n"
 	       "  --skip-sha            skip the SHA report\n"
+	       "  --hide-serial-numbers replace serial numbers with '...'\n"
 	       "  --version             show the edid-decode version (SHA)\n"
 	       "  -e, --extract         extract the contents of the first block in hex values\n"
 	       "  -h, --help            display this help message\n");
@@ -1084,6 +1087,8 @@ void edid_state::parse_extension(const unsigned char *x)
 
 int edid_state::parse_edid()
 {
+	hide_serial_numbers = options[OptHideSerialNumbers];
+
 	for (unsigned i = 1; i < num_blocks; i++)
 		preparse_extension(edid + i * EDID_PAGE_SIZE);
 

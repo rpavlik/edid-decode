@@ -1511,12 +1511,16 @@ void edid_state::detailed_block(const unsigned char *x)
 				fail("Invalid trailing data.\n");
 		}
 		return;
-	case 0xff:
+	case 0xff: {
 		data_block = "Display Product Serial Number";
-		printf("    %s: '%s'\n", data_block.c_str(),
-		       extract_string(x + 5, 13));
+		char *sn = extract_string(x + 5, 13);
+		if (hide_serial_numbers)
+			printf("    %s: ...\n", data_block.c_str());
+		else
+			printf("    %s: '%s'\n", data_block.c_str(), sn);
 		base.has_serial_string = 1;
 		return;
+	}
 	default:
 		printf("    %s Display Descriptor (0x%02hhx):",
 		       x[3] <= 0x0f ? "Manufacturer-Specified" : "Unknown", x[3]);
@@ -1553,10 +1557,14 @@ void edid_state::parse_base_block(const unsigned char *x)
 	       manufacturer_name(x + 0x08),
 	       (unsigned short)(x[0x0a] + (x[0x0b] << 8)));
 	base.has_serial_number = x[0x0c] || x[0x0d] || x[0x0e] || x[0x0f];
-	if (base.has_serial_number)
-		printf("    Serial Number: %u\n",
-		       (unsigned)(x[0x0c] + (x[0x0d] << 8) +
-				  (x[0x0e] << 16) + (x[0x0f] << 24)));
+	if (base.has_serial_number) {
+		if (hide_serial_numbers)
+			printf("    Serial Number: ...\n");
+		else
+			printf("    Serial Number: %u\n",
+			       (unsigned)(x[0x0c] + (x[0x0d] << 8) +
+					  (x[0x0e] << 16) + (x[0x0f] << 24)));
+	}
 
 	time(&the_time);
 	ptm = localtime(&the_time);

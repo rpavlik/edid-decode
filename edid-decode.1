@@ -220,6 +220,11 @@ failures. But it will also change the output of edid-decode for every new commit
 in the git repository, even if nothing else changed in the edid-decode output.
 Use this option to avoid including the SHA in the edid-decode output.
 .TP
+\fB\-\-hide\-serial\-numbers\fR
+Replace any serial numbers in the human readable output by '...'.
+Note that they are still easily extracted from the EDID hex dump at
+the start.
+.TP
 \fB\-\-version\fR
 Show the SHA hash and the last commit date.
 .TP

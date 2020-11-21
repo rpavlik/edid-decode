@@ -89,8 +89,12 @@ void edid_state::parse_displayid_product_id(const unsigned char *x)
 	}
 	printf("    Product Code: %u\n", x[6] | (x[7] << 8));
 	unsigned sn = x[8] | (x[9] << 8) | (x[10] << 16) | (x[11] << 24);
-	if (sn)
-		printf("    Serial Number: %u\n", sn);
+	if (sn) {
+		if (hide_serial_numbers)
+			printf("    Serial Number: ...\n");
+		else
+			printf("    Serial Number: %u\n", sn);
+	}
 	unsigned week = x[12];
 	unsigned year = 2000 + x[13];
 	printf("    %s: %u",
@@ -899,7 +903,7 @@ void edid_state::parse_displayid_type_5_timing(const unsigned char *x)
 
 // tag 0x12 and 0x28
 
-static void parse_displayid_tiled_display_topology(const unsigned char *x, bool is_v2)
+void edid_state::parse_displayid_tiled_display_topology(const unsigned char *x, bool is_v2)
 {
 	check_displayid_datablock_revision(x);
 
@@ -963,8 +967,11 @@ static void parse_displayid_tiled_display_topology(const unsigned char *x, bool 
 		       x[0x10], x[0x11], x[0x12]);
 	printf("    Tiled Display Product ID Code: %u\n",
 	       x[0x13] | (x[0x14] << 8));
-	printf("    Tiled Display Serial Number: %u\n",
-	       x[0x15] | (x[0x16] << 8) | (x[0x17] << 16)| (x[0x18] << 24));
+	if (hide_serial_numbers)
+		printf("    Tiled Display Serial Number: ...\n");
+	else
+		printf("    Tiled Display Serial Number: %u\n",
+		       x[0x15] | (x[0x16] << 8) | (x[0x17] << 16)| (x[0x18] << 24));
 }
 
 // tag 0x13

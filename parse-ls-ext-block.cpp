@@ -15,7 +15,7 @@ static void parse_string(const char *name, const unsigned char *x)
 	hex_block("", x + 1, *x, true, *x);
 }
 
-static void parse_string_table(const unsigned char *x)
+void edid_state::parse_string_table(const unsigned char *x)
 {
 	printf("  UTF Type: ");
 	switch (x[0] & 7) {
@@ -46,7 +46,10 @@ static void parse_string_table(const unsigned char *x)
 	x += x[0] + 1;
 	parse_string("Model Name", x);
 	x += x[0] + 1;
-	parse_string("Serial Number", x);
+	if (hide_serial_numbers)
+		printf("  Serial Number: ...\n");
+	else
+		parse_string("Serial Number", x);
 }
 
 void edid_state::parse_ls_ext_block(const unsigned char *x)
