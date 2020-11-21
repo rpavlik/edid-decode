@@ -30,7 +30,8 @@ enum output_format {
 	OUT_FMT_DEFAULT,
 	OUT_FMT_HEX,
 	OUT_FMT_RAW,
-	OUT_FMT_CARRAY
+	OUT_FMT_CARRAY,
+	OUT_FMT_XML,
 };
 
 /*
@@ -94,6 +95,7 @@ static void usage(void)
 	       "                        hex:    hex numbers in ascii text (default for stdout)\n"
 	       "                        raw:    binary data (default unless writing to stdout)\n"
 	       "                        carray: c-program struct\n"
+	       "                        xml:    XML data\n"
 	       "  -c, --check           check if the EDID conforms to the standards, failures and\n"
 	       "                        warnings are reported at the end.\n"
 	       "  -C, --check-inline    check if the EDID conforms to the standards, failures and\n"
@@ -859,6 +861,26 @@ static void carraydumpedid(FILE *f, const unsigned char *edid, unsigned size)
 	fprintf(f, "};\n");
 }
 
+// This format can be read by the QuantumData EDID editor
+static void xmldumpedid(FILE *f, const unsigned char *edid, unsigned size)
+{
+	fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n");
+	fprintf(f, "<DATAOBJ>\n");
+	fprintf(f, "    <HEADER TYPE=\"DID\" VERSION=\"1.0\"/>\n");
+	fprintf(f, "    <DATA>\n");
+	for (unsigned b = 0; b < size / 128; b++) {
+		const unsigned char *buf = edid + 128 * b;
+
+		fprintf(f, "        <BLOCK%u>", b);
+		for (unsigned i = 0; i < 128; i++)
+			fprintf(f, "%02X", buf[i]);
+		fprintf(f, "</BLOCK%u>\n", b);
+	}
+	fprintf(f, "    </DATA>\n");
+	fprintf(f, "</DATAOBJ>\n");
+}
+
+
 static int edid_to_file(const char *to_file, enum output_format out_fmt)
 {
 	FILE *out;
@@ -883,6 +905,9 @@ static int edid_to_file(const char *to_file, enum output_format out_fmt)
 		break;
 	case OUT_FMT_CARRAY:
 		carraydumpedid(out, edid, state.edid_size);
+		break;
+	case OUT_FMT_XML:
+		xmldumpedid(out, edid, state.edid_size);
 		break;
 	}
 
@@ -1198,6 +1223,8 @@ int main(int argc, char **argv)
 				out_fmt = OUT_FMT_RAW;
 			} else if (!strcmp(optarg, "carray")) {
 				out_fmt = OUT_FMT_CARRAY;
+			} else if (!strcmp(optarg, "xml")) {
+				out_fmt = OUT_FMT_XML;
 			} else {
 				usage();
 				exit(1);
