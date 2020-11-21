@@ -20,8 +20,9 @@ ls-ext.test: has a Localized String Extension Block.
 blockmap-128.test: has a single Block Map extension and a total of
 	128 blocks.
 
-blockmap-256.test: has a single Block Map extension and a total of
-	256 blocks (the maximum possible EDID size).
+blockmap-255.test: has two Block Map extensions and a total of
+	255 blocks (the maximum possible EDID size when the second
+	Block Map is used).
 
 
 Examples of old EDID versions:
