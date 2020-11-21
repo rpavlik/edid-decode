@@ -1845,8 +1845,12 @@ void edid_state::cta_block(const unsigned char *x)
 			cta_hdmi_block(x + 1, length);
 			cta.last_block_was_hdmi_vsdb = 1;
 			cta.first_block = 0;
+			// The HDMI OUI is present, so this EDID represents an HDMI
+			// interface. And HDMI interfaces must use EDID version 1.3
+			// according to the HDMI Specification, so check for this.
 			if (base.edid_minor != 3)
-				fail("The HDMI Specification uses EDID 1.3, not 1.%u.\n", base.edid_minor);
+				fail("The HDMI Specification requires EDID 1.3 instead of 1.%u.\n",
+				     base.edid_minor);
 			return;
 		}
 		if (oui == 0xc45dd8) {
