@@ -1960,6 +1960,10 @@ void edid_state::parse_cta_block(const unsigned char *x)
 	printf("  Revision: %u\n", version);
 	if (version == 0)
 		fail("Invalid CTA-861 Extension revision 0\n");
+	if (version == 2)
+		fail("Deprecated CTA-861 Extension revision 2\n");
+	if (cta.has_hdmi && version != 3)
+		fail("The HDMI Specification requires CTA Extension revision 3\n");
 	if (version > 3)
 		warn("Unknown CTA-861 Extension revision %u\n", version);
 
@@ -2015,6 +2019,8 @@ void edid_state::parse_cta_block(const unsigned char *x)
 					sprintf(type, "DTD %3u", i + 1);
 					cta.native_timings.push_back(timings_ext(i + 129, type));
 				}
+				if (cta.has_hdmi && block_nr != (block_map.saw_block_1 ? 2 : 1))
+					fail("The HDMI Specification requires that the first Extension Block (that is not a Block Map) is an CTA-861 Extension Block\n");
 			}
 		}
 		if (version >= 3) {
