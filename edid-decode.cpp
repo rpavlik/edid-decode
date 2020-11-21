@@ -964,7 +964,6 @@ void edid_state::parse_block_map(const unsigned char *x)
 	unsigned offset = 1;
 	unsigned i;
 
-	printf("%s\n", block.c_str());
 	if (block_nr == 1)
 		block_map.saw_block_1 = true;
 	else if (!block_map.saw_block_1)
@@ -982,11 +981,18 @@ void edid_state::parse_block_map(const unsigned char *x)
 				fail("Valid block tags are not consecutive.\n");
 				fail_once = true;
 			}
-			printf("  Block %3u: %s\n", block, block_name(block).c_str());
-			if (block >= num_blocks && !fail_once) {
-				fail("Invalid block number %u.\n", block);
+			printf("  Block %3u: %s\n", block, block_name(x[i]).c_str());
+			if (block >= num_blocks) {
+				if (!fail_once)
+					fail("Invalid block number %u.\n", block);
 				fail_once = true;
+			} else if (x[i] != edid[block * EDID_PAGE_SIZE]) {
+				fail("Block %u tag mismatch: expected 0x%02x, but got 0x%02x.\n",
+				     block, edid[block * EDID_PAGE_SIZE], x[i]);
 			}
+		} else if (block < num_blocks) {
+			fail("Block %u tag mismatch: expected 0x%02x, but got 0x00.\n",
+			     block, edid[block * EDID_PAGE_SIZE]);
 		}
 	}
 }
