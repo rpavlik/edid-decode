@@ -10,7 +10,7 @@ xorg.test: an EDID as logged by xorg in /var/log/Xorg.0.log.
 xrandr.test: an EDID as reported by 'xrandr --props'.
 
 
-Four hand-crafted EDIDs to test rarely seen EDID extensions or data blocks:
+Five hand-crafted EDIDs to test rarely seen EDID extensions or data blocks:
 
 cta-vesa.test: has VESA Display Transfer Characteristics Data Block and
 	VESA Video Display Device Data Block in the CTA-861 block.
@@ -23,6 +23,8 @@ blockmap-128.test: has a single Block Map extension and a total of
 blockmap-255.test: has two Block Map extensions and a total of
 	255 blocks (the maximum possible EDID size when the second
 	Block Map is used).
+
+256-blocks.test: has the maximum number of 256 blocks.
 
 
 Examples of old EDID versions:
