@@ -1451,9 +1451,9 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 			fail("DisplayID Base Block has no product type.\n");
 		if (ext_count != dispid.preparse_displayid_blocks - 1)
 			fail("Expected %u DisplayID Extension Block%s, but got %u\n",
-			     dispid.preparse_displayid_blocks - 1,
-			     dispid.preparse_displayid_blocks == 2 ? "" : "s",
-			     ext_count);
+			     ext_count,
+			     ext_count > 1 ? "s" : "",
+			     dispid.preparse_displayid_blocks - 1);
 	} else {
 		if (prod_type)
 			fail("Product Type should be 0 in extension block.\n");
