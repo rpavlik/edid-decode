@@ -993,6 +993,8 @@ void edid_state::parse_block_map(const unsigned char *x)
 		block_map.saw_block_1 = true;
 	else if (!block_map.saw_block_1)
 		fail("No EDID Block Map Extension found in block 1.\n");
+	else if (block_nr == 128)
+		block_map.saw_block_128 = true;
 
 	if (block_nr > 1)
 		offset = 128;

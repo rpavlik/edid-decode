@@ -1867,7 +1867,7 @@ void edid_state::check_base_block()
 		 * Check if it is really out of range, or if it could be a rounding error.
 		 * The EDID spec is not very clear about rounding.
 		 */
-		bool fail =
+		bool out_of_range =
 			min_vert_freq_hz + 1.0 <= base.min_display_vert_freq_hz ||
 			(max_vert_freq_hz >= base.max_display_vert_freq_hz + 1.0 && base.max_display_vert_freq_hz) ||
 			min_hor_freq_hz + 1000 <= base.min_display_hor_freq_hz ||
@@ -1899,13 +1899,19 @@ void edid_state::check_base_block()
 			err += buf;
 		}
 
-		if (!fail)
+		if (!out_of_range)
 			err += "    Could be due to a Monitor Range off-by-one rounding issue\n";
 
 		/*
 		 * EDID 1.4 states (in an Errata) that explicitly defined
 		 * timings supersede the monitor range definition.
 		 */
-		msg(!fail || base.edid_minor >= 4, "%s", err.c_str());
+		msg(!out_of_range || base.edid_minor >= 4, "%s", err.c_str());
 	}
+	if (base.edid_minor == 3 && num_blocks > 2 && !block_map.saw_block_1)
+		fail("EDID 1.3 requires a Block Map Extension in Block 1 if there are more than 2 blocks in the EDID\n");
+	if (base.edid_minor == 3 && num_blocks > 128 && !block_map.saw_block_128)
+		fail("EDID 1.3 requires a Block Map Extension in Block 128 if there are more than 128 blocks in the EDID\n");
+	if (block_map.saw_block_128 && num_blocks > 255)
+		fail("If there is a Block Map Extension in Block 128 then the maximum number of blocks is 255.\n");
 }

@@ -133,6 +133,7 @@ struct edid_state {
 
 		// Block Map block state
 		block_map.saw_block_1 = false;
+		block_map.saw_block_128 = false;
 	}
 
 	// Global state
@@ -224,6 +225,7 @@ struct edid_state {
 	// Block Map block state
 	struct {
 		bool saw_block_1;
+		bool saw_block_128;
 	} block_map;
 
 	std::string dtd_type(unsigned dtd);
