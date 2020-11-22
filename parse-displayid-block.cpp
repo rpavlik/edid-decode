@@ -896,11 +896,11 @@ void edid_state::parse_displayid_type_5_timing(const unsigned char *x)
 	if (x[0] & 0x10)
 		s += ", refresh rate * (1000/1001) supported";
 
-	switch (x[0] & 0x03) {
-	case 0: t.rb = 2; break;
-	case 1: t.rb = 1; break;
-	default: break;
-	}
+	t.rb = 2;
+	if ((x[0] & 0x03) == 1)
+		warn("Unexpected use of 'custom reduced blanking'.\n");
+	else if ((x[0] & 0x03) > 1)
+		fail("Invalid Timing Formula.\n");
 
 	edid_cvt_mode(1 + x[6], t);
 
@@ -1350,12 +1350,14 @@ void edid_state::parse_displayid_type_10_timing(const unsigned char *x, bool is_
 	}
 
 	if (x[0] & 0x10) {
-		if (t.rb == 2)
+		if (t.rb == 2) {
 			s += ", refresh rate * (1000/1001) supported";
-		else if (t.rb == 3)
+		} else if (t.rb == 3) {
 			s += ", hblank is 160 pixels";
-		else
+			t.rb |= RB_FLAG;
+		} else {
 			fail("VR_HB must be 0.\n");
+		}
 	}
 	if (x[0] & 0x80)
 		s += ", YCbCr 4:2:0";

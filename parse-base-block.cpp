@@ -640,7 +640,7 @@ void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 		VSyncStart = VDisplayRnd + CVT_MIN_V_PORCH;
 		VSyncEnd = VSyncStart + VSync;
 
-		/* 15/13. Find pixel clock frequency (kHz for xf86) */
+		/* 15/13. Find pixel clock frequency (kHz) */
 		Clock = ((double)HTotal / HPeriod) * 1000.0;
 		Clock -= Clock % CVT_CLOCK_STEP;
 	}
@@ -652,12 +652,22 @@ void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 #define CVT_RB_H_SYNC 32.0
 
 		/* Fixed number of clocks for horizontal blanking */
-#define CVT_RB_H_BLANK 160.0
+#define CVT_RB1_H_BLANK 160.0	// RB1 & RB3 with RB_FLAG set
+#define CVT_RB2_H_BLANK 80.0	// RB2 & RB3 with RB_FLAG cleared
 
 		/* Fixed number of lines for vertical front porch - default 3 */
-#define CVT_RB_VFPORCH 3
+#define CVT_RB1_V_FPORCH 3
+#define CVT_RB2_V_FPORCH 1
+#define CVT_RB3_V_FIELD_RATE_PPM_ADJ 350.0
+#define CVT_RB2_CLOCK_STEP 1
 
 		int VBILines;
+		double h_blank = (t.rb & ~RB_FLAG) == 1 ? CVT_RB1_H_BLANK : CVT_RB2_H_BLANK;
+		int v_fporch = t.rb == 1 ? CVT_RB1_V_FPORCH : CVT_RB2_V_FPORCH;
+		unsigned clock_step = t.rb == 1 ? CVT_CLOCK_STEP : CVT_RB2_CLOCK_STEP;
+
+		if (t.rb == 3)
+			VFieldRate += VFieldRate * (CVT_RB3_V_FIELD_RATE_PPM_ADJ / 1000000.0);
 
 		/* 8. Estimate Horizontal period. */
 		HPeriod = ((double) (1000000.0 / VFieldRate - CVT_RB_MIN_VBLANK)) / VDisplayRnd;
@@ -667,26 +677,29 @@ void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 		VBILines++;
 
 		/* 10. Check if vertical blanking is sufficient */
-		if (VBILines < (CVT_RB_VFPORCH + VSync + CVT_MIN_V_BPORCH))
-			VBILines = CVT_RB_VFPORCH + VSync + CVT_MIN_V_BPORCH;
+		if (VBILines < (v_fporch + VSync + CVT_MIN_V_BPORCH))
+			VBILines = v_fporch + VSync + CVT_MIN_V_BPORCH;
 
 		/* 11. Find total number of lines in vertical field */
 		VTotal = VDisplayRnd + VBILines;
 
 		/* 12. Find total number of pixels in a line */
-		HTotal = HDisplay + CVT_RB_H_BLANK;
+		HTotal = HDisplay + h_blank;
 
 		/* Fill in HSync values */
-		HSyncEnd = HDisplay + CVT_RB_H_BLANK / 2;
+		HSyncEnd = HDisplay + h_blank / 2;
 		HSyncStart = HSyncEnd - CVT_RB_H_SYNC;
 
 		/* Fill in VSync values */
-		VSyncStart = VDisplay + CVT_RB_VFPORCH;
+		VSyncStart = VDisplay + v_fporch;
 		VSyncEnd = VSyncStart + VSync;
 
-		/* 15/13. Find pixel clock frequency (kHz for xf86) */
-		Clock = ((double)VFieldRate * VTotal * HTotal) / 1000.0;
-		Clock -= Clock % CVT_CLOCK_STEP;
+		/* 15/13. Find pixel clock frequency (kHz) */
+		double clk_khz = ((double)VFieldRate * VTotal * HTotal) / 1000.0;
+		if (t.rb < 3)
+			Clock = clock_step * floor(clk_khz / clock_step);
+		else
+			Clock = clock_step * ceil(clk_khz / clock_step);
 	}
 	t.pixclk_khz = Clock;
 

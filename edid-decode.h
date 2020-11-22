@@ -21,6 +21,8 @@
 #define EDID_PAGE_SIZE 128U
 #define EDID_MAX_BLOCKS 256U
 
+#define RB_FLAG (1U << 7)
+
 // Video Timings
 // If interlaced is true, then the vertical blanking
 // for each field is (vfp + vsync + vbp + 0.5), except for
@@ -32,7 +34,12 @@ struct timings {
 	unsigned hact, vact;
 	unsigned hratio, vratio;
 	unsigned pixclk_khz;
-	unsigned rb; // 1 if CVT with reduced blanking, 2 if CVT with reduced blanking v2
+	// 0: no reduced blanking
+	// 1: reduced blanking version 1
+	// 2: reduced blanking version 2
+	// 3: reduced blanking version 3 with a horizontal blank of 80
+	// 3 | RB_FLAG: reduced blanking version 3 with a horizontal blank of 160
+	unsigned rb;
 	bool interlaced;
 	// The horizontal frontporch may be negative in GTF calculations,
 	// so use int instead of unsigned for hfp. Example: 292x176@76.
