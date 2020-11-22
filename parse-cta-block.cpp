@@ -193,7 +193,7 @@ static const unsigned char edid_hdmi_mode_map[] = { 95, 94, 93, 98 };
 unsigned char hdmi_vic_to_vic(unsigned char hdmi_vic)
 {
 	if (hdmi_vic > 0 && hdmi_vic <= ARRAY_SIZE(edid_hdmi_mode_map))
-		return edid_hdmi_mode_map[hdmi_vic];
+		return edid_hdmi_mode_map[hdmi_vic - 1];
 	return 0;
 }
 
