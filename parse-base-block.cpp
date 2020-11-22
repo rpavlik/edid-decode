@@ -573,7 +573,6 @@ void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 		VSync = 7;
 	else                        /* Custom */
 		VSync = 10;
-	t.vsync = VSync;
 
 	if (!t.rb) {             /* simplified GTF calculation */
 		/* 4) Minimum time of vertical sync + back porch interval (µs)
