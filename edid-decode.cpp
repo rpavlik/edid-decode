@@ -762,7 +762,7 @@ static bool extract_edid(int fd, FILE *error)
 
 	/* Assume binary */
 	if (edid_data.size() > sizeof(edid)) {
-		fprintf(error, "Binary EDID length %zu is greater than %zu\n",
+		fprintf(error, "Binary EDID length %zu is greater than %zu.\n",
 			edid_data.size(), sizeof(edid));
 		return false;
 	}
@@ -835,7 +835,7 @@ static void hexdumpedid(FILE *f, const unsigned char *edid, unsigned size)
 			fprintf(f, "\n");
 		}
 		if (!crc_ok(buf))
-			fprintf(f, "Block %u has a checksum error (should be 0x%02x)\n",
+			fprintf(f, "Block %u has a checksum error (should be 0x%02x).\n",
 				b, crc_calc(buf));
 	}
 }
@@ -858,7 +858,7 @@ static void carraydumpedid(FILE *f, const unsigned char *edid, unsigned size)
 			fprintf(f, "\n");
 		}
 		if (!crc_ok(buf))
-			fprintf(f, "\t/* Block %u has a checksum error (should be 0x%02x) */\n",
+			fprintf(f, "\t/* Block %u has a checksum error (should be 0x%02x). */\n",
 				b, crc_calc(buf));
 	}
 	fprintf(f, "};\n");
@@ -939,15 +939,15 @@ static int edid_from_file(const char *from_file, FILE *error)
 
 	odd_hex_digits = false;
 	if (!extract_edid(fd, error)) {
-		fprintf(error, "EDID extract of '%s' failed ", from_file);
+		fprintf(error, "EDID extract of '%s' failed: ", from_file);
 		if (odd_hex_digits)
-			fprintf(error, "(odd number of hexadecimal digits)\n");
+			fprintf(error, "odd number of hexadecimal digits.\n");
 		else
-			fprintf(error, "(unknown format)\n");
+			fprintf(error, "unknown format.\n");
 		return -1;
 	}
 	if (state.edid_size % EDID_PAGE_SIZE) {
-		fprintf(error, "EDID length %u is not a multiple of %u\n",
+		fprintf(error, "EDID length %u is not a multiple of %u.\n",
 			state.edid_size, EDID_PAGE_SIZE);
 		return -1;
 	}
@@ -956,7 +956,7 @@ static int edid_from_file(const char *from_file, FILE *error)
 		close(fd);
 
 	if (memcmp(edid, "\x00\xFF\xFF\xFF\xFF\xFF\xFF\x00", 8)) {
-		fprintf(error, "No EDID header found in '%s'\n", from_file);
+		fprintf(error, "No EDID header found in '%s'.\n", from_file);
 		return -1;
 	}
 	return 0;
@@ -1238,12 +1238,12 @@ int main(int argc, char **argv)
 			}
 			break;
 		case ':':
-			fprintf(stderr, "Option '%s' requires a value\n",
+			fprintf(stderr, "Option '%s' requires a value.\n",
 				argv[optind]);
 			usage();
 			return -1;
 		case '?':
-			fprintf(stderr, "Unknown argument '%s'\n",
+			fprintf(stderr, "Unknown argument '%s'.\n",
 				argv[optind]);
 			usage();
 			return -1;

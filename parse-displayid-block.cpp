@@ -1347,7 +1347,7 @@ void edid_state::parse_displayid_cta_data_block(const unsigned char *x)
 	unsigned i;
 
 	if (len > 248) {
-		fail("Length is > 248\n");
+		fail("Length is > 248.\n");
 		len = 248;
 	}
 	x += 3;
@@ -1356,7 +1356,7 @@ void edid_state::parse_displayid_cta_data_block(const unsigned char *x)
 		cta_block(x + i);
 
 	if (i != len)
-		fail("Length is %u instead of %u\n", len, i);
+		fail("Length is %u instead of %u.\n", len, i);
 }
 
 // DisplayID main
@@ -1457,7 +1457,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 		if (!prod_type)
 			fail("DisplayID Base Block has no product type.\n");
 		if (ext_count != dispid.preparse_displayid_blocks - 1)
-			fail("Expected %u DisplayID Extension Block%s, but got %u\n",
+			fail("Expected %u DisplayID Extension Block%s, but got %u.\n",
 			     ext_count,
 			     ext_count > 1 ? "s" : "",
 			     dispid.preparse_displayid_blocks - 1);
@@ -1536,7 +1536,7 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 				else
 					data_block = "Vendor-Specific Data Block, OUI " + ouitohex(oui);
 				if (reversed)
-					fail((std::string("OUI ") + ouitohex(oui) + " is in the wrong byte order\n").c_str());
+					fail((std::string("OUI ") + ouitohex(oui) + " is in the wrong byte order.\n").c_str());
 			} else {
 				data_block = "Unknown DisplayID Data Block (" + utohex(tag) + ")";
 			}

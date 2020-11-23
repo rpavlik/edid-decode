@@ -494,6 +494,6 @@ void edid_state::parse_di_ext_block(const unsigned char *x)
 	if (!memchk(x + 0x37, 17))
 		fail("Bytes 0x37-0x47 should be 0.\n");
 	if (!memchk(x + 0x48, 9))
-		fail("Bytes 0x48-0x50 should be 0\n");
+		fail("Bytes 0x48-0x50 should be 0.\n");
 	parse_display_xfer(x);
 }

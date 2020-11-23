@@ -1732,7 +1732,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 			// is the native timing.
 			base.preferred_is_also_native = true;
 		} else if (base.edid_minor == 3) {
-			fail("EDID 1.3 requires that the first detailed timing is the preferred timing\n");
+			fail("EDID 1.3 requires that the first detailed timing is the preferred timing.\n");
 		}
 	}
 
@@ -1916,9 +1916,9 @@ void edid_state::check_base_block()
 		msg(!out_of_range || base.edid_minor >= 4, "%s", err.c_str());
 	}
 	if (base.edid_minor == 3 && num_blocks > 2 && !block_map.saw_block_1)
-		fail("EDID 1.3 requires a Block Map Extension in Block 1 if there are more than 2 blocks in the EDID\n");
+		fail("EDID 1.3 requires a Block Map Extension in Block 1 if there are more than 2 blocks in the EDID.\n");
 	if (base.edid_minor == 3 && num_blocks > 128 && !block_map.saw_block_128)
-		fail("EDID 1.3 requires a Block Map Extension in Block 128 if there are more than 128 blocks in the EDID\n");
+		fail("EDID 1.3 requires a Block Map Extension in Block 128 if there are more than 128 blocks in the EDID.\n");
 	if (block_map.saw_block_128 && num_blocks > 255)
 		fail("If there is a Block Map Extension in Block 128 then the maximum number of blocks is 255.\n");
 }

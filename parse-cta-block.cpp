@@ -227,7 +227,7 @@ static std::string audio_ext_format(unsigned char x)
 	case 13: return "L-PCM 3D Audio";
 	default: break;
 	}
-	fail("Unknown Audio Ext Format 0x%02x\n", x);
+	fail("Unknown Audio Ext Format 0x%02x.\n", x);
 	return std::string("Unknown Audio Ext Format (") + utohex(x) + ")";
 }
 
@@ -250,7 +250,7 @@ static std::string audio_format(unsigned char x)
 	case 14: return "WMA Pro";
 	default: break;
 	}
-	fail("Unknown Audio Format 0x%02x\n", x);
+	fail("Unknown Audio Format 0x%02x.\n", x);
 	return std::string("Unknown Audio Format (") + utohex(x) + ")";
 }
 
@@ -265,7 +265,7 @@ static std::string mpeg_h_3d_audio_level(unsigned char x)
 	case 5: return "Level 5";
 	default: break;
 	}
-	fail("Unknown MPEG-H 3D Audio Level 0x%02x\n", x);
+	fail("Unknown MPEG-H 3D Audio Level 0x%02x.\n", x);
 	return std::string("Unknown MPEG-H 3D Audio Level (") + utohex(x) + ")";
 }
 
@@ -274,7 +274,7 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 	unsigned i, format, ext_format = 0;
 
 	if (length % 3) {
-		fail("Broken CTA-861 audio block length %d\n", length);
+		fail("Broken CTA-861 audio block length %d.\n", length);
 		return;
 	}
 
@@ -283,7 +283,7 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 		ext_format = (x[i + 2] & 0xf8) >> 3;
 		if (format == 0) {
 			printf("    Reserved (0x00)\n");
-			fail("Audio Format Code 0x00 is reserved\n");
+			fail("Audio Format Code 0x00 is reserved.\n");
 			continue;
 		}
 		if (format != 15)
@@ -491,7 +491,7 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 	unsigned i;
 
 	if (length == 0) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 	cta.preferred_timings.clear();
@@ -541,7 +541,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 	unsigned len_vic, len_3d;
 
 	if (length < 4) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 	printf("    Source physical address: %u.%u.%u.%u\n", x[3] >> 4, x[3] & 0x0f,
@@ -1077,7 +1077,7 @@ static void cta_sadb(const unsigned char *x, unsigned length)
 	unsigned i;
 
 	if (length < 3) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 
@@ -1286,7 +1286,7 @@ static void cta_rcdb(const unsigned char *x, unsigned length)
 	unsigned i;
 
 	if (length < 4) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 
@@ -1346,7 +1346,7 @@ static const char *speaker_location[] = {
 static void cta_sldb(const unsigned char *x, unsigned length)
 {
 	if (length < 2) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 	while (length >= 2) {
@@ -1373,7 +1373,7 @@ void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 
 	cta.has_vcdb = true;
 	if (length < 1) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 	printf("    YCbCr quantization: %s\n",
@@ -1453,7 +1453,7 @@ static void cta_colorimetry_block(const unsigned char *x, unsigned length)
 	unsigned i;
 
 	if (length < 2) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 	for (i = 0; i < ARRAY_SIZE(colorimetry_map); i++) {
@@ -1478,7 +1478,7 @@ static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned lengt
 	unsigned i;
 
 	if (length < 2) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 	printf("    Electro optical transfer functions:\n");
@@ -1514,7 +1514,7 @@ static void cta_hdr_static_metadata_block(const unsigned char *x, unsigned lengt
 static void cta_hdr_dyn_metadata_block(const unsigned char *x, unsigned length)
 {
 	if (length < 3) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 	while (length >= 3) {
@@ -1554,7 +1554,7 @@ static void cta_ifdb(const unsigned char *x, unsigned length)
 	unsigned len_hdr = x[0] >> 5;
 
 	if (length < 2) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 	printf("    VSIFs: %u\n", x[1]);
@@ -1587,7 +1587,7 @@ static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 	unsigned num_descs;
 
 	if (length < 2) {
-		fail("Empty Data Block with length %u\n", length);
+		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
 	if (x[0] & 3)
@@ -1706,7 +1706,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x01:
 		if (length < 3) {
 			data_block = std::string("Vendor-Specific Video Data Block");
-			fail("Invalid length %u < 3\n", length);
+			fail("Invalid length %u < 3.\n", length);
 			return;
 		}
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
@@ -1746,7 +1746,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x11:
 		if (length < 3) {
 			data_block = std::string("Vendor-Specific Audio Data Block");
-			fail("Invalid length %u < 3\n", length);
+			fail("Invalid length %u < 3.\n", length);
 			return;
 		}
 		oui = (x[3] << 16) + (x[2] << 8) + x[1];
@@ -1788,7 +1788,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 			fail("Duplicate HDMI Forum VSDB/SCDB.\n");
 		if (length < 2) {
 			data_block = std::string("HDMI Forum SCDB");
-			fail("Invalid length %u < 2\n", length);
+			fail("Invalid length %u < 2.\n", length);
 			return;
 		}
 		if (x[1] || x[2])
@@ -1959,13 +1959,13 @@ void edid_state::parse_cta_block(const unsigned char *x)
 
 	printf("  Revision: %u\n", version);
 	if (version == 0)
-		fail("Invalid CTA-861 Extension revision 0\n");
+		fail("Invalid CTA-861 Extension revision 0.\n");
 	if (version == 2)
-		fail("Deprecated CTA-861 Extension revision 2\n");
+		fail("Deprecated CTA-861 Extension revision 2.\n");
 	if (cta.has_hdmi && version != 3)
-		fail("The HDMI Specification requires CTA Extension revision 3\n");
+		fail("The HDMI Specification requires CTA Extension revision 3.\n");
 	if (version > 3)
-		warn("Unknown CTA-861 Extension revision %u\n", version);
+		warn("Unknown CTA-861 Extension revision %u.\n", version);
 
 	if (version >= 1) do {
 		if (version == 1 && x[3] != 0)
@@ -1976,7 +1976,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 
 		if (version < 3 && ((offset - 4) / 8)) {
 			printf("  8-byte timing descriptors: %u\n", (offset - 4) / 8);
-			fail("8-byte descriptors were never used\n");
+			fail("8-byte descriptors were never used.\n");
 		}
 
 		if (version >= 2) {
@@ -2020,7 +2020,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 					cta.native_timings.push_back(timings_ext(i + 129, type));
 				}
 				if (cta.has_hdmi && block_nr != (block_map.saw_block_1 ? 2 : 1))
-					fail("The HDMI Specification requires that the first Extension Block (that is not a Block Map) is an CTA-861 Extension Block\n");
+					fail("The HDMI Specification requires that the first Extension Block (that is not a Block Map) is an CTA-861 Extension Block.\n");
 			}
 		}
 		if (version >= 3) {
@@ -2031,7 +2031,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 
 			data_block.clear();
 			if (i != offset)
-				fail("Offset is %u, but should be %u\n", offset, i);
+				fail("Offset is %u, but should be %u.\n", offset, i);
 		}
 
 		data_block = "Detailed Timing Descriptors";
