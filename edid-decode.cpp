@@ -207,6 +207,27 @@ std::string edid_state::dtd_type(unsigned cnt)
 	return buf;
 }
 
+bool edid_state::match_timings(const timings &t1, const timings &t2)
+{
+	if (t1.hact != t2.hact ||
+	    t1.vact != t2.vact ||
+	    t1.rb != t2.rb ||
+	    t1.interlaced != t2.interlaced ||
+	    t1.hfp != t2.hfp ||
+	    t1.hbp != t2.hbp ||
+	    t1.hsync != t2.hsync ||
+	    t1.pos_pol_hsync != t2.pos_pol_hsync ||
+	    t1.hratio != t2.hratio ||
+	    t1.vfp != t2.vfp ||
+	    t1.vbp != t2.vbp ||
+	    t1.vsync != t2.vsync ||
+	    t1.pos_pol_vsync != t2.pos_pol_vsync ||
+	    t1.vratio != t2.vratio ||
+	    t1.pixclk_khz != t2.pixclk_khz)
+		return false;
+	return true;
+}
+
 static void or_str(std::string &s, const std::string &flag, unsigned &num_flags)
 {
 	if (!num_flags)

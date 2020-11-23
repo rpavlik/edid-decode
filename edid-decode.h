@@ -253,8 +253,10 @@ struct edid_state {
 	{
 		return print_timings(prefix, &t.t, t.type.c_str(), t.flags.c_str(), detailed);
 	};
+	bool match_timings(const timings &t1, const timings &t2);
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
 	void edid_cvt_mode(unsigned refresh, struct timings &t);
+	timings calc_cvt_mode(unsigned refresh, unsigned hact, unsigned vact, unsigned rb);
 	void detailed_cvt_descriptor(const char *prefix, const unsigned char *x, bool first);
 	void print_standard_timing(const char *prefix, unsigned char b1, unsigned char b2,
 				   bool gtf_only = false, unsigned vrefresh_offset = 60);

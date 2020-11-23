@@ -324,6 +324,28 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x,
 	if (is_cta) {
 		timings_ext te(t, "DTD", s);
 		cta.vec_vtdbs.push_back(te);
+
+		// Only use a T7VTDB if is cannot be expressed by a
+		// DTD or a T10VTDB.
+		if (t.hact <= 4095 && t.vact <= 4095 &&
+		    t.pixclk_khz <= 655360 && !(x[3] & 0xe0)) {
+			fail("This T7VTDB can be represented as an 18-byte DTD.\n");
+			return;
+		}
+		unsigned htot = t.hact + t.hfp + t.hsync + t.hbp;
+		unsigned vtot = t.vact + t.vfp + t.vsync + t.vbp;
+		unsigned refresh = (t.pixclk_khz * 1000ULL) / (htot * vtot);
+
+		for (unsigned rb = 0; rb <= 3; rb++) {
+			timings cvt_t = calc_cvt_mode(refresh, t.hact, t.vact, rb);
+			if (match_timings(t, cvt_t)) {
+				fail("This T7VTDB can be represented as a T10VTDB.\n");
+				return;
+			}
+		}
+		timings cvt_t = calc_cvt_mode(refresh, t.hact, t.vact, 3 | RB_FLAG);
+		if (match_timings(t, cvt_t))
+			fail("This T7VTDB can be represented as a T10VTDB.\n");
 	}
 }
 

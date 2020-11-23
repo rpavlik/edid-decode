@@ -714,6 +714,18 @@ void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 	t.interlaced = false;
 }
 
+timings edid_state::calc_cvt_mode(unsigned refresh, unsigned hact, unsigned vact, unsigned rb)
+{
+	timings t = {};
+
+	t.hact = hact;
+	t.vact = vact;
+	t.rb = rb;
+	calc_ratio(&t);
+	edid_cvt_mode(refresh, t);
+	return t;
+}
+
 void edid_state::detailed_cvt_descriptor(const char *prefix, const unsigned char *x, bool first)
 {
 	static const unsigned char empty[3] = { 0, 0, 0 };
