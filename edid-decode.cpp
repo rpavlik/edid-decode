@@ -42,7 +42,6 @@ enum output_format {
 enum Option {
 	OptCheck = 'c',
 	OptCheckInline = 'C',
-	OptExtract = 'e',
 	OptHelp = 'h',
 	OptNativeTimings = 'n',
 	OptOutputFormat = 'o',
@@ -65,7 +64,6 @@ static char options[OptLast];
 static struct option long_options[] = {
 	{ "help", no_argument, 0, OptHelp },
 	{ "output-format", required_argument, 0, OptOutputFormat },
-	{ "extract", no_argument, 0, OptExtract },
 	{ "native-timings", no_argument, 0, OptNativeTimings },
 	{ "preferred-timings", no_argument, 0, OptPreferredTimings },
 	{ "physical-address", no_argument, 0, OptPhysicalAddress },
@@ -114,7 +112,6 @@ static void usage(void)
 	       "  --skip-sha            skip the SHA report\n"
 	       "  --hide-serial-numbers replace serial numbers with '...'\n"
 	       "  --version             show the edid-decode version (SHA)\n"
-	       "  -e, --extract         extract the contents of the first block in hex values\n"
 	       "  -h, --help            display this help message\n");
 }
 
@@ -771,38 +768,6 @@ static bool extract_edid(int fd, FILE *error)
 	return true;
 }
 
-static void print_subsection(const char *name, const unsigned char *edid,
-			     unsigned start, unsigned end)
-{
-	unsigned i;
-
-	printf("%s:", name);
-	for (i = strlen(name); i < 15; i++)
-		printf(" ");
-	for (i = start; i <= end; i++)
-		printf(" %02x", edid[i]);
-	printf("\n");
-}
-
-static void dump_breakdown(const unsigned char *edid)
-{
-	printf("Extracted contents:\n");
-	print_subsection("header", edid, 0, 7);
-	print_subsection("serial number", edid, 8, 17);
-	print_subsection("version", edid,18, 19);
-	print_subsection("basic params", edid, 20, 24);
-	print_subsection("chroma info", edid, 25, 34);
-	print_subsection("established", edid, 35, 37);
-	print_subsection("standard", edid, 38, 53);
-	print_subsection("descriptor 1", edid, 54, 71);
-	print_subsection("descriptor 2", edid, 72, 89);
-	print_subsection("descriptor 3", edid, 90, 107);
-	print_subsection("descriptor 4", edid, 108, 125);
-	print_subsection("extensions", edid, 126, 126);
-	print_subsection("checksum", edid, 127, 127);
-	printf("\n");
-}
-
 static unsigned char crc_calc(const unsigned char *b)
 {
 	unsigned char sum = 0;
@@ -1109,9 +1074,6 @@ int edid_state::parse_edid()
 		}
 		printf("----------------\n\n");
 	}
-
-	if (options[OptExtract])
-		dump_breakdown(edid);
 
 	block = block_name(0x00);
 	printf("Block %u, %s:\n", block_nr, block.c_str());
