@@ -154,9 +154,9 @@ GTF 1.1: VESA Generalized Timing Formula Standard, Version: 1.1
 \fB\-h\fR, \fB\-\-help\fR
 Prints the help message.
 .TP
-\fB\-o\fR, \fB\-\-output\-format\fR=\fI<fmt>\fR
+\fB\-o\fR, \fB\-\-output\-format\fR \fI<fmt>\fR
 If [out] is specified, then write the EDID in format \fI<fmt>\fR.
-.br
+
 The output format can be one of:
 .br
 hex: hex numbers in ascii text (default for stdout)
@@ -230,11 +230,87 @@ the start.
 \fB\-\-version\fR
 Show the SHA hash and the last commit date.
 
+.SH TIMING OPTIONS
+The following options report the timings for DMT, VIC and HDMI VIC codes and
+calculate the timings for CVT or GTF timings, based on the given parameters.
+The EDID will not be shown, although it can be used with the \fB\-\-gtf\fR
+option in order to read the secondary curve parameters.
+.TP
+\fB\-\-std\fR \fI<byte1>\fR,\fI<byte2>\fR
+Show the standard timing represented by these two bytes.
+.TP
+\fB\-\-dmt\fR \fI<dmt>\fR
+Show the timings for the DMT with the given DMT ID.
+.TP
+\fB\-\-vic\fR \fI<vic>\fR
+Show the timings for this VIC.
+.TP
+\fB\-\-hdmi\-vic\fR \fI<hdmivic>\fR
+Show the timings for this HDMI VIC.
+.TP
+\fB\-\-cvt\fR \fBw\fR=\fI<width>\fR,\fBh\fR=\fI<height>\fR,\fBfps\fR=\fI<fps>\fR[,\fBrb\fR=\fI<rb>\fR][,\fBinterlaced\fR][,\fBoverscan\fR][,\fBalt\fR]
+.br
+Calculate the CVT timings for the given format.
+
+\fI<width>\fR is the width in pixels, \fI<height>\fR is the frame (not field!) height in lines.
+.br
+\fI<fps>\fR is frames per second for progressive timings and fields per second for interlaced timings.
+.br
+\fI<rb>\fR can be 0 (no reduced blanking, default), or 1-3 for the reduced blanking version.
+.br
+If \fBinterlaced\fR is given, then this is an interlaced format.
+.br
+If \fBoverscan\fR is given, then this is an overscanned format. I.e., margins are required.
+.br
+If \fBalt\fR is given and \fI<rb>\fR=2, then report the timings
+optimized for video: 1000 / 1001 * \fI<fps>\fR.
+.br
+If \fBalt\fR is given and \fI<rb>\fR=3, then the horizontal blanking
+is 160 instead of 80 pixels.
+.TP
+\fB\-\-gtf\fR \fBw\fR=\fI<width>\fR,\fBh\fR=\fI<height>\fR[,\fBfps\fR=\fI<fps>\fR][,\fBhorfreq\fR=\fI<horfreq>\fR][,\fBpixclk\fR=\fI<pixclk>\fR]
+[,\fBinterlaced\fR][,\fBoverscan\fR][,\fBsecondary\fR][,\fBC\fR=\fI<c>\fR][,\fBM\fR=\fI<m>\fR][,\fBK\fR=\fI<k>\fR][,\fBJ\fR=\fI<j>\fR]
+.br
+Calculate the GTF timings for the given format.
+
+\fI<width>\fR is the width in pixels, \fI<height>\fR is the frame (not field!) height in lines.
+.br
+\fI<fps>\fR is frames per second for progressive timings and fields per second for interlaced timings.
+.br
+\fI<horfreq>\fR is the horizontal frequency in kHz.
+.br
+\fI<pixclk>\fR is the pixel clock frequency in MHz.
+Only one of \fBfps\fR, \fBhorfreq\fR or \fBpixclk\fR must be given.
+.br
+If \fBinterlaced\fR is given, then this is an interlaced format.
+.br
+If \fBoverscan\fR is given, then this is an overscanned format. I.e., margins are required.
+.br
+If \fBsecondary\fR is given, then the secondary GTF is used for
+reduced blanking, where \fI<c>\fR, \fI<m>\fR, \fI<k>\fR and \fI<j>\fR are parameters
+for the secondary curve.  If none of the secondary curve parameters
+were set, and an EDID file is passed as command line option, then the
+secondary curve parameters are read from that EDID.
+.br
+The default secondary curve parameters are 40 for \fI<c>\fR, 600 for \fI<m>\fR,
+128 for \fI<k>\fR and 20 for \fI<j>\fR.
+These values correspond to the normal curve that GTF uses.
+.TP
+\fB\-\-list\-established\-timings\fR
+List all known Established Timings.
+.TP
+\fB\-\-list\-dmts\fR
+List all known DMTs.
+.TP
+\fB\-\-list\-vics\fR
+List all known VICs.
+.TP
+\fB\-\-list\-hdmi\-vics\fR
+List all known HDMI VICs.
+
 .PP
 .SH NOTES
-Not all fields are decoded, or decoded completely.  Some fields' decoding
-may appear to corrupt the output (for example, detailed string sections
-have their contents printed literally).
+Not all fields are decoded, or decoded completely.
 .B edid-decode
 does attempt to validate its input against the relevant standards, but its
 opinions have not been double-checked with the relevant standards bodies,

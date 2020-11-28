@@ -22,24 +22,30 @@
 #define EDID_PAGE_SIZE 128U
 #define EDID_MAX_BLOCKS 256U
 
-#define RB_FLAG (1U << 7)
+#define RB_FLAG		(1U << 7)
+
+#define RB_CVT_V1	(1)
+#define RB_CVT_V2	(2)
+#define RB_CVT_V3	(3)
+#define RB_GTF		(4)
 
 // Video Timings
 // If interlaced is true, then the vertical blanking
 // for each field is (vfp + vsync + vbp + 0.5), except for
 // the VIC 39 timings that doesn't have the 0.5 constant.
 struct timings {
-	// Active horizontal and vertical frame height, including any
+	// Active horizontal and vertical frame height, excluding any
 	// borders, if present.
 	// Note: for interlaced formats the active field height is vact / 2
 	unsigned hact, vact;
 	unsigned hratio, vratio;
 	unsigned pixclk_khz;
 	// 0: no reduced blanking
-	// 1: reduced blanking version 1
-	// 2: reduced blanking version 2
-	// 3: reduced blanking version 3 with a horizontal blank of 80
-	// 3 | RB_FLAG: reduced blanking version 3 with a horizontal blank of 160
+	// 1: CVT reduced blanking version 1
+	// 2: CVT reduced blanking version 2
+	// 3: CVT reduced blanking version 3 with a horizontal blank of 80
+	// 3 | RB_FLAG: CVT reduced blanking version 3 with a horizontal blank of 160
+	// 4: GTF Secondary Curve
 	unsigned rb;
 	bool interlaced;
 	// The horizontal frontporch may be negative in GTF calculations,
@@ -90,6 +96,12 @@ struct timings_ext {
 	std::string flags;
 };
 
+enum gtf_ip_parm {
+	gtf_ip_vert_freq = 1,
+	gtf_ip_hor_freq,
+	gtf_ip_clk_freq,
+};
+
 typedef std::vector<timings_ext> vec_timings_ext;
 
 struct edid_state {
@@ -113,6 +125,10 @@ struct edid_state {
 			base.supports_cvt = base.seen_non_detailed_descriptor =
 			base.has_640x480p60_est_timing = base.has_spwg =
 			base.preferred_is_also_native = false;
+		base.supports_sec_gtf = false;
+		base.sec_gtf_start_freq = 0;
+		base.C = base.M = base.K = base.J = 0;
+		base.max_pos_neg_hor_freq_khz = 0;
 		base.detailed_block_cnt = base.dtd_cnt = 0;
 
 		base.min_display_hor_freq_hz = base.max_display_hor_freq_hz =
@@ -181,6 +197,9 @@ struct edid_state {
 		bool has_serial_string;
 		bool supports_continuous_freq;
 		bool supports_gtf;
+		bool supports_sec_gtf;
+		unsigned sec_gtf_start_freq;
+		double C, M, K, J;
 		bool supports_cvt;
 		bool has_spwg;
 		unsigned detailed_block_cnt;
@@ -197,6 +216,7 @@ struct edid_state {
 		unsigned max_display_pixclk_khz;
 		unsigned max_display_width_mm;
 		unsigned max_display_height_mm;
+		unsigned max_pos_neg_hor_freq_khz;
 	} base;
 
 	// CTA-861 block state
@@ -271,12 +291,19 @@ struct edid_state {
 				     detailed, do_checks);
 	};
 	bool match_timings(const timings &t1, const timings &t2);
+	timings calc_gtf_mode(unsigned h_pixels, unsigned v_lines,
+			      double ip_freq_rqd, bool int_rqd = false,
+			      enum gtf_ip_parm ip_parm = gtf_ip_vert_freq,
+			      bool margins_rqd = false, bool secondary = false,
+			      double C = 40, double M = 600, double K = 128, double J = 20);
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
+	timings calc_cvt_mode(unsigned h_pixels, unsigned v_lines,
+			      double ip_freq_rqd, unsigned rb, bool int_rqd = false,
+			      bool margins_rqd = false, bool alt = false);
 	void edid_cvt_mode(unsigned refresh, struct timings &t);
-	timings calc_cvt_mode(unsigned refresh, unsigned hact, unsigned vact, unsigned rb);
 	void detailed_cvt_descriptor(const char *prefix, const unsigned char *x, bool first);
 	void print_standard_timing(const char *prefix, unsigned char b1, unsigned char b2,
-				   bool gtf_only = false, unsigned vrefresh_offset = 60);
+				   bool gtf_only = false, bool show_both = false);
 	void detailed_display_range_limits(const unsigned char *x);
 	void detailed_epi(const unsigned char *x);
 	void detailed_timings(const char *prefix, const unsigned char *x,
@@ -285,6 +312,8 @@ struct edid_state {
 	void detailed_block(const unsigned char *x);
 	void parse_base_block(const unsigned char *x);
 	void check_base_block();
+	void list_dmts();
+	void list_established_timings();
 
 	void print_vic_index(const char *prefix, unsigned idx, const char *suffix, bool ycbcr420 = false);
 	void cta_vcdb(const unsigned char *x, unsigned length);
@@ -305,6 +334,8 @@ struct edid_state {
 	void cta_resolve_svr(vec_timings_ext::iterator iter);
 	void cta_resolve_svrs();
 	void check_cta_blocks();
+	void cta_list_vics();
+	void cta_list_hdmi_vics();
 
 	void parse_digital_interface(const unsigned char *x);
 	void parse_display_device(const unsigned char *x);

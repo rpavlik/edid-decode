@@ -354,376 +354,51 @@ static const struct timings *find_std_id(unsigned short std_id, unsigned char &d
 	return NULL;
 }
 
-/*
- * Copied from xserver/hw/xfree86/modes/xf86gtf.c
- */
-void edid_state::edid_gtf_mode(unsigned refresh, struct timings &t)
+void edid_state::list_established_timings()
 {
-#define CELL_GRAN         8.0   /* assumed character cell granularity        */
-#define MIN_PORCH         1     /* minimum front porch                       */
-#define V_SYNC_RQD        3     /* width of vsync in lines                   */
-#define H_SYNC_PERCENT    8.0   /* width of hsync as % of total line         */
-#define MIN_VSYNC_PLUS_BP 550.0 /* min time of vsync + back porch (microsec) */
-#define M                 600.0 /* blanking formula gradient                 */
-#define C                 40.0  /* blanking formula offset                   */
-#define K                 128.0 /* blanking formula scaling factor           */
-#define J                 20.0  /* blanking formula scaling factor           */
+	printf("Established Timings I & II:\n\n");
+	for (unsigned i = 0; i < ARRAY_SIZE(established_timings12); i++) {
+		unsigned char dmt_id = established_timings12[i].dmt_id;
+		const struct timings *t;
+		char type[16];
 
-	/* C' and M' are part of the Blanking Duty Cycle computation */
+		if (dmt_id) {
+			sprintf(type, "DMT 0x%02x", dmt_id);
+			t = find_dmt_id(dmt_id);
+		} else {
+			t = &established_timings12[i].t;
+			sprintf(type, "%-8s", established_timings12[i].type);
+		}
+		print_timings("", t, type, "", false, false);
+	}
+	printf("\nEstablished timings III:\n\n");
+	for (unsigned i = 0; i < ARRAY_SIZE(established_timings3_dmt_ids); i++) {
+		unsigned char dmt_id = established_timings3_dmt_ids[i];
+		char type[16];
 
-#define C_PRIME           (((C - J) * K/256.0) + J)
-#define M_PRIME           (K/256.0 * M)
-	double h_pixels_rnd;
-	double v_lines_rnd;
-	double v_field_rate_rqd;
-	double h_period_est;
-	double vsync_plus_bp;
-	double total_v_lines;
-	double v_field_rate_est;
-	double h_period;
-	double total_active_pixels;
-	double ideal_duty_cycle;
-	double h_blank;
-	double total_pixels;
-
-	/*  1. In order to give correct results, the number of horizontal
-	 *  pixels requested is first processed to ensure that it is divisible
-	 *  by the character size, by rounding it to the nearest character
-	 *  cell boundary:
-	 *
-	 *  [H PIXELS RND] = ((ROUND([H PIXELS]/[CELL GRAN RND],0))*[CELLGRAN RND])
-	 */
-
-	h_pixels_rnd = rint((double)t.hact / CELL_GRAN) * CELL_GRAN;
-
-	/*  2. If interlace is requested, the number of vertical lines assumed
-	 *  by the calculation must be halved, as the computation calculates
-	 *  the number of vertical lines per field. In either case, the
-	 *  number of lines is rounded to the nearest integer.
-	 *
-	 *  [V LINES RND] = IF([INT RQD?]="y", ROUND([V LINES]/2,0),
-	 *                                     ROUND([V LINES],0))
-	 */
-
-	v_lines_rnd = t.vact;
-
-	/*  3. Find the frame rate required:
-	 *
-	 *  [V FIELD RATE RQD] = IF([INT RQD?]="y", [I/P FREQ RQD]*2,
-	 *                                          [I/P FREQ RQD])
-	 */
-
-	v_field_rate_rqd = refresh;
-
-	/*  7. Estimate the Horizontal period
-	 *
-	 *  [H PERIOD EST] = ((1/[V FIELD RATE RQD]) - [MIN VSYNC+BP]/1000000) /
-	 *                    ([V LINES RND] +
-	 *                     [MIN PORCH RND]+[INTERLACE]) * 1000000
-	 */
-
-	h_period_est = (((1.0/v_field_rate_rqd) - (MIN_VSYNC_PLUS_BP/1000000.0))
-			/ (v_lines_rnd + MIN_PORCH)
-			* 1000000.0);
-
-	/*  8. Find the number of lines in V sync + back porch:
-	 *
-	 *  [V SYNC+BP] = ROUND(([MIN VSYNC+BP]/[H PERIOD EST]),0)
-	 */
-
-	vsync_plus_bp = rint(MIN_VSYNC_PLUS_BP/h_period_est);
-
-	/*  10. Find the total number of lines in Vertical field period:
-	 *
-	 *  [TOTAL V LINES] = [V LINES RND] +
-	 *                    [V SYNC+BP] + [INTERLACE] +
-	 *                    [MIN PORCH RND]
-	 */
-
-	total_v_lines = v_lines_rnd + vsync_plus_bp + MIN_PORCH;
-	t.vbp = vsync_plus_bp - V_SYNC_RQD;
-	t.vsync = V_SYNC_RQD;
-	t.vfp = MIN_PORCH;
-
-	/*  11. Estimate the Vertical field frequency:
-	 *
-	 *  [V FIELD RATE EST] = 1 / [H PERIOD EST] / [TOTAL V LINES] * 1000000
-	 */
-
-	v_field_rate_est = 1.0 / h_period_est / total_v_lines * 1000000.0;
-
-	/*  12. Find the actual horizontal period:
-	 *
-	 *  [H PERIOD] = [H PERIOD EST] / ([V FIELD RATE RQD] / [V FIELD RATE EST])
-	 */
-
-	h_period = h_period_est / (v_field_rate_rqd / v_field_rate_est);
-
-	/*  17. Find total number of active pixels in image
-	 *
-	 *  [TOTAL ACTIVE PIXELS] = [H PIXELS RND]
-	 */
-
-	total_active_pixels = h_pixels_rnd;
-
-	/*  18. Find the ideal blanking duty cycle from the blanking duty cycle
-	 *  equation:
-	 *
-	 *  [IDEAL DUTY CYCLE] = [C'] - ([M']*[H PERIOD]/1000)
-	 */
-
-	ideal_duty_cycle = C_PRIME - (M_PRIME * h_period / 1000.0);
-
-	/*  19. Find the number of pixels in the blanking time to the nearest
-	 *  double character cell:
-	 *
-	 *  [H BLANK (PIXELS)] = (ROUND(([TOTAL ACTIVE PIXELS] *
-	 *                               [IDEAL DUTY CYCLE] /
-	 *                               (100-[IDEAL DUTY CYCLE]) /
-	 *                               (2*[CELL GRAN RND])), 0))
-	 *                       * (2*[CELL GRAN RND])
-	 */
-
-	h_blank = rint(total_active_pixels *
-		       ideal_duty_cycle /
-		       (100.0 - ideal_duty_cycle) /
-		       (2.0 * CELL_GRAN)) * (2.0 * CELL_GRAN);
-
-	/*  20. Find total number of pixels:
-	 *
-	 *  [TOTAL PIXELS] = [TOTAL ACTIVE PIXELS] + [H BLANK (PIXELS)]
-	 */
-
-	total_pixels = total_active_pixels + h_blank;
-
-	/*  21. Find pixel clock frequency:
-	 *
-	 *  [PIXEL FREQ] = [TOTAL PIXELS] / [H PERIOD]
-	 */
-
-	t.pixclk_khz = (int)(1000.0 * total_pixels / h_period + 0.5);
-
-	/* Stage 1 computations are now complete; I should really pass
-	   the results to another function and do the Stage 2
-	   computations, but I only need a few more values so I'll just
-	   append the computations here for now */
-	/*  17. Find the number of pixels in the horizontal sync period:
-	 *
-	 *  [H SYNC (PIXELS)] =(ROUND(([H SYNC%] / 100 * [TOTAL PIXELS] /
-	 *                             [CELL GRAN RND]),0))*[CELL GRAN RND]
-	 */
-	t.hsync = rint(H_SYNC_PERCENT / 100.0 * total_pixels / CELL_GRAN) * CELL_GRAN;
-	/*  18. Find the number of pixels in the horizontal front porch period:
-	 *
-	 *  [H FRONT PORCH (PIXELS)] = ([H BLANK (PIXELS)]/2)-[H SYNC (PIXELS)]
-	 */
-	t.hfp = (h_blank / 2.0) - t.hsync;
-	/*  19. Find the number of pixels in the horizontal back porch period:
-	 *
-	 *  [H BACK PORCH (PIXELS)] = [H FRONT PORCH (PIXELS)]+[H SYNC (PIXELS)]
-	 */
-	t.hbp = t.hfp + t.hsync;
-	t.pos_pol_hsync = false;
-	t.pos_pol_vsync = true;
-	t.interlaced = false;
-	t.rb = 0;
+		sprintf(type, "DMT 0x%02x", dmt_id);
+		print_timings("", find_dmt_id(dmt_id), type, "", false, false);
+	}
 }
 
-/*
- * Copied from xserver/hw/xfree86/modes/xf86cvt.c
- */
-void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
+void edid_state::list_dmts()
 {
-	int HDisplay = t.hact;
-	int VDisplay = t.vact;
+	char type[16];
 
-	/* 2) character cell horizontal granularity (pixels) - default 8 */
-#define CVT_H_GRANULARITY 8
-
-	/* 4) Minimum vertical porch (lines) - default 3 */
-#define CVT_MIN_V_PORCH 3
-
-	/* 4) Minimum number of vertical back porch lines - default 6 */
-#define CVT_MIN_V_BPORCH 6
-
-	/* Pixel Clock step (kHz) */
-#define CVT_CLOCK_STEP 250
-
-	double HPeriod;
-	int VDisplayRnd, VSync;
-	double VFieldRate = refresh;
-	int HTotal, VTotal, Clock, HSyncStart, HSyncEnd, VSyncStart, VSyncEnd;
-
-	/* 2. Horizontal pixels */
-	HDisplay = HDisplay - (HDisplay % CVT_H_GRANULARITY);
-
-	/* 5. Find number of lines per field */
-	VDisplayRnd = VDisplay;
-
-	/* Determine VSync Width from aspect ratio */
-	if ((VDisplay * 4 / 3) == HDisplay)
-		VSync = 4;
-	else if ((VDisplay * 16 / 9) == HDisplay)
-		VSync = 5;
-	else if ((VDisplay * 16 / 10) == HDisplay)
-		VSync = 6;
-	else if (!(VDisplay % 4) && ((VDisplay * 5 / 4) == HDisplay))
-		VSync = 7;
-	else if ((VDisplay * 15 / 9) == HDisplay)
-		VSync = 7;
-	else                        /* Custom */
-		VSync = 10;
-
-	if (!t.rb) {             /* simplified GTF calculation */
-		/* 4) Minimum time of vertical sync + back porch interval (µs)
-		 * default 550.0 */
-#define CVT_MIN_VSYNC_BP 550.0
-
-		/* 3) Nominal HSync width (% of line period) - default 8 */
-#define CVT_HSYNC_PERCENTAGE 8
-
-		double HBlankPercentage;
-		int VSyncAndBackPorch;
-		int HBlank;
-
-		/* 8. Estimated Horizontal period */
-		HPeriod = ((double) (1000000.0 / VFieldRate - CVT_MIN_VSYNC_BP)) /
-			(VDisplayRnd + CVT_MIN_V_PORCH);
-
-		/* 9. Find number of lines in sync + backporch */
-		if (((int) (CVT_MIN_VSYNC_BP / HPeriod) + 1) <
-		    (VSync + CVT_MIN_V_BPORCH))
-			VSyncAndBackPorch = VSync + CVT_MIN_V_BPORCH;
-		else
-			VSyncAndBackPorch = (int) (CVT_MIN_VSYNC_BP / HPeriod) + 1;
-
-		VTotal = VDisplayRnd + VSyncAndBackPorch + CVT_MIN_V_PORCH;
-
-		/* 5) Definition of Horizontal blanking time limitation */
-		/* Gradient (%/kHz) - default 600 */
-#define CVT_M_FACTOR 600.0
-
-		/* Offset (%) - default 40 */
-#define CVT_C_FACTOR 40.0
-
-		/* Blanking time scaling factor - default 128 */
-#define CVT_K_FACTOR 128.0
-
-		/* Scaling factor weighting - default 20 */
-#define CVT_J_FACTOR 20.0
-
-#define CVT_M_PRIME (CVT_M_FACTOR * CVT_K_FACTOR / 256.0)
-#define CVT_C_PRIME ((CVT_C_FACTOR - CVT_J_FACTOR) * CVT_K_FACTOR / 256.0 + \
-		CVT_J_FACTOR)
-
-		/* 12. Find ideal blanking duty cycle from formula */
-		HBlankPercentage = CVT_C_PRIME - CVT_M_PRIME * HPeriod / 1000.0;
-
-		/* 13. Blanking time */
-		if (HBlankPercentage < 20)
-			HBlankPercentage = 20;
-
-		HBlank = (double)HDisplay * HBlankPercentage / (100.0 - HBlankPercentage) / (2.0 * CVT_H_GRANULARITY);
-		HBlank *= 2 * CVT_H_GRANULARITY;
-
-		/* 14. Find total number of pixels in a line. */
-		HTotal = HDisplay + HBlank;
-
-		int HSync = (HTotal * CVT_HSYNC_PERCENTAGE) / 100.0 + 0.0;
-		//printf("%d %d %d\n", HTotal, HBlank, HSync);
-		HSync -= HSync % CVT_H_GRANULARITY;
-
-		/* Fill in HSync values */
-		HSyncEnd = HTotal - HBlank / 2;
-
-		HSyncStart = HSyncEnd - HSync;
-		VSyncStart = VDisplayRnd + CVT_MIN_V_PORCH;
-		VSyncEnd = VSyncStart + VSync;
-
-		/* 15/13. Find pixel clock frequency (kHz) */
-		Clock = ((double)HTotal / HPeriod) * 1000.0;
-		Clock -= Clock % CVT_CLOCK_STEP;
+	for (unsigned i = 0; i < ARRAY_SIZE(dmt_timings); i++) {
+		sprintf(type, "DMT 0x%02x", dmt_timings[i].dmt_id);
+		std::string flags;
+		if (dmt_timings[i].std_id)
+			flags += std::string("STD: ") +
+				utohex(dmt_timings[i].std_id >> 8) + " " +
+				utohex(dmt_timings[i].std_id & 0xff);
+		if (dmt_timings[i].cvt_id)
+			add_str(flags, std::string("CVT: ") +
+				utohex(dmt_timings[i].cvt_id >> 16) + " " +
+				utohex((dmt_timings[i].cvt_id >> 8) & 0xff) + " " +
+				utohex(dmt_timings[i].cvt_id & 0xff));
+		print_timings("", &dmt_timings[i].t, type, flags.c_str(), false, false);
 	}
-	else {                      /* Reduced blanking */
-		/* Minimum vertical blanking interval time (µs) - default 460 */
-#define CVT_RB_MIN_VBLANK 460.0
-
-		/* Fixed number of clocks for horizontal sync */
-#define CVT_RB_H_SYNC 32.0
-
-		/* Fixed number of clocks for horizontal blanking */
-#define CVT_RB1_H_BLANK 160.0	// RB1 & RB3 with RB_FLAG set
-#define CVT_RB2_H_BLANK 80.0	// RB2 & RB3 with RB_FLAG cleared
-
-		/* Fixed number of lines for vertical front porch - default 3 */
-#define CVT_RB1_V_FPORCH 3
-#define CVT_RB2_V_FPORCH 1
-#define CVT_RB3_V_FIELD_RATE_PPM_ADJ 350.0
-#define CVT_RB2_CLOCK_STEP 1
-
-		int VBILines;
-		double h_blank = (t.rb & ~RB_FLAG) == 1 ? CVT_RB1_H_BLANK : CVT_RB2_H_BLANK;
-		int v_fporch = t.rb == 1 ? CVT_RB1_V_FPORCH : CVT_RB2_V_FPORCH;
-		unsigned clock_step = t.rb == 1 ? CVT_CLOCK_STEP : CVT_RB2_CLOCK_STEP;
-
-		if (t.rb == 3)
-			VFieldRate += VFieldRate * (CVT_RB3_V_FIELD_RATE_PPM_ADJ / 1000000.0);
-
-		/* 8. Estimate Horizontal period. */
-		HPeriod = ((double) (1000000.0 / VFieldRate - CVT_RB_MIN_VBLANK)) / VDisplayRnd;
-
-		/* 9. Find number of lines in vertical blanking */
-		VBILines = ((double) CVT_RB_MIN_VBLANK) / HPeriod;
-		VBILines++;
-
-		/* 10. Check if vertical blanking is sufficient */
-		if (VBILines < (v_fporch + VSync + CVT_MIN_V_BPORCH))
-			VBILines = v_fporch + VSync + CVT_MIN_V_BPORCH;
-
-		/* 11. Find total number of lines in vertical field */
-		VTotal = VDisplayRnd + VBILines;
-
-		/* 12. Find total number of pixels in a line */
-		HTotal = HDisplay + h_blank;
-
-		/* Fill in HSync values */
-		HSyncEnd = HDisplay + h_blank / 2;
-		HSyncStart = HSyncEnd - CVT_RB_H_SYNC;
-
-		/* Fill in VSync values */
-		VSyncStart = VDisplay + v_fporch;
-		VSyncEnd = VSyncStart + VSync;
-
-		/* 15/13. Find pixel clock frequency (kHz) */
-		double clk_khz = ((double)VFieldRate * VTotal * HTotal) / 1000.0;
-		if (t.rb < 3)
-			Clock = clock_step * floor(clk_khz / clock_step);
-		else
-			Clock = clock_step * ceil(clk_khz / clock_step);
-	}
-	t.pixclk_khz = Clock;
-
-	t.pos_pol_hsync = t.rb;
-	t.pos_pol_vsync = !t.rb;
-	t.vfp = VSyncStart - VDisplay;
-	t.vsync = VSyncEnd - VSyncStart;
-	t.vbp = VTotal - VSyncEnd;
-	t.hfp = HSyncStart - HDisplay;
-	t.hsync = HSyncEnd - HSyncStart;
-	t.hbp = HTotal - HSyncEnd;
-	t.interlaced = false;
-}
-
-timings edid_state::calc_cvt_mode(unsigned refresh, unsigned hact, unsigned vact, unsigned rb)
-{
-	timings t = {};
-
-	t.hact = hact;
-	t.vact = vact;
-	t.rb = rb;
-	calc_ratio(&t);
-	edid_cvt_mode(refresh, t);
-	return t;
 }
 
 void edid_state::detailed_cvt_descriptor(const char *prefix, const unsigned char *x, bool first)
@@ -794,7 +469,7 @@ void edid_state::detailed_cvt_descriptor(const char *prefix, const unsigned char
 		print_timings(prefix, &cvt_t, "CVT", preferred == 3 ? s_pref : "");
 	}
 	if (x[2] & 0x01) {
-		cvt_t.rb = 1;
+		cvt_t.rb = RB_CVT_V1;
 		edid_cvt_mode(60, cvt_t);
 		print_timings(prefix, &cvt_t, "CVT", preferred == 4 ? s_pref : "");
 	}
@@ -838,7 +513,7 @@ char *extract_string(const unsigned char *x, unsigned len)
 }
 
 void edid_state::print_standard_timing(const char *prefix, unsigned char b1, unsigned char b2,
-				       bool gtf_only, unsigned vrefresh_offset)
+				       bool gtf_only, bool show_both)
 {
 	const struct timings *t;
 	struct timings formula = {};
@@ -862,7 +537,7 @@ void edid_state::print_standard_timing(const char *prefix, unsigned char b1, uns
 	hact = (b1 + 31) * 8;
 	switch ((b2 >> 6) & 0x3) {
 	case 0x00:
-		if (gtf_only || base.edid_minor >= 3) {
+		if (gtf_only || show_both || base.edid_minor >= 3) {
 			hratio = 16;
 			vratio = 10;
 		} else {
@@ -885,17 +560,18 @@ void edid_state::print_standard_timing(const char *prefix, unsigned char b1, uns
 	}
 	vact = (double)hact * vratio / hratio;
 	vact = 8 * ((vact + 7) / 8);
-	refresh = vrefresh_offset + (b2 & 0x3f);
+	refresh = (b2 & 0x3f) + 60;
 
 	formula.hact = hact;
 	formula.vact = vact;
 	formula.hratio = hratio;
 	formula.vratio = vratio;
 
-	if (!gtf_only && base.edid_minor >= 4) {
-		if (base.supports_cvt) {
+	if (!gtf_only && (show_both || base.edid_minor >= 4)) {
+		if (show_both || base.supports_cvt) {
 			edid_cvt_mode(refresh, formula);
-			print_timings(prefix, &formula, "CVT     ", "EDID 1.4 source");
+			print_timings(prefix, &formula, "CVT     ",
+				      show_both ? "" : "EDID 1.4 source");
 		}
 		/*
 		 * An EDID 1.3 source will assume GTF, so both GTF and CVT
@@ -1380,8 +1056,16 @@ void edid_state::preparse_detailed_block(const unsigned char *x)
 
 	switch (x[10]) {
 	case 0x00: /* default gtf */
+		base.supports_gtf = true;
+		break;
 	case 0x02: /* secondary gtf curve */
 		base.supports_gtf = true;
+		base.supports_sec_gtf = !memchk(x + 12, 6);
+		base.sec_gtf_start_freq = x[12] * 2;
+		base.C = x[13] / 2.0;
+		base.M = (x[15] << 8) | x[14];
+		base.K = x[16];
+		base.J = x[17] / 2.0;
 		break;
 	case 0x04: /* cvt */
 		if (base.edid_minor >= 4) {
@@ -1446,7 +1130,7 @@ void edid_state::detailed_block(const unsigned char *x)
 	case 0xf7:
 		data_block = "Established timings III";
 		printf("    %s:\n", data_block.c_str());
-		for (i = 0; i < 44; i++)
+		for (i = 0; i < ARRAY_SIZE(established_timings3_dmt_ids); i++)
 			if (x[6 + i / 8] & (1 << (7 - i % 8))) {
 				unsigned char dmt_id = established_timings3_dmt_ids[i];
 				char type[16];
@@ -1579,7 +1263,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 {
 	time_t the_time;
 	struct tm *ptm;
-	int analog, i;
+	int analog;
 	unsigned col_x, col_y;
 	bool has_preferred_timing = false;
 
@@ -1813,7 +1497,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 	data_block = "Established Timings I & II";
 	if (x[0x23] || x[0x24] || x[0x25]) {
 		printf("  %s:\n", data_block.c_str());
-		for (i = 0; i < 17; i++) {
+		for (unsigned i = 0; i < ARRAY_SIZE(established_timings12); i++) {
 			if (x[0x23 + i / 8] & (1 << (7 - i % 8))) {
 				unsigned char dmt_id = established_timings12[i].dmt_id;
 				const struct timings *t;
@@ -1845,7 +1529,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 
 	data_block = "Standard Timings";
 	bool found = false;
-	for (i = 0; i < 8; i++) {
+	for (unsigned i = 0; i < 8; i++) {
 		if (x[0x26 + i * 2] != 0x01 || x[0x26 + i * 2 + 1] != 0x01) {
 			found = true;
 			break;
@@ -1853,7 +1537,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 	}
 	if (found) {
 		printf("  %s:\n", data_block.c_str());
-		for (i = 0; i < 8; i++)
+		for (unsigned i = 0; i < 8; i++)
 			print_standard_timing("    ", x[0x26 + i * 2], x[0x26 + i * 2 + 1]);
 	} else {
 		printf("  %s: none\n", data_block.c_str());
@@ -1973,6 +1657,12 @@ void edid_state::check_base_block()
 	    dtd_max_hsize_mm <= 2559 && dtd_max_vsize_mm <= 2559) {
 		fail("The DTD image sizes all fit inside 255x255cm, but no display size was set.\n");
 	}
+	// Secondary GTF curves start at a specific frequency. Any legacy timings
+	// that have a positive hsync and negative vsync must be less than that
+	// frequency to avoid confusion.
+	if (base.supports_sec_gtf && base.max_pos_neg_hor_freq_khz >= base.sec_gtf_start_freq)
+		fail("Second GTF start frequency %u is less than the highest P/N frequency %u.\n",
+		     base.sec_gtf_start_freq, base.max_pos_neg_hor_freq_khz);
 	if (base.edid_minor == 3 && num_blocks > 2 && !block_map.saw_block_1)
 		fail("EDID 1.3 requires a Block Map Extension in Block 1 if there are more than 2 blocks in the EDID.\n");
 	if (base.edid_minor == 3 && num_blocks > 128 && !block_map.saw_block_128)

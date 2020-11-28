@@ -201,7 +201,7 @@ const struct timings *find_vic_id(unsigned char vic)
 {
 	if (vic > 0 && vic <= ARRAY_SIZE(edid_cta_modes1))
 		return edid_cta_modes1 + vic - 1;
-	if (vic >= 193 && vic <= ARRAY_SIZE(edid_cta_modes2) + 193)
+	if (vic >= 193 && vic < ARRAY_SIZE(edid_cta_modes2) + 193)
 		return edid_cta_modes2 + vic - 193;
 	return NULL;
 }
@@ -211,6 +211,30 @@ const struct timings *find_hdmi_vic_id(unsigned char hdmi_vic)
 	if (hdmi_vic > 0 && hdmi_vic <= ARRAY_SIZE(edid_hdmi_mode_map))
 		return find_vic_id(edid_hdmi_mode_map[hdmi_vic - 1]);
 	return NULL;
+}
+
+void edid_state::cta_list_vics()
+{
+	char type[16];
+	for (unsigned vic = 1; vic <= ARRAY_SIZE(edid_cta_modes1); vic++) {
+		sprintf(type, "VIC %3u", vic);
+		print_timings("", &edid_cta_modes1[vic - 1], type, "", false, false);
+	}
+	for (unsigned vic = 193; vic < ARRAY_SIZE(edid_cta_modes2) + 193; vic++) {
+		sprintf(type, "VIC %3u", vic);
+		print_timings("", &edid_cta_modes2[vic - 193], type, "", false, false);
+	}
+}
+
+void edid_state::cta_list_hdmi_vics()
+{
+	for (unsigned i = 0; i < ARRAY_SIZE(edid_hdmi_mode_map); i++) {
+		unsigned vic = edid_hdmi_mode_map[i];
+		char type[16];
+
+		sprintf(type, "HDMI VIC %u", i + 1);
+		print_timings("", find_vic_id(vic), type, "", false, false);
+	}
 }
 
 static std::string audio_ext_format(unsigned char x)

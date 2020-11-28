@@ -336,14 +336,15 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x,
 		unsigned vtot = t.vact + t.vfp + t.vsync + t.vbp;
 		unsigned refresh = (t.pixclk_khz * 1000ULL) / (htot * vtot);
 
-		for (unsigned rb = 0; rb <= 3; rb++) {
-			timings cvt_t = calc_cvt_mode(refresh, t.hact, t.vact, rb);
+		for (unsigned rb = 0; rb <= RB_CVT_V3; rb++) {
+			timings cvt_t = calc_cvt_mode(t.hact, t.vact, refresh, rb);
 			if (match_timings(t, cvt_t)) {
 				fail("This T7VTDB can be represented as a T10VTDB.\n");
 				return;
 			}
 		}
-		timings cvt_t = calc_cvt_mode(refresh, t.hact, t.vact, 3 | RB_FLAG);
+		timings cvt_t = calc_cvt_mode(t.hact, t.vact, refresh, RB_CVT_V3,
+					      false, false, true);
 		if (match_timings(t, cvt_t))
 			fail("This T7VTDB can be represented as a T10VTDB.\n");
 	}
@@ -461,7 +462,7 @@ void edid_state::parse_displayid_type_3_timing(const unsigned char *x)
 		break;
 	}
 
-	t.rb = ((x[0] & 0x70) >> 4) == 1;
+	t.rb = ((x[0] & 0x70) >> 4) == 1 ? RB_CVT_V1 : 0;
 	t.hact = 8 + 8 * x[1];
 	t.vact = t.hact * t.vratio / t.hratio;
 
@@ -939,7 +940,7 @@ void edid_state::parse_displayid_type_5_timing(const unsigned char *x)
 	if (x[0] & 0x10)
 		s += ", refresh rate * (1000/1001) supported";
 
-	t.rb = 2;
+	t.rb = RB_CVT_V2;
 	if ((x[0] & 0x03) == 1)
 		warn("Unexpected use of 'custom reduced blanking'.\n");
 	else if ((x[0] & 0x03) > 1)
@@ -1223,8 +1224,8 @@ void edid_state::parse_displayid_type_9_timing(const unsigned char *x)
 		s += ", refresh rate * (1000/1001) supported";
 
 	switch (x[0] & 0x07) {
-	case 1: t.rb = 1; break;
-	case 2: t.rb = 2; break;
+	case 1: t.rb = RB_CVT_V1; break;
+	case 2: t.rb = RB_CVT_V2; break;
 	default: break;
 	}
 
@@ -1397,16 +1398,17 @@ void edid_state::parse_displayid_type_10_timing(const unsigned char *x, bool is_
 	}
 
 	switch (x[0] & 0x07) {
-	case 1: t.rb = 1; break;
-	case 2: t.rb = 2; break;
-	case 3: t.rb = 3; break;
+	case 1: t.rb = RB_CVT_V1; break;
+	case 2: t.rb = RB_CVT_V2; break;
+	case 3: t.rb = RB_CVT_V3; break;
 	default: break;
 	}
 
 	if (x[0] & 0x10) {
-		if (t.rb == 2) {
+		if (t.rb == RB_CVT_V2) {
 			s += ", refresh rate * (1000/1001) supported";
-		} else if (t.rb == 3) {
+			t.rb |= RB_FLAG;
+		} else if (t.rb == RB_CVT_V3) {
 			s += ", hblank is 160 pixels";
 			t.rb |= RB_FLAG;
 		} else {

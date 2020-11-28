@@ -29,12 +29,14 @@ void edid_state::parse_vtb_ext_block(const unsigned char *x)
 			detailed_cvt_descriptor("    ", x, false);
 	}
 	if (num_st) {
+		// Note: the VTB-EXT standard has a mistake in the example EDID
+		// that it provides: there the refresh rate (bits 5-0 of the
+		// second byte) is set to 60 for 60 Hz, but this should be 0
+		// since the actual refresh rate is the value + 60.
+		//
+		// The documentation itself is correct, though.
 		printf("  Standard Timings:\n");
-		for (unsigned i = 0; i < num_st; i++, x += 2) {
-			if ((x[1] & 0x3f) >= 60)
-				print_standard_timing("    ", x[0], x[1] - 60, true);
-			else
-				print_standard_timing("    ", x[0], x[1], true, 0);
-		}
+		for (unsigned i = 0; i < num_st; i++, x += 2)
+			print_standard_timing("    ", x[0], x[1], true);
 	}
 }

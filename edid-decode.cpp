@@ -56,6 +56,16 @@ enum Option {
 	OptSkipSHA = 128,
 	OptHideSerialNumbers,
 	OptVersion,
+	OptSTD,
+	OptDMT,
+	OptVIC,
+	OptHDMIVIC,
+	OptCVT,
+	OptGTF,
+	OptListEstTimings,
+	OptListDMTs,
+	OptListVICs,
+	OptListHDMIVICs,
 	OptLast = 256
 };
 
@@ -78,6 +88,16 @@ static struct option long_options[] = {
 	{ "xmodeline", no_argument, 0, OptXModeLineTimings },
 	{ "fbmode", no_argument, 0, OptFBModeTimings },
 	{ "v4l2-timings", no_argument, 0, OptV4L2Timings },
+	{ "std", required_argument, 0, OptSTD },
+	{ "dmt", required_argument, 0, OptDMT },
+	{ "vic", required_argument, 0, OptVIC },
+	{ "hdmi-vic", required_argument, 0, OptHDMIVIC },
+	{ "cvt", required_argument, 0, OptCVT },
+	{ "gtf", required_argument, 0, OptGTF },
+	{ "list-established-timings", no_argument, 0, OptListEstTimings },
+	{ "list-dmts", no_argument, 0, OptListDMTs },
+	{ "list-vics", no_argument, 0, OptListVICs },
+	{ "list-hdmi-vics", no_argument, 0, OptListHDMIVICs },
 	{ 0, 0, 0, 0 }
 };
 
@@ -90,29 +110,62 @@ static void usage(void)
 	       "                        if the output filename is '-'.\n"
 	       "\nOptions:\n"
 	       "  -o, --output-format <fmt>\n"
-	       "                        if [out] is specified, then write the EDID in this format\n"
+	       "                        If [out] is specified, then write the EDID in this format\n"
 	       "                        <fmt> is one of:\n"
 	       "                        hex:    hex numbers in ascii text (default for stdout)\n"
 	       "                        raw:    binary data (default unless writing to stdout)\n"
 	       "                        carray: c-program struct\n"
 	       "                        xml:    XML data\n"
-	       "  -c, --check           check if the EDID conforms to the standards, failures and\n"
+	       "  -c, --check           Check if the EDID conforms to the standards, failures and\n"
 	       "                        warnings are reported at the end.\n"
-	       "  -C, --check-inline    check if the EDID conforms to the standards, failures and\n"
+	       "  -C, --check-inline    Check if the EDID conforms to the standards, failures and\n"
 	       "                        warnings are reported inline.\n"
-	       "  -n, --native-timings  report the native timings\n"
-	       "  -p, --preferred-timings report the preferred timings\n"
-	       "  -P, --physical-address only report the CEC physical address\n"
-	       "  -S, --short-timings   report all video timings in a short format\n"
-	       "  -L, --long-timings    report all video timings in a long format\n"
-	       "  -X, --xmodeline       report all long video timings in Xorg.conf format\n"
-	       "  -F, --fbmode          report all long video timings in fb.modes format\n"
-	       "  -V, --v4l2-timings    report all long video timings in v4l2-dv-timings.h format\n"
-	       "  -s, --skip-hex-dump   skip the initial hex dump of the EDID\n"
-	       "  --skip-sha            skip the SHA report\n"
-	       "  --hide-serial-numbers replace serial numbers with '...'\n"
+	       "  -n, --native-timings  Report the native timings.\n"
+	       "  -p, --preferred-timings Report the preferred timings.\n"
+	       "  -P, --physical-address Only report the CEC physical address.\n"
+	       "  -S, --short-timings   Report all video timings in a short format.\n"
+	       "  -L, --long-timings    Report all video timings in a long format.\n"
+	       "  -X, --xmodeline       Report all long video timings in Xorg.conf format.\n"
+	       "  -F, --fbmode          Report all long video timings in fb.modes format.\n"
+	       "  -V, --v4l2-timings    Report all long video timings in v4l2-dv-timings.h format.\n"
+	       "  -s, --skip-hex-dump   Skip the initial hex dump of the EDID.\n"
+	       "  --skip-sha            Skip the SHA report.\n"
+	       "  --hide-serial-numbers Replace serial numbers with '...'\n"
 	       "  --version             show the edid-decode version (SHA)\n"
-	       "  -h, --help            display this help message\n");
+	       "  --std <byte1>,<byte2> Show the standard timing represented by these two bytes.\n"
+	       "  --dmt <dmt>           Show the timings for the DMT with the given DMT ID.\n"
+	       "  --vic <vic>           Show the timings for this VIC.\n"
+	       "  --hdmi-vic <hdmivic>  Show the timings for this HDMI VIC.\n"
+	       "  --cvt w=<width>,h=<height>,fps=<fps>[,rb=<rb>][,interlaced][,overscan][,alt]\n"
+	       "                        Calculate the CVT timings for the given format.\n"
+	       "                        <fps> is frames per second for progressive timings,\n"
+	       "                        or fields per second for interlaced timings.\n"
+	       "                        <rb> can be 0 (no reduced blanking, default), or\n"
+	       "                        1-3 for the reduced blanking version.\n"
+	       "                        If 'interlaced' is given, then this is an interlaced format.\n"
+	       "                        If 'overscan' is given, then this is an overscanned format.\n"
+	       "                        If 'alt' is given and <rb>=2, then report the timings\n"
+	       "                        optimized for video: 1000 / 1001 * <fps>.\n"
+	       "                        If 'alt' is given and <rb>=3, then the horizontal blanking\n"
+	       "                        is 160 instead of 80 pixels.\n"
+	       "  --gtf w=<width>,h=<height>[,fps=<fps>][,horfreq=<horfreq>][,pixclk=<pixclk>][,interlaced]\n"
+	       "        [,overscan][,secondary][,C=<c>][,M=<m>][,K=<k>][,J=<j>]\n"
+	       "                        Calculate the GTF timings for the given format.\n"
+	       "                        <fps> is frames per second for progressive timings,\n"
+	       "                        or fields per second for interlaced timings.\n"
+	       "                        <horfreq> is the horizontal frequency in kHz.\n"
+	       "                        <pixclk> is the pixel clock frequency in MHz.\n"
+	       "                        Only one of fps, horfreq or pixclk must be given.\n"
+	       "                        If 'interlaced' is given, then this is an interlaced format.\n"
+	       "                        If 'overscan' is given, then this is an overscanned format.\n"
+	       "                        If 'secondary' is given, then the secondary GTF is used for\n"
+	       "                        reduced blanking, where <c>, <m>, <k> and <j> are parameters\n"
+	       "                        for the secondary curve.\n"
+	       "  --list-established-timings List all known Established Timings.\n"
+	       "  --list-dmts           List all known DMTs.\n"
+	       "  --list-vics           List all known VICs.\n"
+	       "  --list-hdmi-vics      List all known HDMI VICs.\n"
+	       "  -h, --help            Display this help message.\n");
 }
 
 static std::string s_msgs[EDID_MAX_BLOCKS + 1][2];
@@ -449,12 +502,16 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	double refresh = (double)t->pixclk_khz * 1000.0 / (htotal * vtotal);
 
 	std::string s;
-	if (t->rb) {
+	unsigned rb = t->rb & ~RB_FLAG;
+	if (rb) {
+		bool alt = t->rb & RB_FLAG;
 		s = "RB";
-		if (t->rb == 2)
-			s += "v2";
-		else if (t->rb == 3)
-			s += "v3";
+		// Mark RB_CVT_V3 as preliminary since CVT 1.3 has not been
+		// released yet.
+		if (rb == RB_CVT_V2)
+			s += std::string("v2") + (alt ? ",video-optimized" : "");
+		else if (rb == RB_CVT_V3)
+			s += std::string("v3-is-preliminary") + (alt ? ",h-blank-160" : "");
 	}
 	add_str(s, flags);
 	if (t->hsize_mm || t->vsize_mm)
@@ -470,7 +527,7 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	char buf[10];
 
 	sprintf(buf, "%u%s", t->vact, t->interlaced ? "i" : "");
-	printf("%s%s: %5ux%-5s %7.3f Hz %3u:%-3u %7.3f kHz %7.3f MHz%s\n",
+	printf("%s%s: %5ux%-5s %7.3f Hz %3u:%-3u %7.3f kHz %8.3f MHz%s\n",
 	       prefix, type,
 	       t->hact, buf,
 	       refresh,
@@ -497,10 +554,12 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
 		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	}
-	if (pixclk_khz && (t->hact + hbl)) {
-		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000ULL) / (t->hact + hbl));
-		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000ULL) / (t->hact + hbl));
+	if (hor_freq_khz) {
+		min_hor_freq_hz = min(min_hor_freq_hz, hor_freq_khz * 1000.0);
+		max_hor_freq_hz = max(max_hor_freq_hz, hor_freq_khz * 1000.0);
 		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
+		if (t->pos_pol_hsync && !t->pos_pol_vsync && t->vsync == 3)
+			base.max_pos_neg_hor_freq_khz = hor_freq_khz;
 	}
 
 	if (t->ycbcr420 && t->pixclk_khz < 590000)
@@ -1200,16 +1259,278 @@ int edid_state::parse_edid()
 	return failures ? -2 : 0;
 }
 
+enum cvt_opts {
+	CVT_WIDTH = 0,
+	CVT_HEIGHT,
+	CVT_FPS,
+	CVT_INTERLACED,
+	CVT_OVERSCAN,
+	CVT_RB,
+	CVT_ALT,
+};
+
+static int parse_cvt_subopt(char **subopt_str, double *value)
+{
+	int opt;
+	char *opt_str;
+
+	static const char * const subopt_list[] = {
+		"w",
+		"h",
+		"fps",
+		"interlaced",
+		"overscan",
+		"rb",
+		"alt",
+		nullptr
+	};
+
+	opt = getsubopt(subopt_str, (char* const*) subopt_list, &opt_str);
+
+	if (opt == -1) {
+		fprintf(stderr, "Invalid suboptions specified.\n");
+		usage();
+		std::exit(EXIT_FAILURE);
+	}
+	if (opt_str == nullptr && opt != CVT_INTERLACED && opt != CVT_ALT &&
+	    opt != CVT_OVERSCAN) {
+		fprintf(stderr, "No value given to suboption <%s>.\n",
+				subopt_list[opt]);
+		usage();
+		std::exit(EXIT_FAILURE);
+	}
+
+	if (opt_str)
+		*value = strtod(opt_str, nullptr);
+	return opt;
+}
+
+static void parse_cvt(char *optarg)
+{
+	unsigned w = 0, h = 0;
+	double fps = 0;
+	unsigned rb = 0;
+	bool interlaced = false;
+	bool alt = false;
+	bool overscan = false;
+
+	while (*optarg != '\0') {
+		int opt;
+		double opt_val;
+
+		opt = parse_cvt_subopt(&optarg, &opt_val);
+
+		switch (opt) {
+		case CVT_WIDTH:
+			w = round(opt_val);
+			break;
+		case CVT_HEIGHT:
+			h = round(opt_val);
+			break;
+		case CVT_FPS:
+			fps = opt_val;
+			break;
+		case CVT_RB:
+			rb = opt_val;
+			break;
+		case CVT_OVERSCAN:
+			overscan = true;
+			break;
+		case CVT_INTERLACED:
+			interlaced = opt_val;
+			break;
+		case CVT_ALT:
+			alt = opt_val;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (!w || !h || !fps) {
+		fprintf(stderr, "Missing width, height and/or fps.\n");
+		usage();
+		std::exit(EXIT_FAILURE);
+	}
+	if (interlaced)
+		fps /= 2;
+	timings t = state.calc_cvt_mode(w, h, fps, rb, interlaced, overscan, alt);
+	state.print_timings("", &t, "CVT", "", true, false);
+}
+
+struct gtf_parsed_data {
+	unsigned w, h;
+	double freq;
+	double C, M, K, J;
+	bool overscan;
+	bool interlaced;
+	bool secondary;
+	bool params_from_edid;
+	enum gtf_ip_parm ip_parm;
+};
+
+enum gtf_opts {
+	GTF_WIDTH = 0,
+	GTF_HEIGHT,
+	GTF_FPS,
+	GTF_HORFREQ,
+	GTF_PIXCLK,
+	GTF_INTERLACED,
+	GTF_OVERSCAN,
+	GTF_SECONDARY,
+	GTF_C2,
+	GTF_M,
+	GTF_K,
+	GTF_J2,
+};
+
+static int parse_gtf_subopt(char **subopt_str, double *value)
+{
+	int opt;
+	char *opt_str;
+
+	static const char * const subopt_list[] = {
+		"w",
+		"h",
+		"fps",
+		"horfreq",
+		"pixclk",
+		"interlaced",
+		"overscan",
+		"secondary",
+		"C",
+		"M",
+		"K",
+		"J",
+		nullptr
+	};
+
+	opt = getsubopt(subopt_str, (char * const *)subopt_list, &opt_str);
+
+	if (opt == -1) {
+		fprintf(stderr, "Invalid suboptions specified.\n");
+		usage();
+		std::exit(EXIT_FAILURE);
+	}
+	if (opt_str == nullptr && opt != GTF_INTERLACED && opt != GTF_OVERSCAN &&
+	    opt != GTF_SECONDARY) {
+		fprintf(stderr, "No value given to suboption <%s>.\n",
+				subopt_list[opt]);
+		usage();
+		std::exit(EXIT_FAILURE);
+	}
+
+	if (opt == GTF_C2 || opt == GTF_J2)
+		*value = round(2.0 * strtod(opt_str, nullptr));
+	else if (opt_str)
+		*value = strtod(opt_str, nullptr);
+	return opt;
+}
+
+static void parse_gtf(char *optarg, gtf_parsed_data &data)
+{
+	memset(&data, 0, sizeof(data));
+	data.params_from_edid = true;
+	data.C = 40;
+	data.M = 600;
+	data.K = 128;
+	data.J = 20;
+
+	while (*optarg != '\0') {
+		int opt;
+		double opt_val;
+
+		opt = parse_gtf_subopt(&optarg, &opt_val);
+
+		switch (opt) {
+		case GTF_WIDTH:
+			data.w = round(opt_val);
+			break;
+		case GTF_HEIGHT:
+			data.h = round(opt_val);
+			break;
+		case GTF_FPS:
+			data.freq = opt_val;
+			data.ip_parm = gtf_ip_vert_freq;
+			break;
+		case GTF_HORFREQ:
+			data.freq = opt_val;
+			data.ip_parm = gtf_ip_hor_freq;
+			break;
+		case GTF_PIXCLK:
+			data.freq = opt_val;
+			data.ip_parm = gtf_ip_clk_freq;
+			break;
+		case GTF_INTERLACED:
+			data.interlaced = true;
+			break;
+		case GTF_OVERSCAN:
+			data.overscan = true;
+			break;
+		case GTF_SECONDARY:
+			data.secondary = true;
+			break;
+		case GTF_C2:
+			data.C = opt_val / 2.0;
+			data.params_from_edid = false;
+			break;
+		case GTF_M:
+			data.M = round(opt_val);
+			data.params_from_edid = false;
+			break;
+		case GTF_K:
+			data.K = round(opt_val);
+			data.params_from_edid = false;
+			break;
+		case GTF_J2:
+			data.J = opt_val / 2.0;
+			data.params_from_edid = false;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (!data.w || !data.h) {
+		fprintf(stderr, "Missing width and/or height.\n");
+		usage();
+		std::exit(EXIT_FAILURE);
+	}
+	if (!data.freq) {
+		fprintf(stderr, "One of fps, horfreq or pixclk must be given.\n");
+		usage();
+		std::exit(EXIT_FAILURE);
+	}
+	if (!data.secondary)
+		data.params_from_edid = false;
+	if (data.interlaced && data.ip_parm == gtf_ip_vert_freq)
+		data.freq /= 2;
+}
+
+static void show_gtf(gtf_parsed_data &data)
+{
+	timings t;
+
+	t = state.calc_gtf_mode(data.w, data.h, data.freq, data.interlaced,
+				data.ip_parm, data.overscan, data.secondary,
+				data.C, data.M, data.K, data.J);
+	calc_ratio(&t);
+	state.print_timings("", &t, "GTF", "", true, false);
+}
+
 int main(int argc, char **argv)
 {
 	char short_options[26 * 2 * 2 + 1];
 	enum output_format out_fmt = OUT_FMT_DEFAULT;
+	gtf_parsed_data gtf_data;
 	int ret;
 
 	while (1) {
 		int option_index = 0;
 		unsigned idx = 0;
-		unsigned i;
+		unsigned i, val;
+		const timings *t;
+		char buf[16];
 
 		for (i = 0; long_options[i].name; i++) {
 			if (!isalpha(long_options[i].val))
@@ -1243,6 +1564,52 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 			break;
+		case OptSTD: {
+			unsigned char byte1, byte2 = 0;
+			char *endptr;
+
+			byte1 = strtoul(optarg, &endptr, 0);
+			if (*endptr == ',')
+				byte2 = strtoul(endptr + 1, NULL, 0);
+			state.print_standard_timing("", byte1, byte2, false, true);
+			break;
+		}
+		case OptDMT:
+			val = strtoul(optarg, NULL, 0);
+			t = find_dmt_id(val);
+			if (t) {
+				sprintf(buf, "DMT 0x%02x", val);
+				state.print_timings("", t, buf, "", true, false);
+			} else {
+				fprintf(stderr, "Unknown DMT code 0x%02x.\n", val);
+			}
+			break;
+		case OptVIC:
+			val = strtoul(optarg, NULL, 0);
+			t = find_vic_id(val);
+			if (t) {
+				sprintf(buf, "VIC %3u", val);
+				state.print_timings("", t, buf, "", true, false);
+			} else {
+				fprintf(stderr, "Unknown VIC code %u.\n", val);
+			}
+			break;
+		case OptHDMIVIC:
+			val = strtoul(optarg, NULL, 0);
+			t = find_hdmi_vic_id(val);
+			if (t) {
+				sprintf(buf, "HDMI VIC %u", val);
+				state.print_timings("", t, buf, "", true, false);
+			} else {
+				fprintf(stderr, "Unknown HDMI VIC code %u.\n", val);
+			}
+			break;
+		case OptCVT:
+			parse_cvt(optarg);
+			break;
+		case OptGTF:
+			parse_gtf(optarg, gtf_data);
+			break;
 		case ':':
 			fprintf(stderr, "Option '%s' requires a value.\n",
 				argv[optind]);
@@ -1263,6 +1630,28 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
+	if (options[OptListEstTimings])
+		state.list_established_timings();
+	if (options[OptListDMTs])
+		state.list_dmts();
+	if (options[OptListVICs])
+		state.cta_list_vics();
+	if (options[OptListHDMIVICs])
+		state.cta_list_hdmi_vics();
+
+	if (options[OptListEstTimings] || options[OptListDMTs] ||
+	    options[OptListVICs] || options[OptListHDMIVICs])
+		return 0;
+
+	if (options[OptCVT] || options[OptDMT] || options[OptVIC] ||
+	    options[OptHDMIVIC] || options[OptSTD])
+		return 0;
+
+	if (options[OptGTF] && (!gtf_data.params_from_edid || optind == argc)) {
+		show_gtf(gtf_data);
+		return 0;
+	}
+
 	if (optind == argc)
 		ret = edid_from_file("-", stdout);
 	else
@@ -1274,6 +1663,38 @@ int main(int argc, char **argv)
 	}
 	if (optind < argc - 1)
 		return ret ? ret : edid_to_file(argv[optind + 1], out_fmt);
+
+	if (options[OptGTF]) {
+		timings t;
+
+		// Find the Secondary Curve
+		state.preparse_detailed_block(edid + 0x36);
+		state.preparse_detailed_block(edid + 0x48);
+		state.preparse_detailed_block(edid + 0x5a);
+		state.preparse_detailed_block(edid + 0x6c);
+
+		t = state.calc_gtf_mode(gtf_data.w, gtf_data.h, gtf_data.freq,
+					gtf_data.interlaced, gtf_data.ip_parm,
+					gtf_data.overscan);
+		unsigned hbl = t.hfp + t.hsync + t.hbp;
+		unsigned htotal = t.hact + hbl;
+		double hor_freq_khz = htotal ? (double)t.pixclk_khz / htotal : 0;
+
+		if (state.base.supports_sec_gtf &&
+		    hor_freq_khz >= state.base.sec_gtf_start_freq) {
+			t = state.calc_gtf_mode(gtf_data.w, gtf_data.h, gtf_data.freq,
+						gtf_data.interlaced, gtf_data.ip_parm,
+						gtf_data.overscan, true,
+						state.base.C, state.base.M,
+						state.base.K, state.base.J);
+		}
+		calc_ratio(&t);
+		if (t.hfp <= 0)
+			state.print_timings("", &t, "GTF", "INVALID: Hfront <= 0", true, false);
+		else
+			state.print_timings("", &t, "GTF", "", true, false);
+		return 0;
+	}
 
 	return ret ? ret : state.parse_edid();
 }
