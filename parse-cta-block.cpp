@@ -215,7 +215,12 @@ const struct timings *find_hdmi_vic_id(unsigned char hdmi_vic)
 
 static std::string audio_ext_format(unsigned char x)
 {
+	if (x >= 1 && x <= 3)
+		fail("Obsolete Audio Ext Format 0x%02x.\n", x);
 	switch (x) {
+	case 1: return "HE AAC (Obsolete)";
+	case 2: return "HE AAC v2 (Obsolete)";
+	case 3: return "MPEG Surround (Obsolete)";
 	case 4: return "MPEG-4 HE AAC";
 	case 5: return "MPEG-4 HE AAC v2";
 	case 6: return "MPEG-4 AAC LC";
@@ -239,11 +244,11 @@ static std::string audio_format(unsigned char x)
 	case 3: return "MPEG 1 (Layers 1 & 2)";
 	case 4: return "MPEG 1 Layer 3 (MP3)";
 	case 5: return "MPEG2 (multichannel)";
-	case 6: return "AAC";
+	case 6: return "AAC LC";
 	case 7: return "DTS";
 	case 8: return "ATRAC";
 	case 9: return "One Bit Audio";
-	case 10: return "Dolby Digital+";
+	case 10: return "Enhanced AC-3 (DD+)";
 	case 11: return "DTS-HD";
 	case 12: return "MAT (MLP)";
 	case 13: return "DST";
@@ -271,7 +276,7 @@ static std::string mpeg_h_3d_audio_level(unsigned char x)
 
 static void cta_audio_block(const unsigned char *x, unsigned length)
 {
-	unsigned i, format, ext_format = 0;
+	unsigned i, format, ext_format;
 
 	if (length % 3) {
 		fail("Broken CTA-861 audio block length %d.\n", length);
@@ -280,16 +285,18 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 
 	for (i = 0; i < length; i += 3) {
 		format = (x[i] & 0x78) >> 3;
-		ext_format = (x[i + 2] & 0xf8) >> 3;
 		if (format == 0) {
 			printf("    Reserved (0x00)\n");
 			fail("Audio Format Code 0x00 is reserved.\n");
 			continue;
 		}
-		if (format != 15)
+		if (format != 15) {
+			ext_format = 0;
 			printf("    %s:\n", audio_format(format).c_str());
-		else
+		} else {
+			ext_format = (x[i + 2] & 0xf8) >> 3;
 			printf("    %s:\n", audio_ext_format(ext_format).c_str());
+		}
 		if (format != 15)
 			printf("      Max channels: %u\n", (x[i] & 0x07)+1);
 		else if (ext_format == 11)
@@ -320,12 +327,21 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 		} else if (format == 10) {
 			// As specified by the "Dolby Audio and Dolby Atmos over HDMI"
 			// specification (v1.0).
-			if(x[i+2] & 1)
+			if (x[i+2] & 1)
 				printf("      Supports Joint Object Coding\n");
-			if(x[i+2] & 2)
+			if (x[i+2] & 2)
 				printf("      Supports Joint Object Coding with ACMOD28\n");
+		} else if (format == 12) {
+			if (x[i+2] & 1)
+				printf("      Supports Dolby TrueHD, object audio PCM and channel-based PCM\n");
+			else
+				printf("      Supports only Dolby TrueHD\n");
+			printf("      Hash calculation %srequired for object audio PCM or channel-based PCM\n",
+			       (x[i+2] & 2) ? "not " : "");
 		} else if (format == 14) {
 			printf("      Profile: %u\n", x[i+2] & 7);
+		} else if (format >= 9 && format <= 13) {
+			printf("      Audio Format Code dependent value: 0x%02x\n", x[i+2]);
 		} else if (ext_format == 11 && (x[i+2] & 1)) {
 			printf("      Supports MPEG-H 3D Audio Low Complexity Profile\n");
 		} else if ((ext_format >= 4 && ext_format <= 6) ||
