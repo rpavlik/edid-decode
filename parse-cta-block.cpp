@@ -942,7 +942,7 @@ static void cta_hdr10plus(const unsigned char *x, unsigned length)
 		printf("\n");
 }
 
-static void cta_dolby_vision(const unsigned char *x, unsigned length)
+static void cta_dolby_video(const unsigned char *x, unsigned length)
 {
 	unsigned char version = (x[0] >> 5) & 0x07;
 
@@ -1061,6 +1061,23 @@ static void cta_dolby_vision(const unsigned char *x, unsigned length)
 		       xmin + xstep * (x[5] & 0x07),
 		       ymin + ystep * (x[6] & 0x07));
 	}
+}
+
+static void cta_dolby_audio(const unsigned char *x, unsigned length)
+{
+	unsigned char version = 1 + (x[0] & 0x07);
+
+	printf("    Version: %u (%u bytes)\n", version, length + 5);
+	if (x[0] & 0x80)
+		printf("    Headphone playback only\n");
+	if (x[0] & 0x40)
+		printf("    Height speaker zone present\n");
+	if (x[0] & 0x20)
+		printf("    Surround speaker zone present\n");
+	if (x[0] & 0x10)
+		printf("    Center speaker zone present\n");
+	if (x[1] & 0x01)
+		printf("    Supports Dolby MAT PCM decoding at 48 kHz only, does not support TrueHD\n");
 }
 
 static const char *speaker_map[] = {
@@ -1685,7 +1702,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	case 0x0e: data_block = "YCbCr 4:2:0 Video Data Block"; break;
 	case 0x0f: data_block = "YCbCr 4:2:0 Capability Map Data Block"; break;
 	case 0x10: data_block = "Reserved for CTA-861 Miscellaneous Audio Fields"; break;
-	case 0x11: data_block = "Vendor-Specific Audio Data Block"; audio_block = true; break;
+	case 0x11: data_block.clear(); audio_block = true; break;
 	case 0x12: data_block = "HDMI Audio Data Block"; audio_block = true; break;
 	case 0x13: data_block = "Room Configuration Data Block"; audio_block = true; break;
 	case 0x14: data_block = "Speaker Location Data Block"; audio_block = true; break;
@@ -1748,7 +1765,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 		if (oui == 0x90848b)
 			cta_hdr10plus(x + 4, length - 3);
 		else if (oui == 0x00d046)
-			cta_dolby_vision(x + 4, length - 3);
+			cta_dolby_video(x + 4, length - 3);
 		else
 			hex_block("    ", x + 4, length - 3);
 		return;
@@ -1785,7 +1802,10 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 		if (reverse)
 			fail((std::string("OUI ") + ouitohex(oui) + " is in the wrong byte order\n").c_str());
 		printf("  %s, OUI %s:\n", data_block.c_str(), ouitohex(oui).c_str());
-		hex_block("    ", x + 4, length - 3);
+		if (oui == 0x00d046)
+			cta_dolby_audio(x + 4, length - 3);
+		else
+			hex_block("    ", x + 4, length - 3);
 		return;
 	case 0x12: cta_hdmi_audio_block(x + 1, length); return;
 	case 0x13: cta_rcdb(x + 1, length); return;
