@@ -758,7 +758,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 		case 8:
 			s = "side-by-side";
 			switch (x[b + 1] >> 4) {
-			case 0x00: break;
+			case 0x00: s += ", any subsampling"; break;
 			case 0x01: s += ", horizontal"; break;
 			case 0x02: case 0x03: case 0x04: case 0x05:
 				   s += ", not in use";
