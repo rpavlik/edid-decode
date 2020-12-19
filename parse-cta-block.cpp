@@ -332,12 +332,13 @@ static void cta_audio_block(const unsigned char *x, unsigned length)
 			if (x[i+2] & 2)
 				printf("      Supports Joint Object Coding with ACMOD28\n");
 		} else if (format == 12) {
-			if (x[i+2] & 1)
+			if (x[i+2] & 1) {
 				printf("      Supports Dolby TrueHD, object audio PCM and channel-based PCM\n");
-			else
+				printf("      Hash calculation %srequired for object audio PCM or channel-based PCM\n",
+				       (x[i+2] & 2) ? "not " : "");
+			} else {
 				printf("      Supports only Dolby TrueHD\n");
-			printf("      Hash calculation %srequired for object audio PCM or channel-based PCM\n",
-			       (x[i+2] & 2) ? "not " : "");
+			}
 		} else if (format == 14) {
 			printf("      Profile: %u\n", x[i+2] & 7);
 		} else if (format >= 9 && format <= 13) {
