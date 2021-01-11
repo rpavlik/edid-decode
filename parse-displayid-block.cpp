@@ -1084,10 +1084,9 @@ static std::string ieee7542d(unsigned short fp)
 
 // tag 0x21
 
-void edid_state::parse_displayid_parameters_v2(const unsigned char *x)
+void edid_state::parse_displayid_parameters_v2(const unsigned char *x,
+					       unsigned block_rev)
 {
-	check_displayid_datablock_revision(x[1]);
-
 	if (!check_displayid_datablock_length(x, 29, 29))
 		return;
 
@@ -1145,7 +1144,9 @@ void edid_state::parse_displayid_parameters_v2(const unsigned char *x)
 	printf("    Native Minimum Luminance: %s\n",
 	       ieee7542d(x[0x1c] | (x[0x1d] << 8)).c_str());
 	printf("    Native Color Depth: ");
-	if (bpc444[x[0x1e] & 0x07])
+	if (!(x[0x1e] & 0x07))
+		printf("Not defined\n");
+	else if (bpc444[x[0x1e] & 0x07])
 		printf("%s bpc\n", bpc444[x[0x1e] & 0x07]);
 	else
 		printf("Reserved\n");
@@ -1156,6 +1157,9 @@ void edid_state::parse_displayid_parameters_v2(const unsigned char *x)
 	case 0x02: printf("Organic LED\n"); break;
 	default: printf("Reserved\n"); break;
 	}
+	if (block_rev)
+		printf("    Display Device Theme Preference: %s\n",
+		       (x[0x1e] & 0x80) ? "Dark Theme Preferred" : "No Preference");
 	if (x[0x1f] != 0xff)
 		printf("    Native Gamma EOTF: %.2f\n",
 		       (100 + x[0x1f]) / 100.0);
@@ -1733,7 +1737,13 @@ void edid_state::parse_displayid_block(const unsigned char *x)
 				   parse_displayid_type_6_timing(&x[offset + 3 + i]);
 			   break;
 		case 0x20: parse_displayid_product_id(x + offset); break;
-		case 0x21: parse_displayid_parameters_v2(x + offset); break;
+		case 0x21:
+			   if (block_rev >= 1)
+				   check_displayid_datablock_revision(x[offset + 1], 0x80, 1);
+			   else
+				   check_displayid_datablock_revision(x[offset + 1], 0x80, 0);
+			   parse_displayid_parameters_v2(x + offset, block_rev);
+			   break;
 		case 0x22: {
 			   unsigned sz = 20;
 

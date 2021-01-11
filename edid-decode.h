@@ -298,7 +298,7 @@ struct edid_state {
 	std::string product_type(unsigned char x, bool heading);
 	void parse_displayid_interface_features(const unsigned char *x);
 	void parse_displayid_parameters(const unsigned char *x);
-	void parse_displayid_parameters_v2(const unsigned char *x);
+	void parse_displayid_parameters_v2(const unsigned char *x, unsigned block_rev);
 	void parse_displayid_display_intf(const unsigned char *x);
 	void parse_displayid_color_characteristics(const unsigned char *x);
 	void parse_displayid_transfer_characteristics(const unsigned char *x);
