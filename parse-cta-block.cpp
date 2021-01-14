@@ -952,6 +952,57 @@ static void cta_hf_scdb(const unsigned char *x, unsigned length)
 		       1024 * (1 + (x[9] & 0x3f)));
 }
 
+static void cta_amd(const unsigned char *x, unsigned length)
+{
+	// These Freesync values are reversed engineered by looking
+	// at existing EDIDs.
+	printf("    Version: %u.%u\n", x[0], x[1]);
+	printf("    Minimum Refresh Rate: %u Hz\n", x[2]);
+	printf("    Maximum Refresh Rate: %u Hz\n", x[3]);
+	// Freesync 1.x flags
+	// One or more of the 0xe6 bits signal that the VESA MCCS
+	// protocol is used to switch the Freesync range
+	printf("    Flags 1.x: 0x%02x%s\n", x[4],
+	       (x[4] & 0xe6) ? " (MCCS)" : "");
+	if (length >= 10) {
+		// Freesync 2.x flags
+		// Bit 2 no doubt indicates if the monitor supports Local Dimming
+		// There are probably also bits to signal support of the
+		// FreeSync2_scRGB and FreeSync2_Gamma22 HDR display modes.
+		// I suspect bits 0 and 1.
+		printf("    Flags 2.x: 0x%02x\n", x[5]);
+		// The AMD tone mapping tutorial referred to in the URL below
+		// mentions that the Freesync HDR info reports max/min
+		// luminance of the monitor with and without local dimming.
+		//
+		// https://gpuopen.com/learn/using-amd-freesync-premium-pro-hdr-code-samples/
+		//
+		// So I assume that the first two luminance values are
+		// the max/min luminance of the display and the next two
+		// luminance values are the max/min luminance values when
+		// local dimming is disabled. The values I get seem to
+		// support that.
+		printf("    Maximum luminance: %u (%.3f cd/m^2)\n",
+		       x[6], 50.0 * pow(2, x[6] / 32.0));
+		printf("    Minimum luminance: %u (%.3f cd/m^2)\n",
+		       x[7], (50.0 * pow(2, x[6] / 32.0)) * pow(x[7] / 255.0, 2) / 100.0);
+		if (x[5] & 4) {
+			// One or both bytes can be 0. The meaning of that
+			// is unknown.
+			printf("    Maximum luminance (without local dimming): %u (%.3f cd/m^2)\n",
+			       x[8], 50.0 * pow(2, x[8] / 32.0));
+			printf("    Minimum luminance (without local dimming): %u (%.3f cd/m^2)\n",
+			       x[9], (50.0 * pow(2, x[8] / 32.0)) * pow(x[9] / 255.0, 2) / 100.0);
+		} else {
+			// These bytes are always 0x08 0x2f. If these values
+			// represent max/min luminance as well, then these
+			// would map to 59.460 and 0.020 cd/m^2 respectively.
+			// I wonder if this somehow relates to SDR.
+			printf("    Unknown: 0x%02x 0x%02x\n", x[8], x[9]);
+		}
+	}
+}
+
 static void cta_hdr10plus(const unsigned char *x, unsigned length)
 {
 	printf("    Application Version: %u", x[0]);
@@ -1978,6 +2029,10 @@ void edid_state::cta_block(const unsigned char *x)
 				fail("Duplicate HDMI Forum VSDB/SCDB.\n");
 			cta_hf_scdb(x + 4, length - 3);
 			cta.have_hf_vsdb = 1;
+			break;
+		}
+		if (oui == 0x00001a) {
+			cta_amd(x + 4, length - 3);
 			break;
 		}
 		hex_block("    ", x + 4, length - 3);
