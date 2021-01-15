@@ -533,7 +533,7 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 
 		} else if (svr >= 129 && svr <= 144) {
 			sprintf(suffix, "DTD %3u", svr - 128);
-			if (svr >= cta.preparse_total_dtds + 129) {
+			if (svr >= cta.preparsed_total_dtds + 129) {
 				printf("    %s: Invalid\n", suffix);
 				fail("Invalid DTD %u.\n", svr - 128);
 			} else {
@@ -542,7 +542,7 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 			}
 		} else if (svr >= 145 && svr <= 160) {
 			sprintf(suffix, "VTDB %3u", svr - 144);
-			if (svr >= cta.preparse_total_vtdbs + 145) {
+			if (svr >= cta.preparsed_total_vtdbs + 145) {
 				printf("    %s: Invalid\n", suffix);
 				fail("Invalid VTDB %u.\n", svr - 144);
 			} else {
@@ -551,7 +551,7 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 			}
 		} else if (svr == 254) {
 			sprintf(suffix, "T8VTDB");
-			if (!cta.preparse_has_t8vtdb) {
+			if (!cta.preparsed_has_t8vtdb) {
 				printf("    %s: Invalid\n", suffix);
 				fail("Invalid T8VTDB.\n");
 			} else {
@@ -1383,7 +1383,7 @@ static double decode_uchar_as_double(unsigned char x)
 	return s / 64.0;
 }
 
-static void cta_rcdb(const unsigned char *x, unsigned length)
+void edid_state::cta_rcdb(const unsigned char *x, unsigned length)
 {
 	unsigned spm = ((x[3] << 16) | (x[2] << 8) | x[1]);
 	unsigned i;
@@ -1393,25 +1393,46 @@ static void cta_rcdb(const unsigned char *x, unsigned length)
 		return;
 	}
 
-	if (x[0] & 0x40)
+	if ((x[0] & 0x20) && !cta.has_sldb)
+		fail("'SLD' flag is 1, but no Speaker Location Data Block is found.\n");
+	else if (!(x[0] & 0x20) && cta.has_sldb)
+		fail("'SLD' flag is 0, but a Speaker Location Data Block is present.\n");
+
+	if (x[0] & 0x40) {
 		printf("    Speaker count: %u\n", (x[0] & 0x1f) + 1);
+	} else {
+		if (x[0] & 0x1f)
+			fail("'Speaker' flag is 0, but 'Speaker Count' is != 0.\n");
+		if (x[0] & 0x20)
+			fail("'SLD' flag is 1, but 'Speaker' is 0.\n");
+	}
 
 	printf("    Speaker Presence Mask:\n");
 	for (i = 0; i < ARRAY_SIZE(speaker_map); i++) {
 		if ((spm >> i) & 1)
 			printf("      %s\n", speaker_map[i]);
 	}
+
 	if ((x[0] & 0xa0) == 0x80)
 		fail("'Display' flag set, but not the 'SLD' flag.\n");
-	if ((x[0] & 0x20) && length >= 7) {
+
+	bool valid_max = cta.preparsed_sld_has_coord || (x[0] & 0x80);
+
+	if (valid_max && length >= 7) {
 		printf("    Xmax: %u dm\n", x[4]);
 		printf("    Ymax: %u dm\n", x[5]);
 		printf("    Zmax: %u dm\n", x[6]);
+	} else if (!valid_max && length >= 7) {
+		// The RCDB should have been truncated.
+		warn("'Display' flag is 0 and 'Coord' is 0 for all SLDs, but the Max coordinates are still present.\n");
 	}
 	if ((x[0] & 0x80) && length >= 10) {
 		printf("    DisplayX: %.3f * Xmax\n", decode_uchar_as_double(x[7]));
 		printf("    DisplayY: %.3f * Ymax\n", decode_uchar_as_double(x[8]));
 		printf("    DisplayZ: %.3f * Zmax\n", decode_uchar_as_double(x[9]));
+	} else if (!(x[0] & 0x80) && length >= 10) {
+		// The RCDB should have been truncated.
+		warn("'Display' flag is 0, but the Display coordinates are still present.\n");
 	}
 }
 
@@ -1446,15 +1467,26 @@ static const char *speaker_location[] = {
 	"RS - Right Surround",
 };
 
-static void cta_sldb(const unsigned char *x, unsigned length)
+void edid_state::cta_sldb(const unsigned char *x, unsigned length)
 {
 	if (length < 2) {
 		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
+
+	unsigned active_cnt = 0;
+	unsigned channel_is_active = 0;
+
 	while (length >= 2) {
 		printf("    Channel: %u (%sactive)\n", x[0] & 0x1f,
 		       (x[0] & 0x20) ? "" : "not ");
+		if (x[0] & 0x20) {
+			if (channel_is_active & (1U << (x[0] & 0x1f)))
+				fail("Channel Index %u was already marked 'Active'.\n",
+				     x[0] & 0x1f);
+			channel_is_active |= 1U << (x[0] & 0x1f);
+			active_cnt++;
+		}
 		if ((x[1] & 0x1f) < ARRAY_SIZE(speaker_location))
 			printf("      Speaker: %s\n", speaker_location[x[1] & 0x1f]);
 		if (length >= 5 && (x[0] & 0x40)) {
@@ -1465,6 +1497,22 @@ static void cta_sldb(const unsigned char *x, unsigned length)
 			x += 3;
 		}
 
+		length -= 2;
+		x += 2;
+	}
+	if (active_cnt != cta.preparsed_speaker_count)
+		fail("There are %u active speakers, but 'Speaker Count' is %u.\n",
+		     active_cnt, cta.preparsed_speaker_count);
+}
+
+void edid_state::cta_preparse_sldb(const unsigned char *x, unsigned length)
+{
+	cta.has_sldb = true;
+	while (length >= 2) {
+		if (length >= 5 && (x[0] & 0x40)) {
+			cta.preparsed_sld_has_coord = true;
+			return;
+		}
 		length -= 2;
 		x += 2;
 	}
@@ -2082,7 +2130,7 @@ void edid_state::preparse_cta_block(const unsigned char *x)
 			if (memchk(detailed, 18))
 				break;
 			if (detailed[0] || detailed[1])
-				cta.preparse_total_dtds++;
+				cta.preparsed_total_dtds++;
 		}
 	}
 
@@ -2104,12 +2152,18 @@ void edid_state::preparse_cta_block(const unsigned char *x)
 		case 0x07:
 			if (x[i + 1] == 0x0d)
 				cta.has_vfpdb = true;
+			if (x[i + 1] == 0x13 && (x[i + 2] & 0x40)) {
+				cta.preparsed_speaker_count = 1 + (x[i + 2] & 0x1f);
+				cta.preparsed_sld = x[i + 2] & 0x20;
+			}
+			if (x[i + 1] == 0x14)
+				cta_preparse_sldb(x + i + 2, (x[i] & 0x1f) - 1);
 			if (x[i + 1] == 0x22)
-				cta.preparse_total_vtdbs++;
+				cta.preparsed_total_vtdbs++;
 			if (x[i + 1] == 0x23)
-				cta.preparse_has_t8vtdb = true;
+				cta.preparsed_has_t8vtdb = true;
 			if (x[i + 1] == 0x32)
-				cta.preparse_total_vtdbs +=
+				cta.preparsed_total_vtdbs +=
 					((x[i] & 0x1f) - 2) / (6 + ((x[i + 2] & 0x70) >> 4));
 			if (x[i + 1] != 0x0e)
 				continue;
@@ -2187,12 +2241,12 @@ void edid_state::parse_cta_block(const unsigned char *x)
 				cta.native_timings.clear();
 				if (!native_dtds && !cta.has_vfpdb) {
 					cta.first_svd_might_be_preferred = true;
-				} else if (native_dtds > cta.preparse_total_dtds) {
+				} else if (native_dtds > cta.preparsed_total_dtds) {
 					fail("There are more Native DTDs (%u) than DTDs (%u).\n",
-					     native_dtds, cta.preparse_total_dtds);
+					     native_dtds, cta.preparsed_total_dtds);
 				}
-				if (native_dtds > cta.preparse_total_dtds)
-					native_dtds = cta.preparse_total_dtds;
+				if (native_dtds > cta.preparsed_total_dtds)
+					native_dtds = cta.preparsed_total_dtds;
 				for (unsigned i = 0; i < native_dtds; i++) {
 					char type[16];
 

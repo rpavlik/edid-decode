@@ -201,7 +201,7 @@ void calc_ratio(struct timings *t)
 
 std::string edid_state::dtd_type(unsigned cnt)
 {
-	unsigned len = std::to_string(cta.preparse_total_dtds).length();
+	unsigned len = std::to_string(cta.preparsed_total_dtds).length();
 	char buf[16];
 	sprintf(buf, "DTD %*u", len, cnt);
 	return buf;

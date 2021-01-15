@@ -120,7 +120,7 @@ struct edid_state {
 			base.max_display_height_mm = 0;
 
 		// CTA-861 block state
-		cta.has_vic_1 = cta.first_svd_might_be_preferred =
+		cta.has_vic_1 = cta.first_svd_might_be_preferred = cta.has_sldb =
 			cta.has_hdmi = cta.has_vcdb = cta.has_vfpdb = false;
 		cta.last_block_was_hdmi_vsdb = cta.have_hf_vsdb = cta.have_hf_scdb = false;
 		cta.first_block = cta.first_svd = true;
@@ -128,14 +128,17 @@ struct edid_state {
 		memset(cta.vics, 0, sizeof(cta.vics));
 		memset(cta.preparsed_has_vic, 0, sizeof(cta.preparsed_has_vic));
 		cta.preparsed_phys_addr = 0xffff;
-		cta.preparse_total_dtds = 0;
-		cta.preparse_total_vtdbs = 0;
-		cta.preparse_has_t8vtdb = false;
+		cta.preparsed_speaker_count = 0;
+		cta.preparsed_sld = false;
+		cta.preparsed_sld_has_coord = false;
+		cta.preparsed_total_dtds = 0;
+		cta.preparsed_total_vtdbs = 0;
+		cta.preparsed_has_t8vtdb = false;
 
 		// DisplayID block state
 		dispid.version = 0;
-		dispid.preparse_color_ids = dispid.preparse_xfer_ids = 0;
-		dispid.preparse_displayid_blocks = 0;
+		dispid.preparsed_color_ids = dispid.preparsed_xfer_ids = 0;
+		dispid.preparsed_displayid_blocks = 0;
 		dispid.is_base_block = true;
 		dispid.is_display = dispid.has_product_identification =
 			dispid.has_display_parameters = dispid.has_type_1_7 =
@@ -196,12 +199,12 @@ struct edid_state {
 
 	// CTA-861 block state
 	struct {
-		unsigned preparse_total_dtds;
+		unsigned preparsed_total_dtds;
 		vec_timings_ext vec_dtds;
-		unsigned preparse_total_vtdbs;
+		unsigned preparsed_total_vtdbs;
 		vec_timings_ext vec_vtdbs;
 		vec_timings_ext preferred_timings;
-		bool preparse_has_t8vtdb;
+		bool preparsed_has_t8vtdb;
 		timings_ext t8vtdb;
 		vec_timings_ext native_timings;
 		bool has_vic_1;
@@ -210,6 +213,10 @@ struct edid_state {
 		bool has_hdmi;
 		bool has_vcdb;
 		bool has_vfpdb;
+		unsigned preparsed_speaker_count;
+		bool preparsed_sld_has_coord;
+		bool preparsed_sld;
+		bool has_sldb;
 		unsigned short preparsed_phys_addr;
 		bool last_block_was_hdmi_vsdb;
 		bool have_hf_vsdb, have_hf_scdb;
@@ -225,9 +232,9 @@ struct edid_state {
 	// DisplayID block state
 	struct {
 		unsigned char version;
-		unsigned short preparse_color_ids;
-		unsigned short preparse_xfer_ids;
-		unsigned preparse_displayid_blocks;
+		unsigned short preparsed_color_ids;
+		unsigned short preparsed_xfer_ids;
+		unsigned preparsed_displayid_blocks;
 		bool is_base_block;
 		bool is_display;
 		bool has_product_identification;
@@ -273,6 +280,9 @@ struct edid_state {
 	void cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420);
 	void cta_y420cmdb(const unsigned char *x, unsigned length);
 	void cta_vfpdb(const unsigned char *x, unsigned length);
+	void cta_rcdb(const unsigned char *x, unsigned length);
+	void cta_sldb(const unsigned char *x, unsigned length);
+	void cta_preparse_sldb(const unsigned char *x, unsigned length);
 	void cta_hdmi_block(const unsigned char *x, unsigned length);
 	void cta_displayid_type_7(const unsigned char *x, unsigned length);
 	void cta_displayid_type_8(const unsigned char *x, unsigned length);

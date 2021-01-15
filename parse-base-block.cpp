@@ -1844,7 +1844,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 
 	for (unsigned i = 0; i < (base.has_spwg ? 2 : 4); i++)
 		if (x[0x36 + i * 18] || x[0x37 + i * 18])
-			cta.preparse_total_dtds++;
+			cta.preparsed_total_dtds++;
 
 	data_block = "Detailed Timing Descriptors";
 	printf("  %s:\n", data_block.c_str());
