@@ -1855,7 +1855,8 @@ static void cta_hdmi_audio_block(const unsigned char *x, unsigned length)
 	}
 }
 
-void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
+void edid_state::cta_ext_block(const unsigned char *x, unsigned length,
+			       bool duplicate)
 {
 	const char *name;
 	unsigned oui;
@@ -1904,6 +1905,23 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 		warn("Unknown Extended CTA-861 Data Block 0x%02x.\n", x[0]);
 		return;
 	}
+
+	switch (x[0]) {
+	case 0x00:
+	case 0x02:
+	case 0x05:
+	case 0x06:
+	case 0x0d:
+	case 0x0f:
+	case 0x12:
+	case 0x13:
+	case 0x78:
+	case 0x79:
+		if (duplicate)
+			fail("Only one instance of this Data Block is allowed.\n");
+		break;
+	}
+
 
 	// See Table 52 of CTA-861-G for a description of Byte 3
 	if (audio_block && !(cta.byte3 & 0x40))
@@ -2018,7 +2036,7 @@ void edid_state::cta_ext_block(const unsigned char *x, unsigned length)
 	hex_block("    ", x + 1, length);
 }
 
-void edid_state::cta_block(const unsigned char *x)
+void edid_state::cta_block(const unsigned char *x, bool duplicate)
 {
 	unsigned length = x[0] & 0x1f;
 	const char *name;
@@ -2090,14 +2108,18 @@ void edid_state::cta_block(const unsigned char *x)
 		printf("  %s:\n", data_block.c_str());
 		cta_sadb(x + 1, length);
 		audio_block = true;
+		if (duplicate)
+			fail("Only one instance of this Data Block is allowed.\n");
 		break;
 	case 0x05:
 		data_block = "VESA Display Transfer Characteristics Data Block";
 		printf("  %s:\n", data_block.c_str());
 		cta_vesa_dtcdb(x + 1, length);
+		if (duplicate)
+			fail("Only one instance of this Data Block is allowed.\n");
 		break;
 	case 0x07:
-		cta_ext_block(x + 1, length - 1);
+		cta_ext_block(x + 1, length - 1, duplicate);
 		break;
 	default: {
 		unsigned tag = (*x & 0xe0) >> 5;
@@ -2260,8 +2282,17 @@ void edid_state::parse_cta_block(const unsigned char *x)
 		if (version >= 3) {
 			unsigned i;
 
-			for (i = 4; i < offset; i += (x[i] & 0x1f) + 1)
-				cta_block(x + i);
+			for (i = 4; i < offset; i += (x[i] & 0x1f) + 1) {
+				unsigned tag = (x[i] & 0xe0) << 3;
+
+				if (tag == 0x700)
+					tag |= x[i + 1];
+				bool duplicate = cta.found_tags.find(tag) != cta.found_tags.end();
+
+				cta_block(x + i, duplicate);
+				if (!duplicate)
+					cta.found_tags.insert(tag);
+			}
 
 			data_block.clear();
 			if (i != offset)

@@ -1446,8 +1446,17 @@ void edid_state::parse_displayid_cta_data_block(const unsigned char *x)
 	}
 	x += 3;
 
-	for (i = 0; i < len; i += (x[i] & 0x1f) + 1)
-		cta_block(x + i);
+	for (i = 0; i < len; i += (x[i] & 0x1f) + 1) {
+		unsigned tag = (x[i] & 0xe0) << 3;
+
+		if (tag == 0x700)
+			tag |= x[i + 1];
+		bool duplicate = dispid.found_tags.find(tag) != dispid.found_tags.end();
+
+		cta_block(x + i, duplicate);
+		if (!duplicate)
+			dispid.found_tags.insert(tag);
+	}
 
 	if (i != len)
 		fail("Length is %u instead of %u.\n", len, i);

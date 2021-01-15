@@ -12,6 +12,7 @@
 
 #include <string>
 #include <vector>
+#include <set>
 #include <string.h>
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
@@ -205,6 +206,9 @@ struct edid_state {
 		vec_timings_ext vec_vtdbs;
 		vec_timings_ext preferred_timings;
 		bool preparsed_has_t8vtdb;
+		// Keep track of the found Tag/Extended Tag pairs.
+		// The unsigned value is equal to: (tag << 8) | ext_tag
+		std::set<unsigned> found_tags;
 		timings_ext t8vtdb;
 		vec_timings_ext native_timings;
 		bool has_vic_1;
@@ -242,6 +246,9 @@ struct edid_state {
 		bool has_type_1_7;
 		bool has_display_interface_features;
 		vec_timings_ext preferred_timings;
+		// Keep track of the found CTA-861 Tag/Extended Tag pairs.
+		// The unsigned value is equal to: (tag << 8) | ext_tag
+		std::set<unsigned> found_tags;
 	} dispid;
 
 	// Block Map block state
@@ -287,8 +294,8 @@ struct edid_state {
 	void cta_displayid_type_7(const unsigned char *x, unsigned length);
 	void cta_displayid_type_8(const unsigned char *x, unsigned length);
 	void cta_displayid_type_10(const unsigned char *x, unsigned length);
-	void cta_ext_block(const unsigned char *x, unsigned length);
-	void cta_block(const unsigned char *x);
+	void cta_ext_block(const unsigned char *x, unsigned length, bool duplicate);
+	void cta_block(const unsigned char *x, bool duplicate);
 	void preparse_cta_block(const unsigned char *x);
 	void parse_cta_block(const unsigned char *x);
 	void cta_resolve_svr(vec_timings_ext::iterator iter);
