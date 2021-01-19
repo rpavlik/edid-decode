@@ -205,7 +205,7 @@ void edid_state::parse_displayid_color_characteristics(const unsigned char *x)
 	for (unsigned i = 0; i < num_primaries; i++) {
 		unsigned idx = offset + 3 * i;
 
-		printf("    Primary #%u: (%.6f, %.6f)\n", i,
+		printf("    Primary #%u: (%.4f, %.4f)\n", i,
 		       fp2d(x[idx] | ((x[idx + 1] & 0x0f) << 8)),
 		       fp2d(((x[idx + 1] & 0xf0) >> 4) | (x[idx + 2] << 4)));
 	}
@@ -213,7 +213,7 @@ void edid_state::parse_displayid_color_characteristics(const unsigned char *x)
 	for (unsigned i = 0; i < num_whitepoints; i++) {
 		unsigned idx = offset + 3 * i;
 
-		printf("    White point #%u: (%.6f, %.6f)\n", i,
+		printf("    White point #%u: (%.4f, %.4f)\n", i,
 		       fp2d(x[idx] | ((x[idx + 1] & 0x0f) << 8)),
 		       fp2d(((x[idx + 1] & 0xf0) >> 4) | (x[idx + 2] << 4)));
 	}
