@@ -505,8 +505,8 @@ void edid_state::parse_displayid_video_timing_range_limits(const unsigned char *
 	if (!check_displayid_datablock_length(x, 15, 15))
 		return;
 	printf("    Pixel Clock: %.3f-%.3f MHz\n",
-	       (double)(x[3] | (x[4] << 8) | (x[5] << 16)) / 100.0,
-	       (double)(x[6] | (x[7] << 8) | (x[8] << 16)) / 100.0);
+	       (double)((x[3] | (x[4] << 8) | (x[5] << 16)) + 1) / 100.0,
+	       (double)((x[6] | (x[7] << 8) | (x[8] << 16)) + 1) / 100.0);
 	printf("    Horizontal Frequency: %u-%u kHz\n", x[9], x[10]);
 	printf("    Minimum Horizontal Blanking: %u pixels\n", x[11] | (x[12] << 8));
 	printf("    Vertical Refresh: %u-%u Hz\n", x[13], x[14]);
