@@ -698,14 +698,28 @@ void edid_state::parse_displayid_transfer_characteristics(const unsigned char *x
 			       i - first_is_white);
 		unsigned samples = x[offset];
 		if (four_param) {
+			if (samples != 5)
+				fail("Expected 5 samples.\n");
 			printf(" A0=%u A1=%u A2=%u A3=%u Gamma=%.2f\n",
 			       x[offset + 1], x[offset + 2], x[offset + 3], x[offset + 4],
 			       (double)(x[offset + 5] + 100.0) / 100.0);
 			samples++;
 		} else {
-			for (unsigned j = offset + 1; j < offset + samples; j++)
-				printf(" %3u", x[j]);
-			printf(" 255\n");
+			double sum = 0;
+
+			// The spec is not very clear about the number of samples:
+			// should this be interpreted as the actual number of
+			// samples stored in this Data Block, or as the number of
+			// samples in the curve, but where the last sample is not
+			// actually stored since it is always 0x3ff.
+			//
+			// The ATP Manager interprets this as the latter, so that's
+			// what we implement here.
+			for (unsigned j = offset + 1; j < offset + samples; j++) {
+				sum += x[j];
+				printf(" %.2f", sum * 100.0 / 1023.0);
+			}
+			printf(" 100.00\n");
 		}
 		offset += samples;
 		len -= samples;
