@@ -659,12 +659,12 @@ void edid_state::parse_displayid_intf_power_sequencing(const unsigned char *x)
 	if (!check_displayid_datablock_length(x, 6, 6))
 		return;
 
-	printf("    Power Sequence T1: %.1f-%u.0 ms\n", (x[3] >> 4) / 10.0, (x[3] & 0xf) * 2);
-	printf("    Power Sequence T2: 0.0-%u.0 ms\n", (x[4] & 0x3f) * 2);
-	printf("    Power Sequence T3: 0.0-%u.0 ms\n", (x[5] & 0x3f) * 2);
-	printf("    Power Sequence T4: 0.0-%u.0 ms\n", (x[6] & 0x7f) * 10);
-	printf("    Power Sequence T5: 0.0-%u.0 ms\n", (x[7] & 0x3f) * 10);
-	printf("    Power Sequence T6: 0.0-%u.0 ms\n", (x[8] & 0x3f) * 10);
+	printf("    Power Sequence T1 Range: %.1f-%u.0 ms\n", (x[3] >> 4) / 10.0, (x[3] & 0xf) * 2);
+	printf("    Power Sequence T2 Range: 0.0-%u.0 ms\n", (x[4] & 0x3f) * 2);
+	printf("    Power Sequence T3 Range: 0.0-%u.0 ms\n", (x[5] & 0x3f) * 2);
+	printf("    Power Sequence T4 Min: %u.0 ms\n", (x[6] & 0x7f) * 10);
+	printf("    Power Sequence T5 Min: %u.0 ms\n", (x[7] & 0x3f) * 10);
+	printf("    Power Sequence T6 Min: %u.0 ms\n", (x[8] & 0x3f) * 10);
 }
 
 // tag 0x0e
