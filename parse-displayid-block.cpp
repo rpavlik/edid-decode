@@ -590,8 +590,15 @@ void edid_state::parse_displayid_display_device(const unsigned char *x)
 		printf("    The backlight may be switched on and off\n");
 	if (x[4] & 0x04)
 		printf("    The backlight's intensity can be controlled\n");
-	printf("    Display native pixel format: %ux%u\n",
-	       x[5] | (x[6] << 8), x[7] | (x[8] << 8));
+	unsigned w = x[5] | (x[6] << 8);
+	unsigned h = x[7] | (x[8] << 8);
+	if (w && h) {
+		printf("    Display native pixel format: %ux%u\n", w + 1, h + 1);
+		dispid.native_width = w + 1;
+		dispid.native_height = h + 1;
+	} else if (w || h) {
+		fail("Invalid Native Pixel Format %ux%u.\n", w, h);
+	}
 	printf("    Aspect ratio and orientation:\n");
 	printf("      Aspect Ratio: %.2f\n", (100 + x[9]) / 100.0);
 	unsigned char v = x[0x0a];
@@ -1114,8 +1121,15 @@ void edid_state::parse_displayid_parameters_v2(const unsigned char *x,
 	else
 		printf("    Image size: %.1f mm x %.1f mm\n",
 		       hor_size / 10.0, vert_size / 10.0);
-	printf("    Pixels: %d x %d\n",
-	       (x[8] << 8) + x[7], (x[10] << 8) + x[9]);
+	unsigned w = (x[8] << 8) + x[7];
+	unsigned h = (x[10] << 8) + x[9];
+	if (w && h) {
+		printf("    Native Format: %ux%u\n", w, h);
+		dispid.native_width = w;
+		dispid.native_height = h;
+	} else if (w || h) {
+		fail("Invalid Native Format %ux%u.\n", w, h);
+	}
 	unsigned char v = x[11];
 	printf("    Scan Orientation: ");
 	switch (v & 0x07) {

@@ -2438,4 +2438,11 @@ void edid_state::check_cta_blocks()
 		warn("Native interlaced resolution of %ux%u is smaller than the max preferred interlaced resolution %ux%u.\n",
 		     native_ilace_hact, native_ilace_vact,
 		     max_pref_ilace_hact, max_pref_ilace_vact);
+
+	if (dispid.native_width && native_prog_hact &&
+	    !native_prog_mixed_resolutions) {
+		if (dispid.native_width != native_prog_hact ||
+		    dispid.native_height != native_prog_vact)
+			fail("Mismatch between CTA-861 and DisplayID native progressive resolution.\n");
+	}
 }

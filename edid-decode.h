@@ -138,6 +138,7 @@ struct edid_state {
 
 		// DisplayID block state
 		dispid.version = 0;
+		dispid.native_width = dispid.native_height = 0;
 		dispid.preparsed_color_ids = dispid.preparsed_xfer_ids = 0;
 		dispid.preparsed_displayid_blocks = 0;
 		dispid.is_base_block = true;
@@ -246,6 +247,7 @@ struct edid_state {
 		bool has_type_1_7;
 		bool has_display_interface_features;
 		vec_timings_ext preferred_timings;
+		unsigned native_width, native_height;
 		// Keep track of the found CTA-861 Tag/Extended Tag pairs.
 		// The unsigned value is equal to: (tag << 8) | ext_tag
 		std::set<unsigned> found_tags;
