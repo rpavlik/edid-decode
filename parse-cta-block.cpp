@@ -1537,29 +1537,34 @@ void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 	 * follow the default rules with respect to RGB Quantization Range
 	 * handling.
 	 *
-	 * The HDMI 2.0 spec recommends that this is set, but it is a good
-	 * recommendation in general, not just for HDMI.
+	 * Starting with the CTA-861-H spec this bit is now required to be
+	 * 1 for new designs.
 	 */
 	if (!(d & 0x40))
-		warn("Set Selectable RGB Quantization to avoid interop issues.\n");
+		fail("Set Selectable RGB Quantization to avoid interop issues.\n");
 	/*
-	 * HDMI 2.0 recommends that the Selectable YCbCr Quantization bit is set
-	 * as well, but in practice this is less of an interop issue.
+	 * Since most YCbCr formats use limited range, the interop issues are
+	 * less noticable than for RGB formats.
 	 *
-	 * I decided to not warn about this (for now).
-	 *
-	 * if (!(d & 0x80))
-	 *	warn("Set Selectable YCbCr Quantization to avoid interop issues.\n");
+	 * Starting with the CTA-861-H spec this bit is now required to be
+	 * 1 for new designs.
 	 */
+	if ((cta.byte3 & 0x30) && !(d & 0x80))
+		fail("Set Selectable YCbCr Quantization to avoid interop issues.\n");
+
+	unsigned char s_pt = (d >> 4) & 0x03;
+	unsigned char s_it = (d >> 2) & 0x03;
+	unsigned char s_ce = d & 0x03;
+
 	printf("    PT scan behavior: ");
-	switch ((d >> 4) & 0x03) {
+	switch (s_pt) {
 	case 0: printf("No Data\n"); break;
 	case 1: printf("Always Overscanned\n"); break;
 	case 2: printf("Always Underscanned\n"); break;
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
 	printf("    IT scan behavior: ");
-	switch ((d >> 2) & 0x03) {
+	switch (s_it) {
 	case 0: printf("IT video formats not supported\n"); break;
 	case 1:
 		printf("Always Overscanned\n");
@@ -1575,17 +1580,19 @@ void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 		break;
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
-	if (((d >> 2) & 0x03) < 2)
+	if (s_it < 2)
 		warn("IT scan behavior is expected to support underscanned.\n");
 	printf("    CE scan behavior: ");
-	switch (d & 0x03) {
+	switch (s_ce) {
 	case 0: printf("CE video formats not supported\n"); break;
 	case 1: printf("Always Overscanned\n"); break;
 	case 2: printf("Always Underscanned\n"); break;
 	case 3: printf("Supports both over- and underscan\n"); break;
 	}
-	if ((d & 0x03) == 0)
+	if (s_ce == 0)
 		warn("'CE video formats not supported' makes no sense.\n");
+	else if (s_pt == s_it && s_pt == s_ce)
+		warn("S_PT is equal to S_IT and S_CE, so should be set to 0 instead.\n");
 }
 
 static const char *colorimetry_map[] = {
