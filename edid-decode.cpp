@@ -387,11 +387,12 @@ static void print_detailed_timing(unsigned indent, const struct timings *t)
 
 bool edid_state::print_timings(const char *prefix, const struct timings *t,
 			       const char *type, const char *flags,
-			       bool detailed)
+			       bool detailed, bool do_checks)
 {
 	if (!t) {
 		// Should not happen
-		fail("Unknown video timings.\n");
+		if (do_checks)
+			fail("Unknown video timings.\n");
 		return false;
 	}
 
@@ -418,12 +419,13 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 
 	if (!t->hact || !hbl || !t->hfp || !t->hsync ||
 	    !vact || !vbl || (!t->vfp && !t->interlaced && !t->even_vtotal) || !t->vsync) {
-		fail("0 values in the video timing:\n"
-		     "    Horizontal Active/Blanking %u/%u\n"
-		     "    Horizontal Frontporch/Sync Width %u/%u\n"
-		     "    Vertical Active/Blanking %u/%u\n"
-		     "    Vertical Frontporch/Sync Width %u/%u\n",
-		     t->hact, hbl, t->hfp, t->hsync, vact, vbl, t->vfp, t->vsync);
+		if (do_checks)
+			fail("0 values in the video timing:\n"
+			     "    Horizontal Active/Blanking %u/%u\n"
+			     "    Horizontal Frontporch/Sync Width %u/%u\n"
+			     "    Vertical Active/Blanking %u/%u\n"
+			     "    Vertical Frontporch/Sync Width %u/%u\n",
+			     t->hact, hbl, t->hfp, t->hsync, vact, vbl, t->vfp, t->vsync);
 		ok = false;
 	}
 
@@ -445,6 +447,10 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	add_str(s, flags);
 	if (t->hsize_mm || t->vsize_mm)
 		add_str(s, std::to_string(t->hsize_mm) + " mm x " + std::to_string(t->vsize_mm) + " mm");
+	if (t->hsize_mm > dtd_max_hsize_mm)
+		dtd_max_hsize_mm = t->hsize_mm;
+	if (t->vsize_mm > dtd_max_vsize_mm)
+		dtd_max_vsize_mm = t->vsize_mm;
 	if (!s.empty())
 		s = " (" + s + ")";
 	unsigned pixclk_khz = t->pixclk_khz / (t->ycbcr420 ? 2 : 1);
@@ -472,6 +478,18 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	else if (detailed)
 		print_detailed_timing(len + strlen(type) + 6, t);
 
+	if (refresh) {
+		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
+		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
+	}
+	if (pixclk_khz && (t->hact + hbl)) {
+		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (t->hact + hbl));
+		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (t->hact + hbl));
+		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
+	}
+	if (!do_checks)
+		return ok;
+
 	if (t->ycbcr420 && t->pixclk_khz < 590000)
 		warn_once("Some YCbCr 4:2:0 timings are invalid for HDMI (which requires an RGB timings pixel rate >= 590 MHz).\n");
 	if (t->hfp <= 0)
@@ -480,9 +498,8 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		fail("0 or negative horizontal back porch.\n");
 	if (t->vbp <= 0)
 		fail("0 or negative vertical back porch.\n");
-	if ((!base.max_display_width_mm && t->hsize_mm) ||
-	    (!base.max_display_height_mm && t->vsize_mm)) {
-		fail("Mismatch of image size vs display size: image size is set, but not display size.\n");
+	if (!base.max_display_width_mm && !base.max_display_height_mm) {
+		/* this is valid */
 	} else if (!t->hsize_mm && !t->vsize_mm) {
 		/* this is valid */
 	} else if (t->hsize_mm > base.max_display_width_mm + 9 ||
@@ -493,15 +510,6 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		   t->vsize_mm < base.max_display_height_mm - 9) {
 		fail("Mismatch of image size %ux%u mm vs display size %ux%u mm.\n",
 		     t->hsize_mm, t->vsize_mm, base.max_display_width_mm, base.max_display_height_mm);
-	}
-	if (refresh) {
-		min_vert_freq_hz = min(min_vert_freq_hz, refresh);
-		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
-	}
-	if (pixclk_khz && (t->hact + hbl)) {
-		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (t->hact + hbl));
-		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (t->hact + hbl));
-		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
 	}
 	return ok;
 }
@@ -1117,14 +1125,14 @@ int edid_state::parse_edid()
 	if (options[OptPreferredTimings] && base.preferred_timing.is_valid()) {
 		printf("\n----------------\n");
 		printf("\nPreferred Video Timing if only Block 0 is parsed:\n");
-		print_timings("  ", base.preferred_timing, true);
+		print_timings("  ", base.preferred_timing, true, false);
 	}
 
 	if (options[OptNativeTimings] &&
 	    base.preferred_timing.is_valid() && base.preferred_is_also_native) {
 		printf("\n----------------\n");
 		printf("\nNative Video Timing if only Block 0 is parsed:\n");
-		print_timings("  ", base.preferred_timing, true);
+		print_timings("  ", base.preferred_timing, true, false);
 	}
 
 	if (options[OptPreferredTimings] && !cta.preferred_timings.empty()) {
@@ -1133,7 +1141,7 @@ int edid_state::parse_edid()
 		       cta.preferred_timings.size() > 1 ? "s" : "");
 		for (vec_timings_ext::iterator iter = cta.preferred_timings.begin();
 		     iter != cta.preferred_timings.end(); ++iter)
-			print_timings("  ", *iter, true);
+			print_timings("  ", *iter, true, false);
 	}
 
 	if (options[OptNativeTimings] && !cta.native_timings.empty()) {
@@ -1142,7 +1150,7 @@ int edid_state::parse_edid()
 		       cta.native_timings.size() > 1 ? "s" : "");
 		for (vec_timings_ext::iterator iter = cta.native_timings.begin();
 		     iter != cta.native_timings.end(); ++iter)
-			print_timings("  ", *iter, true);
+			print_timings("  ", *iter, true, false);
 	}
 
 	if (options[OptPreferredTimings] && !dispid.preferred_timings.empty()) {
@@ -1151,7 +1159,7 @@ int edid_state::parse_edid()
 		       dispid.preferred_timings.size() > 1 ? "s" : "");
 		for (vec_timings_ext::iterator iter = dispid.preferred_timings.begin();
 		     iter != dispid.preferred_timings.end(); ++iter)
-			print_timings("  ", *iter, true);
+			print_timings("  ", *iter, true, false);
 	}
 
 	if (!options[OptCheck] && !options[OptCheckInline])

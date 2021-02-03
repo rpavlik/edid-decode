@@ -100,6 +100,7 @@ struct edid_state {
 		max_hor_freq_hz = max_vert_freq_hz = max_pixclk_khz = 0;
 		min_hor_freq_hz = 0xffffff;
 		min_vert_freq_hz = 0xffffffff;
+		dtd_max_vsize_mm = dtd_max_hsize_mm = 0;
 		warnings = failures = 0;
 		has_cta = has_dispid = false;
 		hide_serial_numbers = false;
@@ -166,6 +167,8 @@ struct edid_state {
 	double min_vert_freq_hz;
 	double max_vert_freq_hz;
 	unsigned max_pixclk_khz;
+	unsigned dtd_max_hsize_mm;
+	unsigned dtd_max_vsize_mm;
 
 	unsigned warnings;
 	unsigned failures;
@@ -263,11 +266,12 @@ struct edid_state {
 	std::string dtd_type() { return dtd_type(base.dtd_cnt); }
 	bool print_timings(const char *prefix, const struct timings *t,
 			   const char *type, const char *flags = "",
-			   bool detailed = false);
+			   bool detailed = false, bool do_checks = true);
 	bool print_timings(const char *prefix, const struct timings_ext &t,
-			   bool detailed = false)
+			   bool detailed = false, bool do_checks = true)
 	{
-		return print_timings(prefix, &t.t, t.type.c_str(), t.flags.c_str(), detailed);
+		return print_timings(prefix, &t.t, t.type.c_str(), t.flags.c_str(),
+				     detailed, do_checks);
 	};
 	bool match_timings(const timings &t1, const timings &t2);
 	void edid_gtf_mode(unsigned refresh, struct timings &t);
