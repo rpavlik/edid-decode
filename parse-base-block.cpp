@@ -1945,7 +1945,7 @@ void edid_state::check_base_block()
 	if (!base.max_display_width_mm && !base.max_display_height_mm &&
 	    dtd_max_hsize_mm && dtd_max_vsize_mm &&
 	    dtd_max_hsize_mm <= 2559 && dtd_max_vsize_mm <= 2559) {
-		fail("One or more DTDs specified an image size, but no display size was set.\n");
+		fail("The DTD image sizes all fit inside 255x255cm, but no display size was set.\n");
 	}
 	if (base.edid_minor == 3 && num_blocks > 2 && !block_map.saw_block_1)
 		fail("EDID 1.3 requires a Block Map Extension in Block 1 if there are more than 2 blocks in the EDID.\n");
