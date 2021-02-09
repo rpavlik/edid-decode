@@ -110,9 +110,8 @@ struct edid_state {
 		base.has_name_descriptor = base.has_display_range_descriptor =
 			base.has_serial_number = base.has_serial_string =
 			base.supports_continuous_freq = base.supports_gtf =
-			base.supports_cvt = base.uses_gtf = base.uses_cvt =
+			base.supports_cvt = base.seen_non_detailed_descriptor =
 			base.has_640x480p60_est_timing = base.has_spwg =
-			base.seen_non_detailed_descriptor =
 			base.preferred_is_also_native = false;
 		base.detailed_block_cnt = base.dtd_cnt = 0;
 
@@ -183,8 +182,6 @@ struct edid_state {
 		bool supports_continuous_freq;
 		bool supports_gtf;
 		bool supports_cvt;
-		bool uses_gtf;
-		bool uses_cvt;
 		bool has_spwg;
 		unsigned detailed_block_cnt;
 		unsigned dtd_cnt;
@@ -284,6 +281,7 @@ struct edid_state {
 	void detailed_epi(const unsigned char *x);
 	void detailed_timings(const char *prefix, const unsigned char *x,
 			      bool base_or_cta = true);
+	void preparse_detailed_block(const unsigned char *x);
 	void detailed_block(const unsigned char *x);
 	void parse_base_block(const unsigned char *x);
 	void check_base_block();

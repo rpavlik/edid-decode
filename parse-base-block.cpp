@@ -735,7 +735,6 @@ void edid_state::detailed_cvt_descriptor(const char *prefix, const unsigned char
 	if (!first && !memcmp(x, empty, 3))
 		return;
 
-	base.uses_cvt = true;
 	cvt_t.vact = x[0];
 	if (!cvt_t.vact)
 		fail("CVT byte 0 is 0, which is a reserved value.\n");
@@ -894,18 +893,20 @@ void edid_state::print_standard_timing(const char *prefix, unsigned char b1, uns
 	formula.vratio = vratio;
 
 	if (!gtf_only && base.edid_minor >= 4) {
-		base.uses_cvt = true;
-		edid_cvt_mode(refresh, formula);
-		print_timings(prefix, &formula, "CVT     ", "EDID 1.4 source");
+		if (base.supports_cvt) {
+			edid_cvt_mode(refresh, formula);
+			print_timings(prefix, &formula, "CVT     ", "EDID 1.4 source");
+		}
 		/*
-		 * A EDID 1.3 source will assume GTF, so both GTF and CVT
+		 * An EDID 1.3 source will assume GTF, so both GTF and CVT
 		 * have to be supported.
 		 */
-		base.uses_gtf = true;
 		edid_gtf_mode(refresh, formula);
-		print_timings(prefix, &formula, "GTF     ", "EDID 1.3 source");
+		if (base.supports_cvt)
+			print_timings(prefix, &formula, "GTF     ", "EDID 1.3 source");
+		else
+			print_timings(prefix, &formula, "GTF     ");
 	} else if (gtf_only || base.edid_minor >= 2) {
-		base.uses_gtf = true;
 		edid_gtf_mode(refresh, formula);
 		print_timings(prefix, &formula, "GTF     ");
 	} else {
@@ -951,7 +952,8 @@ void edid_state::detailed_display_range_limits(const unsigned char *x)
 		range_class = "GTF";
 		if (base.edid_minor >= 4 && !base.supports_continuous_freq)
 			fail("GTF can't be combined with non-continuous frequencies.\n");
-		base.supports_gtf = true;
+		if (base.edid_minor >= 4)
+			warn("GTF support is deprecated in EDID 1.4.\n");
 		break;
 	case 0x01: /* range limits only */
 		range_class = "Bare Limits";
@@ -962,7 +964,8 @@ void edid_state::detailed_display_range_limits(const unsigned char *x)
 		range_class = "Secondary GTF";
 		if (base.edid_minor >= 4 && !base.supports_continuous_freq)
 			fail("GTF can't be combined with non-continuous frequencies.\n");
-		base.supports_gtf = true;
+		if (base.edid_minor >= 4)
+			warn("GTF support is deprecated in EDID 1.4.\n");
 		has_sec_gtf = true;
 		break;
 	case 0x04: /* cvt */
@@ -972,11 +975,6 @@ void edid_state::detailed_display_range_limits(const unsigned char *x)
 			fail("'%s' is not allowed for EDID < 1.4.\n", range_class.c_str());
 		else if (!base.supports_continuous_freq)
 			fail("CVT can't be combined with non-continuous frequencies.\n");
-		if (base.edid_minor >= 4) {
-			/* GTF is implied if CVT is signaled */
-			base.supports_gtf = true;
-			base.supports_cvt = true;
-		}
 		break;
 	default: /* invalid */
 		fail("Unknown range class (0x%02x).\n", x[10]);
@@ -1370,6 +1368,28 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x,
 
 		s += "               ";
 		hex_block(s.c_str(), x, 18, true, 18);
+	}
+}
+
+void edid_state::preparse_detailed_block(const unsigned char *x)
+{
+	if (x[0] || x[1])
+		return;
+	if (x[3] != 0xfd)
+		return;
+
+	switch (x[10]) {
+	case 0x00: /* default gtf */
+	case 0x02: /* secondary gtf curve */
+		base.supports_gtf = true;
+		break;
+	case 0x04: /* cvt */
+		if (base.edid_minor >= 4) {
+			/* GTF is implied if CVT is signaled */
+			base.supports_gtf = true;
+			base.supports_cvt = true;
+		}
+		break;
 	}
 }
 
@@ -1814,6 +1834,15 @@ void edid_state::parse_base_block(const unsigned char *x)
 	}
 	base.has_640x480p60_est_timing = x[0x23] & 0x20;
 
+	/*
+	 * Need to find the Display Range Limit info before reading
+	 * the standard timings.
+	 */
+	preparse_detailed_block(x + 0x36);
+	preparse_detailed_block(x + 0x48);
+	preparse_detailed_block(x + 0x5a);
+	preparse_detailed_block(x + 0x6c);
+
 	data_block = "Standard Timings";
 	bool found = false;
 	for (i = 0; i < 8; i++) {
@@ -1880,10 +1909,7 @@ void edid_state::parse_base_block(const unsigned char *x)
 void edid_state::check_base_block()
 {
 	data_block = "Base EDID";
-	if (base.uses_gtf && !base.supports_gtf)
-		fail("GTF timings are used, but the EDID does not signal GTF support.\n");
-	if (base.uses_cvt && !base.supports_cvt)
-		fail("CVT timings are used, but the EDID does not signal CVT support.\n");
+
 	/*
 	 * Allow for regular rounding of vertical and horizontal frequencies.
 	 * The spec says that the pixelclock shall be rounded up, so there is
