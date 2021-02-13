@@ -1019,16 +1019,16 @@ void edid_state::detailed_display_range_limits(const unsigned char *x)
 	if (has_sec_gtf) {
 		if (x[11])
 			fail("Byte 11 is 0x%02x instead of 0x00.\n", x[11]);
-		printf("    GTF Secondary Curve Block:\n");
-		printf("      Start frequency: %u kHz\n", x[12] * 2);
-		printf("      C: %f\n", x[13] / 2.0);
-		if (x[13] > 127)
-			fail("Byte 13 is > 127.\n");
-		printf("      M: %u\n", (x[15] << 8) | x[14]);
-		printf("      K: %u\n", x[16]);
-		printf("      J: %f\n", x[17] / 2.0);
-		if (x[17] > 127)
-			fail("Byte 17 is > 127.\n");
+		if (memchk(x + 12, 6)) {
+			fail("Zeroed Secondary Curve Block.\n");
+		} else {
+			printf("    GTF Secondary Curve Block:\n");
+			printf("      Start frequency: %u kHz\n", x[12] * 2);
+			printf("      C: %.1f%%\n", x[13] / 2.0);
+			printf("      M: %u%%/kHz\n", (x[15] << 8) | x[14]);
+			printf("      K: %u\n", x[16]);
+			printf("      J: %.1f%%\n", x[17] / 2.0);
+		}
 	} else if (is_cvt) {
 		int max_h_pixels = 0;
 
