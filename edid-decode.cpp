@@ -486,8 +486,8 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		max_vert_freq_hz = max(max_vert_freq_hz, refresh);
 	}
 	if (pixclk_khz && (t->hact + hbl)) {
-		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000) / (t->hact + hbl));
-		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000) / (t->hact + hbl));
+		min_hor_freq_hz = min(min_hor_freq_hz, (pixclk_khz * 1000ULL) / (t->hact + hbl));
+		max_hor_freq_hz = max(max_hor_freq_hz, (pixclk_khz * 1000ULL) / (t->hact + hbl));
 		max_pixclk_khz = max(max_pixclk_khz, pixclk_khz);
 	}
 
