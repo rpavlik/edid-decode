@@ -242,15 +242,19 @@ static void or_str(std::string &s, const std::string &flag, unsigned &num_flags)
 static void print_modeline(unsigned indent, const struct timings *t, double refresh)
 {
 	unsigned offset = (!t->even_vtotal && t->interlaced) ? 1 : 0;
+	unsigned hfp = t->hborder + t->hfp;
+	unsigned hbp = t->hborder + t->hbp;
+	unsigned vfp = t->vborder + t->vfp;
+	unsigned vbp = t->vborder + t->vbp;
 
 	printf("%*sModeline \"%ux%u_%.2f%s\" %.3f  %u %u %u %u  %u %u %u %u  %cHSync",
 	       indent, "",
 	       t->hact, t->vact, refresh,
 	       t->interlaced ? "i" : "", t->pixclk_khz / 1000.0,
-	       t->hact, t->hact + t->hfp, t->hact + t->hfp + t->hsync,
-	       t->hact + t->hfp + t->hsync + t->hbp,
-	       t->vact, t->vact + t->vfp, t->vact + t->vfp + t->vsync,
-	       t->vact + t->vfp + t->vsync + t->vbp + offset,
+	       t->hact, t->hact + hfp, t->hact + hfp + t->hsync,
+	       t->hact + hfp + t->hsync + hbp,
+	       t->vact, t->vact + vfp, t->vact + vfp + t->vsync,
+	       t->vact + vfp + t->vsync + vbp + offset,
 	       t->pos_pol_hsync ? '+' : '-');
 	if (!t->no_pol_vsync)
 		printf(" %cVSync", t->pos_pol_vsync ? '+' : '-');
@@ -275,10 +279,14 @@ static void print_fbmode(unsigned indent, const struct timings *t,
 	       t->hact, t->vact, t->hact, t->vact);
 	unsigned mult = t->interlaced ? 2 : 1;
 	unsigned offset = !t->even_vtotal && t->interlaced;
+	unsigned hfp = t->hborder + t->hfp;
+	unsigned hbp = t->hborder + t->hbp;
+	unsigned vfp = t->vborder + t->vfp;
+	unsigned vbp = t->vborder + t->vbp;
 	printf("%*stimings %llu %d %d %d %u %u %u\n",
 	       indent + 8, "",
 	       (unsigned long long)(1000000000.0 / (double)(t->pixclk_khz) + 0.5),
-	       t->hbp, t->hfp, mult * t->vbp, mult * t->vfp + offset, t->hsync, mult * t->vsync);
+	       hbp, hfp, mult * vbp, mult * vfp + offset, t->hsync, mult * t->vsync);
 	if (t->interlaced)
 		printf("%*slaced true\n", indent + 8, "");
 	if (t->pos_pol_hsync)
@@ -305,12 +313,16 @@ static void print_v4l2_timing(const struct timings *t,
 		printf("V4L2_DV_HSYNC_POS_POL, \\\n");
 	else
 		printf("V4L2_DV_VSYNC_POS_POL, \\\n");
+	unsigned hfp = t->hborder + t->hfp;
+	unsigned hbp = t->hborder + t->hbp;
+	unsigned vfp = t->vborder + t->vfp;
+	unsigned vbp = t->vborder + t->vbp;
 	printf("\t\t\t%lluULL, %d, %u, %d, %u, %u, %d, %u, %u, %d, \\\n",
-	       t->pixclk_khz * 1000ULL, t->hfp, t->hsync, t->hbp,
-	       t->vfp, t->vsync, t->vbp,
-	       t->interlaced ? t->vfp : 0,
+	       t->pixclk_khz * 1000ULL, hfp, t->hsync, hbp,
+	       vfp, t->vsync, vbp,
+	       t->interlaced ? vfp : 0,
 	       t->interlaced ? t->vsync : 0,
-	       t->interlaced ? t->vbp + !t->even_vtotal : 0);
+	       t->interlaced ? vbp + !t->even_vtotal : 0);
 
 	std::string flags;
 	unsigned num_flags = 0;
@@ -402,8 +414,8 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 		detailed = true;
 
 	unsigned vact = t->vact;
-	unsigned hbl = t->hfp + t->hsync + t->hbp;
-	unsigned vbl = t->vfp + t->vsync + t->vbp;
+	unsigned hbl = t->hfp + t->hsync + t->hbp + 2 * t->hborder;
+	unsigned vbl = t->vfp + t->vsync + t->vbp + 2 * t->vborder;
 	unsigned htotal = t->hact + hbl;
 	double hor_freq_khz = htotal ? (double)t->pixclk_khz / htotal : 0;
 
