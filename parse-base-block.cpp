@@ -921,18 +921,38 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x,
 		return;
 	}
 
+	/*
+	 * If the borders are non-zero, then it is unclear how to interpret
+	 * the DTD blanking parameters.
+	 *
+	 * According to EDID 1.3 (3.12) the Hor/Vert Blanking includes the
+	 * borders, and so does the Hor/Vert Sync Offset.
+	 *
+	 * According to EDID 1.4 (3.12) the Hor/Vert Blanking excludes the
+	 * borders, and they are also excluded from the Hor/Vert Front Porch.
+	 *
+	 * But looking at what is really done in EDIDs is that the Hor/Vert
+	 * Blanking follows EDID 1.3, but the Hor/Vert Front Porch does not
+	 * include the border.
+	 *
+	 * So hbl/vbl includes the borders, so those need to be subtracted,
+	 * but hfp/vfp is used as-is.
+	 *
+	 * In practice you really shouldn't use non-zero borders in DTDs
+	 * since clearly nobody knows how to interpret the timing.
+	 */
 	t.hact = (x[2] + ((x[4] & 0xf0) << 4));
-	hbl = (x[3] + ((x[4] & 0x0f) << 8));
+	t.hborder = x[15];
+	hbl = (x[3] + ((x[4] & 0x0f) << 8)) - t.hborder * 2;
 	t.hfp = (x[8] + ((x[11] & 0xc0) << 2));
 	t.hsync = (x[9] + ((x[11] & 0x30) << 4));
 	t.hbp = hbl - t.hsync - t.hfp;
-	t.hborder = x[15];
 	t.vact = (x[5] + ((x[7] & 0xf0) << 4));
-	vbl = (x[6] + ((x[7] & 0x0f) << 8));
+	t.vborder = x[16];
+	vbl = (x[6] + ((x[7] & 0x0f) << 8)) - t.vborder * 2;
 	t.vfp = ((x[10] >> 4) + ((x[11] & 0x0c) << 2));
 	t.vsync = ((x[10] & 0x0f) + ((x[11] & 0x03) << 4));
 	t.vbp = vbl - t.vsync - t.vfp;
-	t.vborder = x[16];
 
 	unsigned char flags = x[17];
 
@@ -1033,6 +1053,8 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x,
 	if (base_or_cta)
 		cta.vec_dtds.push_back(te);
 
+	if (t.hborder || t.vborder)
+		warn("The use of non-zero borders in a DTD is not recommended.\n");
 	if ((base.max_display_width_mm && !t.hsize_mm) ||
 	    (base.max_display_height_mm && !t.vsize_mm)) {
 		fail("Mismatch of image size vs display size: image size is not set, but display size is.\n");
