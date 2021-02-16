@@ -356,7 +356,7 @@ static const struct timings *find_std_id(unsigned short std_id, unsigned char &d
 
 void edid_state::list_established_timings()
 {
-	printf("Established Timings I & II:\n\n");
+	printf("Established Timings I & II, 'Byte' is the EDID address:\n\n");
 	for (unsigned i = 0; i < ARRAY_SIZE(established_timings12); i++) {
 		unsigned char dmt_id = established_timings12[i].dmt_id;
 		const struct timings *t;
@@ -369,14 +369,16 @@ void edid_state::list_established_timings()
 			t = &established_timings12[i].t;
 			sprintf(type, "%-8s", established_timings12[i].type);
 		}
+		printf("Byte 0x%02x, Bit %u: ", 0x23 + i / 8, 7 - i % 8);
 		print_timings("", t, type, "", false, false);
 	}
-	printf("\nEstablished timings III:\n\n");
+	printf("\nEstablished timings III, 'Byte' is the offset from the start of the descriptor:\n\n");
 	for (unsigned i = 0; i < ARRAY_SIZE(established_timings3_dmt_ids); i++) {
 		unsigned char dmt_id = established_timings3_dmt_ids[i];
 		char type[16];
 
 		sprintf(type, "DMT 0x%02x", dmt_id);
+		printf("Byte 0x%02x, Bit %u: ", 6 + i / 8, 7 - i % 8);
 		print_timings("", find_dmt_id(dmt_id), type, "", false, false);
 	}
 }
