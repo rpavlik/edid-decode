@@ -502,9 +502,9 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	double refresh = (double)t->pixclk_khz * 1000.0 / (htotal * vtotal);
 
 	std::string s;
-	unsigned rb = t->rb & ~RB_FLAG;
+	unsigned rb = t->rb & ~RB_ALT;
 	if (rb) {
-		bool alt = t->rb & RB_FLAG;
+		bool alt = t->rb & RB_ALT;
 		s = "RB";
 		// Mark RB_CVT_V3 as preliminary since CVT 1.3 has not been
 		// released yet.
@@ -1309,7 +1309,7 @@ static void parse_cvt(char *optarg)
 {
 	unsigned w = 0, h = 0;
 	double fps = 0;
-	unsigned rb = 0;
+	unsigned rb = RB_NONE;
 	bool interlaced = false;
 	bool alt = false;
 	bool overscan = false;

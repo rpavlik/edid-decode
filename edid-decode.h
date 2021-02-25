@@ -22,17 +22,30 @@
 #define EDID_PAGE_SIZE 128U
 #define EDID_MAX_BLOCKS 256U
 
-#define RB_FLAG		(1U << 7)
+#define RB_ALT		(1U << 7)
 
-#define RB_CVT_V1	(1)
-#define RB_CVT_V2	(2)
-#define RB_CVT_V3	(3)
-#define RB_GTF		(4)
+#define RB_NONE		(0U)
+#define RB_CVT_V1	(1U)
+#define RB_CVT_V2	(2U)
+#define RB_CVT_V3	(3U)
+#define RB_GTF		(4U)
 
 // Video Timings
 // If interlaced is true, then the vertical blanking
 // for each field is (vfp + vsync + vbp + 0.5), except for
 // the VIC 39 timings that doesn't have the 0.5 constant.
+//
+// The sequence of the various video parameters is as follows:
+//
+// border - front porch - sync - back porch - border - active video
+//
+// Note: this is slightly different from EDID 1.4 which calls
+// 'active video' as 'addressable video' and the EDID 1.4 term
+// 'active video' includes the borders.
+//
+// But since borders are rarely used, the term 'active video' will
+// typically be the same as 'addressable video', and that's how I
+// use it.
 struct timings {
 	// Active horizontal and vertical frame height, excluding any
 	// borders, if present.
@@ -43,8 +56,9 @@ struct timings {
 	// 0: no reduced blanking
 	// 1: CVT reduced blanking version 1
 	// 2: CVT reduced blanking version 2
-	// 3: CVT reduced blanking version 3 with a horizontal blank of 80
-	// 3 | RB_FLAG: CVT reduced blanking version 3 with a horizontal blank of 160
+	// 2 | RB_ALT: CVT reduced blanking version 2 video-optimized (1000/1001 fps)
+	// 3: CVT reduced blanking version 3
+	// 3 | RB_ALT: v3 with a horizontal blank of 160
 	// 4: GTF Secondary Curve
 	unsigned rb;
 	bool interlaced;

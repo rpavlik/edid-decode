@@ -336,7 +336,7 @@ void edid_state::parse_displayid_type_1_7_timing(const unsigned char *x,
 		unsigned vtot = t.vact + t.vfp + t.vsync + t.vbp;
 		unsigned refresh = (t.pixclk_khz * 1000ULL) / (htot * vtot);
 
-		for (unsigned rb = 0; rb <= RB_CVT_V3; rb++) {
+		for (unsigned rb = RB_NONE; rb <= RB_CVT_V3; rb++) {
 			timings cvt_t = calc_cvt_mode(t.hact, t.vact, refresh, rb);
 			if (match_timings(t, cvt_t)) {
 				fail("This T7VTDB can be represented as a T10VTDB.\n");
@@ -462,7 +462,7 @@ void edid_state::parse_displayid_type_3_timing(const unsigned char *x)
 		break;
 	}
 
-	t.rb = ((x[0] & 0x70) >> 4) == 1 ? RB_CVT_V1 : 0;
+	t.rb = ((x[0] & 0x70) >> 4) == 1 ? RB_CVT_V1 : RB_NONE;
 	t.hact = 8 + 8 * x[1];
 	t.vact = t.hact * t.vratio / t.hratio;
 
@@ -1407,10 +1407,10 @@ void edid_state::parse_displayid_type_10_timing(const unsigned char *x, bool is_
 	if (x[0] & 0x10) {
 		if (t.rb == RB_CVT_V2) {
 			s += ", refresh rate * (1000/1001) supported";
-			t.rb |= RB_FLAG;
+			t.rb |= RB_ALT;
 		} else if (t.rb == RB_CVT_V3) {
 			s += ", hblank is 160 pixels";
-			t.rb |= RB_FLAG;
+			t.rb |= RB_ALT;
 		} else {
 			fail("VR_HB must be 0.\n");
 		}

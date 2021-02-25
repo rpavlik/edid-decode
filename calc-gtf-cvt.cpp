@@ -104,7 +104,7 @@ timings edid_state::calc_gtf_mode(unsigned h_pixels, unsigned v_lines,
 	t.vborder = vert_margin;
 	t.pos_pol_hsync = secondary;
 	t.pos_pol_vsync = !secondary;
-	t.rb = secondary ? RB_GTF : 0;
+	t.rb = secondary ? RB_GTF : RB_NONE;
 	return t;
 }
 
@@ -176,7 +176,7 @@ timings edid_state::calc_cvt_mode(unsigned h_pixels, unsigned v_lines,
 	if (rb >= RB_CVT_V2)
 		v_sync = 8;
 
-	if (rb == 0) {
+	if (rb == RB_NONE) {
 		double h_period_est = ((1.0 / v_field_rate_rqd) - CVT_MIN_VSYNC_BP / 1000000.0) /
 			(v_lines_rnd + vert_margin * 2 + CVT_MIN_V_PORCH + interlace) * 1000000.0;
 		v_sync_bp = floor(CVT_MIN_VSYNC_BP / h_period_est) + 1;
@@ -219,7 +219,7 @@ timings edid_state::calc_cvt_mode(unsigned h_pixels, unsigned v_lines,
 	t.vborder = vert_margin;
 	t.rb = rb;
 	if (alt && (rb == RB_CVT_V2 || rb == RB_CVT_V3))
-		t.rb |= RB_FLAG;
+		t.rb |= RB_ALT;
 	t.pos_pol_hsync = t.rb;
 	t.pos_pol_vsync = !t.rb;
 	calc_ratio(&t);
@@ -231,8 +231,8 @@ void edid_state::edid_cvt_mode(unsigned refresh, struct timings &t)
 	unsigned hratio = t.hratio;
 	unsigned vratio = t.vratio;
 
-	t = calc_cvt_mode(t.hact, t.vact, refresh, t.rb & ~RB_FLAG, t.interlaced,
-			  false, t.rb & RB_FLAG);
+	t = calc_cvt_mode(t.hact, t.vact, refresh, t.rb & ~RB_ALT, t.interlaced,
+			  false, t.rb & RB_ALT);
 	t.hratio = hratio;
 	t.vratio = vratio;
 }
