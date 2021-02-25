@@ -435,9 +435,14 @@ void edid_state::cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420)
 				print_timings("    ", t, type, flags);
 			}
 			if (override_pref) {
+				if (!cta.preferred_timings.empty()) {
+					if (match_timings(cta.preferred_timings[0].t, *t))
+						warn("For improved preferred timing interoperability, set 'Native detailed modes' to 1.\n");
+					else
+						warn("VIC %u is the preferred timing, overriding the first detailed timings. Is this intended?\n", vic);
+				}
 				cta.preferred_timings.insert(cta.preferred_timings.begin(),
 							     timings_ext(*t, type, flags));
-				warn("VIC %u is the preferred timing, overriding the first detailed timings. Is this intended?\n", vic);
 			} else if (first_svd) {
 				cta.preferred_timings.push_back(timings_ext(*t, type, flags));
 			}
@@ -1571,10 +1576,10 @@ void edid_state::cta_vcdb(const unsigned char *x, unsigned length)
 	 * less noticable than for RGB formats.
 	 *
 	 * Starting with the CTA-861-H spec this bit is now required to be
-	 * 1 for new designs.
+	 * 1 for new designs, but just warn about it (for now).
 	 */
 	if ((cta.byte3 & 0x30) && !(d & 0x80))
-		fail("Set Selectable YCbCr Quantization to avoid interop issues.\n");
+		warn("Set Selectable YCbCr Quantization to avoid interop issues.\n");
 
 	unsigned char s_pt = (d >> 4) & 0x03;
 	unsigned char s_it = (d >> 2) & 0x03;
