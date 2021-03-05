@@ -2398,7 +2398,7 @@ void edid_state::parse_cta_block(const unsigned char *x)
 	    cta.supported_hdmi_vic_codes)
 		fail("HDMI VIC Codes must have their CTA-861 VIC equivalents in the VSB.\n");
 	if (!cta.has_vcdb)
-		warn("Missing VCDB, needed for Set Selectable RGB Quantization to avoid interop issues.\n");
+		fail("Missing VCDB, needed for Set Selectable RGB Quantization to avoid interop issues.\n");
 }
 
 void edid_state::cta_resolve_svr(vec_timings_ext::iterator iter)
