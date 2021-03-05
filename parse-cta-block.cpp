@@ -591,13 +591,47 @@ void edid_state::cta_vfpdb(const unsigned char *x, unsigned length)
 	}
 }
 
-static std::string hdmi_latency(unsigned char l, bool is_video)
+static std::string hdmi_latency2s(unsigned char l, bool is_video)
 {
 	if (!l)
 		return "Unknown";
 	if (l == 0xff)
 		return is_video ? "Video not supported" : "Audio not supported";
 	return std::to_string(1 + 2 * l) + " ms";
+}
+
+void edid_state::hdmi_latency(unsigned char vid_lat, unsigned char aud_lat,
+			      bool is_ilaced)
+{
+	const char *vid = is_ilaced ? "Interlaced video" : "Video";
+	const char *aud = is_ilaced ? "Interlaced audio" : "Audio";
+
+	printf("    %s latency: %s\n", vid, hdmi_latency2s(vid_lat, true).c_str());
+	printf("    %s latency: %s\n", aud, hdmi_latency2s(aud_lat, false).c_str());
+
+	if (vid_lat > 251 && vid_lat != 0xff)
+		fail("Invalid %s latency value %u.\n", vid, vid_lat);
+	if (aud_lat > 251 && aud_lat != 0xff)
+		fail("Invalid %s latency value %u.\n", aud, aud_lat);
+
+	if (!vid_lat || vid_lat > 251)
+		return;
+	if (!aud_lat || aud_lat > 251)
+		return;
+
+	unsigned vid_ms = 1 + 2 * vid_lat;
+	unsigned aud_ms = 1 + 2 * aud_lat;
+
+	// HDMI 2.0 latency checks for devices without HDMI output
+	if (aud_ms < vid_ms)
+		warn("%s latency < %s latency (%u ms < %u ms). This is discouraged for devices without HDMI output.\n",
+		     aud, vid, aud_ms, vid_ms);
+	else if (vid_ms + 20 < aud_ms)
+		warn("%s latency + 20 < %s latency (%u + 20 ms < %u ms). This is forbidden for devices without HDMI output.\n",
+		     vid, aud, vid_ms, aud_ms);
+	else if (vid_ms < aud_ms)
+		warn("%s latency < %s latency (%u ms < %u ms). This is discouraged for devices without HDMI output.\n",
+		     vid, aud, vid_ms, aud_ms);
 }
 
 void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
@@ -652,15 +686,16 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 
 	unsigned b = 8;
 	if (x[7] & 0x80) {
-		printf("    Video latency: %s\n", hdmi_latency(x[b], true).c_str());
-		printf("    Audio latency: %s\n", hdmi_latency(x[b + 1], false).c_str());
-		b += 2;
+		hdmi_latency(x[b], x[b + 1], false);
 
 		if (x[7] & 0x40) {
-			printf("    Interlaced video latency: %s\n", hdmi_latency(x[b], true).c_str());
-			printf("    Interlaced audio latency: %s\n", hdmi_latency(x[b + 1], false).c_str());
+			if (x[b] == x[b + 2] &&
+			    x[b + 1] == x[b + 3])
+				warn("Progressive and Interlaced latency values are identical, no need for both.\n");
 			b += 2;
+			hdmi_latency(x[b], x[b + 1], true);
 		}
+		b += 2;
 	}
 
 	if (!(x[7] & 0x20))

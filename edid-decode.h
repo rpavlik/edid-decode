@@ -330,6 +330,7 @@ struct edid_state {
 	void list_established_timings();
 
 	void print_vic_index(const char *prefix, unsigned idx, const char *suffix, bool ycbcr420 = false);
+	void hdmi_latency(unsigned char vid_lat, unsigned char aud_lat, bool is_ilaced);
 	void cta_vcdb(const unsigned char *x, unsigned length);
 	void cta_svd(const unsigned char *x, unsigned n, bool for_ycbcr420);
 	void cta_y420cmdb(const unsigned char *x, unsigned length);
