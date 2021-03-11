@@ -1067,6 +1067,43 @@ static void cta_amd(const unsigned char *x, unsigned length)
 	}
 }
 
+static std::string display_use_case(unsigned char x)
+{
+	switch (x) {
+	case 1: return "Test equipment";
+	case 2: return "Generic display";
+	case 3: return "Television display";
+	case 4: return "Desktop productivity display";
+	case 5: return "Desktop gaming display";
+	case 6: return "Presentation display";
+	case 7: return "Virtual reality headset";
+	case 8: return "Augmented reality";
+	case 16: return "Video wall display";
+	case 17: return "Medical imaging display";
+	case 18: return "Dedicated gaming display";
+	case 19: return "Dedicated video monitor display";
+	case 20: return "Accessory display";
+	default: break;
+	}
+	fail("Unknown Display product primary use case 0x%02x.\n", x);
+	return std::string("Unknown display use case (") + utohex(x) + ")";
+}
+
+static void cta_microsoft(const unsigned char *x, unsigned length)
+{
+	// This VSDB is documented at:
+	// https://docs.microsoft.com/en-us/windows-hardware/drivers/display/specialized-monitors-edid-extension
+	printf("    Version: %u\n", x[0]);
+	if (x[0] > 2) {
+		// In version 1 and 2 these bits should always be set to 0.
+		printf("    Desktop Usage: %u\n", (x[1] >> 6) & 1);
+		printf("    Third-Party Usage: %u\n", (x[1] >> 5) & 1);
+	}
+	printf("    Display Product Primary Use Case: %u (%s)\n", x[1] & 0x1f,
+	       display_use_case(x[1] & 0x1f).c_str());
+	hex_block("    Container ID: ", x + 2, length - 2, false, 16);
+}
+
 static void cta_hdr10plus(const unsigned char *x, unsigned length)
 {
 	printf("    Application Version: %u", x[0]);
@@ -2170,6 +2207,10 @@ void edid_state::cta_block(const unsigned char *x, bool duplicate)
 		}
 		if (oui == 0x00001a) {
 			cta_amd(x + 4, length - 3);
+			break;
+		}
+		if (oui == 0xca125c && length == 0x15) {
+			cta_microsoft(x + 4, length - 3);
 			break;
 		}
 		hex_block("    ", x + 4, length - 3);
