@@ -586,6 +586,19 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 	return ok;
 }
 
+std::string containerid2s(const unsigned char *x)
+{
+	char buf[40];
+
+	sprintf(buf, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		x[0], x[1], x[2], x[3],
+		x[4], x[5],
+		x[6], x[7],
+		x[8], x[9],
+		x[10], x[11], x[12], x[13], x[14], x[15]);
+	return buf;
+}
+
 std::string utohex(unsigned char x)
 {
 	char buf[10];

@@ -1101,7 +1101,7 @@ static void cta_microsoft(const unsigned char *x, unsigned length)
 	}
 	printf("    Display Product Primary Use Case: %u (%s)\n", x[1] & 0x1f,
 	       display_use_case(x[1] & 0x1f).c_str());
-	hex_block("    Container ID: ", x + 2, length - 2, false, 16);
+	printf("    Container ID: %s\n", containerid2s(x + 2).c_str());
 }
 
 static void cta_hdr10plus(const unsigned char *x, unsigned length)
