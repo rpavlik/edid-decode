@@ -642,7 +642,7 @@ void edid_state::cta_hdmi_block(const unsigned char *x, unsigned length)
 		fail("Empty Data Block with length %u.\n", length);
 		return;
 	}
-	printf("    Source physical address: %u.%u.%u.%u\n", x[3] >> 4, x[3] & 0x0f,
+	printf("    Source physical address: %x.%x.%x.%x\n", x[3] >> 4, x[3] & 0x0f,
 	       x[4] >> 4, x[4] & 0x0f);
 
 	if (length < 6)
