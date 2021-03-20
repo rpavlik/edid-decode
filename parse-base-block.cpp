@@ -1049,8 +1049,10 @@ void edid_state::detailed_timings(const char *prefix, const unsigned char *x,
 	if (block_nr == 0 && base.dtd_cnt == 1) {
 		te.type = "DTD   1";
 		base.preferred_timing = te;
-		cta.preferred_timings.push_back(te);
-		cta.native_timings.push_back(te);
+		if (has_cta) {
+			cta.preferred_timings.push_back(te);
+			cta.native_timings.push_back(te);
+		}
 	}
 	if (base_or_cta)
 		cta.vec_dtds.push_back(te);
