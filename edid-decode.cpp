@@ -42,17 +42,18 @@ enum output_format {
 enum Option {
 	OptCheck = 'c',
 	OptCheckInline = 'C',
+	OptFBModeTimings = 'F',
 	OptHelp = 'h',
+	OptOnlyHexDump = 'H',
+	OptLongTimings = 'L',
 	OptNativeTimings = 'n',
 	OptOutputFormat = 'o',
 	OptPreferredTimings = 'p',
 	OptPhysicalAddress = 'P',
-	OptLongTimings = 'L',
-	OptShortTimings = 'S',
-	OptFBModeTimings = 'F',
-	OptXModeLineTimings = 'X',
-	OptV4L2Timings = 'V',
 	OptSkipHexDump = 's',
+	OptShortTimings = 'S',
+	OptV4L2Timings = 'V',
+	OptXModeLineTimings = 'X',
 	OptSkipSHA = 128,
 	OptHideSerialNumbers,
 	OptVersion,
@@ -78,6 +79,7 @@ static struct option long_options[] = {
 	{ "preferred-timings", no_argument, 0, OptPreferredTimings },
 	{ "physical-address", no_argument, 0, OptPhysicalAddress },
 	{ "skip-hex-dump", no_argument, 0, OptSkipHexDump },
+	{ "only-hex-dump", no_argument, 0, OptOnlyHexDump },
 	{ "skip-sha", no_argument, 0, OptSkipSHA },
 	{ "hide-serial-numbers", no_argument, 0, OptHideSerialNumbers },
 	{ "version", no_argument, 0, OptVersion },
@@ -129,6 +131,7 @@ static void usage(void)
 	       "  -F, --fbmode          Report all long video timings in fb.modes format.\n"
 	       "  -V, --v4l2-timings    Report all long video timings in v4l2-dv-timings.h format.\n"
 	       "  -s, --skip-hex-dump   Skip the initial hex dump of the EDID.\n"
+	       "  -H, --only-hex-dump   Only output the hex dump of the EDID.\n"
 	       "  --skip-sha            Skip the SHA report.\n"
 	       "  --hide-serial-numbers Replace serial numbers with '...'\n"
 	       "  --version             show the edid-decode version (SHA)\n"
@@ -1186,6 +1189,8 @@ int edid_state::parse_edid()
 		printf("edid-decode (hex):\n\n");
 		for (unsigned i = 0; i < num_blocks; i++) {
 			hex_block("", edid + i * EDID_PAGE_SIZE, EDID_PAGE_SIZE, false);
+			if (i == num_blocks - 1 && options[OptOnlyHexDump])
+				return 0;
 			printf("\n");
 		}
 		printf("----------------\n\n");
