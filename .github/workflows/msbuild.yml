@@ -11,7 +11,7 @@ env:
   # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
   BUILD_CONFIGURATION: Release
 
-  OUTDIR: edid-decode-built/
+  OUTDIR: vs/edid-decode-built
 
 jobs:
   build:
@@ -29,9 +29,8 @@ jobs:
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
 
-    - run: mkdir ${{env.OUTDIR}}
-    - run: Copy-Item -Path "vs/x64/edid-decode.exe","vs/x64/README","vs/x64/README.md" -Destination "${{env.OUTDIR}}/"
+    - run: Copy-Item -Path "README","README.md" -Destination "${{env.OUTDIR}}/"
     - uses: actions/upload-artifact@v2
       with:
-        name: my-artifact
+        name: Windows-Binary
         path: ${{env.OUTDIR}}
