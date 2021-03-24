@@ -94,6 +94,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="compat_getsubopt.c" />
     <ClCompile Include="getopt.c" />
     <ClCompile Include="..\edid-decode.cpp" />
     <ClCompile Include="..\parse-base-block.cpp" />

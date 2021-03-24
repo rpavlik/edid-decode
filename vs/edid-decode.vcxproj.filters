@@ -34,6 +34,9 @@
     <ClCompile Include="..\edid-decode.cpp">
       <Filter>edid-decode</Filter>
     </ClCompile>
+    <ClCompile Include="compat_getsubopt.c">
+      <Filter>windows-unix</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\edid-decode.h">
