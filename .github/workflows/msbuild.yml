@@ -11,7 +11,8 @@ env:
   # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
   BUILD_CONFIGURATION: Release
 
-  OUTDIR: vs/edid-decode-built
+  # Note that "OUTDIR" is a special name for MSBuild which is why it works this way.
+  OUTDIR: ${{env.GITHUB_WORKSPACE}}/edid-decode-built
 
 jobs:
   build:
@@ -29,8 +30,11 @@ jobs:
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
 
-    - run: Copy-Item -Path "README","README.md" -Destination "${{env.OUTDIR}}/"
-    - uses: actions/upload-artifact@v2
+    - name: Copy README files
+      run: Copy-Item -Path "README","README.md" -Destination "${{env.OUTDIR}}/"
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+    - name: Upload binaries
+      uses: actions/upload-artifact@v2
       with:
         name: Windows-Binary
-        path: vs/${{env.OUTDIR}}
+        path: ${{env.OUTDIR}}
