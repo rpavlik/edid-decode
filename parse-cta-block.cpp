@@ -213,6 +213,20 @@ const struct timings *find_hdmi_vic_id(unsigned char hdmi_vic)
 	return NULL;
 }
 
+const struct timings *cta_close_match_to_vic(const timings &t, unsigned &vic)
+{
+	for (vic = 1; vic <= ARRAY_SIZE(edid_cta_modes1); vic++) {
+		if (timings_close_match(t, edid_cta_modes1[vic - 1]))
+			return &edid_cta_modes1[vic - 1];
+	}
+	for (vic = 193; vic < ARRAY_SIZE(edid_cta_modes2) + 193; vic++) {
+		if (timings_close_match(t, edid_cta_modes1[vic - 193]))
+			return &edid_cta_modes1[vic - 193];
+	}
+	vic = 0;
+	return NULL;
+}
+
 void edid_state::cta_list_vics()
 {
 	char type[16];

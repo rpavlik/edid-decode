@@ -453,9 +453,12 @@ std::string block_name(unsigned char block);
 void calc_ratio(struct timings *t);
 const char *oui_name(unsigned oui, bool reverse = false);
 
+bool timings_close_match(const timings &t1, const timings &t2);
 const struct timings *find_dmt_id(unsigned char dmt_id);
+const struct timings *close_match_to_dmt(const timings &t, unsigned &dmt);
 const struct timings *find_vic_id(unsigned char vic);
 const struct timings *find_hdmi_vic_id(unsigned char hdmi_vic);
+const struct timings *cta_close_match_to_vic(const timings &t, unsigned &vic);
 unsigned char hdmi_vic_to_vic(unsigned char hdmi_vic);
 char *extract_string(const unsigned char *x, unsigned len);
 

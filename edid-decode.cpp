@@ -295,6 +295,37 @@ static void or_str(std::string &s, const std::string &flag, unsigned &num_flags)
 	num_flags++;
 }
 
+/*
+ * Return true if the timings are a close, but not identical,
+ * match. The only differences allowed are polarities and
+ * porches and syncs, provided the total blanking remains the
+ * same.
+ */
+bool timings_close_match(const timings &t1, const timings &t2)
+{
+	// We don't want to deal with borders, you're on your own
+	// if you are using those.
+	if (t1.hborder || t1.vborder ||
+	    t2.hborder || t2.vborder)
+		return false;
+	if (t1.hact != t2.hact || t1.vact != t2.vact ||
+	    t1.interlaced != t2.interlaced ||
+	    t1.pixclk_khz != t2.pixclk_khz ||
+	    t1.hfp + t1.hsync + t1.hbp != t2.hfp + t2.hsync + t2.hbp ||
+	    t1.vfp + t1.vsync + t1.vbp != t2.vfp + t2.vsync + t2.vbp)
+		return false;
+	if (t1.hfp == t2.hfp &&
+	    t1.hsync == t2.hsync &&
+	    t1.hbp == t2.hbp &&
+	    t1.pos_pol_hsync == t2.pos_pol_hsync &&
+	    t1.vfp == t2.vfp &&
+	    t1.vsync == t2.vsync &&
+	    t1.vbp == t2.vbp &&
+	    t1.pos_pol_vsync == t2.pos_pol_vsync)
+		return false;
+	return true;
+}
+
 static void print_modeline(unsigned indent, const struct timings *t, double refresh)
 {
 	unsigned offset = (!t->even_vtotal && t->interlaced) ? 1 : 0;
@@ -552,6 +583,18 @@ bool edid_state::print_timings(const char *prefix, const struct timings *t,
 
 	if (!do_checks)
 		return ok;
+
+	if (!memcmp(type, "DTD", 3)) {
+		unsigned vic, dmt;
+		const timings *vic_t = cta_close_match_to_vic(*t, vic);
+
+		if (vic_t)
+			warn("DTD is similar but not identical to VIC %u.\n", vic);
+
+		const timings *dmt_t = close_match_to_dmt(*t, dmt);
+		if (!vic_t && dmt_t)
+			warn("DTD is similar but not identical to DMT 0x%02x.\n", dmt);
+	}
 
 	if (refresh) {
 		min_vert_freq_hz = min(min_vert_freq_hz, refresh);

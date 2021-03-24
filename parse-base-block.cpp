@@ -383,6 +383,18 @@ void edid_state::list_established_timings()
 	}
 }
 
+const struct timings *close_match_to_dmt(const timings &t, unsigned &dmt)
+{
+	for (unsigned i = 0; i < ARRAY_SIZE(dmt_timings); i++) {
+		if (timings_close_match(t, dmt_timings[i].t)) {
+			dmt = dmt_timings[i].dmt_id;
+			return &dmt_timings[i].t;
+		}
+	}
+	dmt = 0;
+	return NULL;
+}
+
 void edid_state::list_dmts()
 {
 	char type[16];
