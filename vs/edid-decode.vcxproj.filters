@@ -37,6 +37,9 @@
     <ClCompile Include="compat_getsubopt.c">
       <Filter>windows-unix</Filter>
     </ClCompile>
+    <ClCompile Include="..\calc-gtf-cvt.cpp">
+      <Filter>edid-decode</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\edid-decode.h">
