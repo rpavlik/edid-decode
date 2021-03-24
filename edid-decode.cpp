@@ -873,8 +873,10 @@ static bool extract_edid(int fd, FILE *error)
 		edid_data.insert(edid_data.end(), buf, buf + i);
 	}
 
-	if (edid_data.empty())
+	if (edid_data.empty()) {
+		state.edid_size = 0;
 		return false;
+	}
 
 	const char *data = &edid_data[0];
 	const char *start;
@@ -1066,6 +1068,10 @@ static int edid_from_file(const char *from_file, FILE *error)
 
 	odd_hex_digits = false;
 	if (!extract_edid(fd, error)) {
+		if (!state.edid_size) {
+			fprintf(error, "EDID of '%s' was empty.\n", from_file);
+			return -1;
+		}
 		fprintf(error, "EDID extract of '%s' failed: ", from_file);
 		if (odd_hex_digits)
 			fprintf(error, "odd number of hexadecimal digits.\n");
