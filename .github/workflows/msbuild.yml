@@ -12,7 +12,7 @@ env:
   BUILD_CONFIGURATION: Release
 
   # Note that "OUTDIR" is a special name for MSBuild which is why it works this way.
-  OUTDIR: ${{env.GITHUB_WORKSPACE}}/edid-decode-built
+  OUTDIR: ${{GITHUB_WORKSPACE}}/edid-decode-built
 
 jobs:
   build:
